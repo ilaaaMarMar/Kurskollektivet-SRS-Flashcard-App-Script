@@ -83,6 +83,34 @@ function parseDateToString(val) {
   return val.toString().trim();
 }
 
+function getStageFromInterval(ivl, isNew) {
+  if (isNew || ivl < 1) return 1;
+  if (ivl <= 3) return 2;
+  if (ivl <= 7) return 3;
+  if (ivl <= 14) return 4;
+  if (ivl <= 30) return 5;
+  if (ivl <= 60) return 6;
+  if (ivl <= 90) return 7;
+  if (ivl <= 180) return 8;
+  if (ivl <= 359) return 9;
+  return 10;
+}
+
+function getIntervalForStage(stage) {
+  switch (stage) {
+    case 1: return 1 / 24;
+    case 2: return 1;
+    case 3: return 3;
+    case 4: return 7;
+    case 5: return 14;
+    case 6: return 30;
+    case 7: return 60;
+    case 8: return 90;
+    case 9: return 180;
+    default: return 360;
+  }
+}
+
 function getWeekKey() {
   var today = new Date();
   var timeZone = SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getSpreadsheetTimeZone() : "GMT";
@@ -518,11 +546,15 @@ function saveProgressToSheet(activeDeckId, uKey, progressMap) {
 
     if (!sheet) {
       sheet = ss.insertSheet('SRS_Progress');
-      sheet.appendRow(['UserKey', 'CardId', 'Interval', 'NextReview', 'FailCount', 'IsLeech', 'LastReviewed', 'EF']);
+      sheet.appendRow(['UserKey', 'CardId', 'Interval', 'NextReview', 'FailCount', 'IsLeech', 'LastReviewed', 'EF', 'PrevInterval']);
     }
 
     var data = sheet.getDataRange().getValues();
-    var headers = data[0] || ['UserKey', 'CardId', 'Interval', 'NextReview', 'FailCount', 'IsLeech', 'LastReviewed', 'EF'];
+    var headers = data[0] || ['UserKey', 'CardId', 'Interval', 'NextReview', 'FailCount', 'IsLeech', 'LastReviewed', 'EF', 'PrevInterval'];
+    if (headers.length < 9) {
+      headers = headers.slice();
+      while (headers.length < 9) headers.push(headers.length === 8 ? 'PrevInterval' : '');
+    }
     var newData = [headers];
 
     for (var i = 1; i < data.length; i++) {
@@ -531,11 +563,11 @@ function saveProgressToSheet(activeDeckId, uKey, progressMap) {
 
     for (var cardId in progressMap) {
       var p = progressMap[cardId];
-      newData.push([uKey, cardId, p.interval, "'" + p.nextReview, p.failCount, p.isLeech ? 1 : 0, p.lastReviewed ? "'" + p.lastReviewed : "", p.ef]);
+      newData.push([uKey, cardId, p.interval, "'" + p.nextReview, p.failCount, p.isLeech ? 1 : 0, p.lastReviewed ? "'" + p.lastReviewed : "", p.ef, p.prevInterval || ""]);
     }
 
     sheet.clearContents();
-    sheet.getRange(1, 1, newData.length, 8).setValues(newData);
+    sheet.getRange(1, 1, newData.length, newData[0].length).setValues(newData);
   } catch (e) {
     console.error("Failed to save progress: " + e.message);
   } finally {
@@ -646,7 +678,8 @@ function saveSegmentResults(batchArray, activeUserKey, displayName, customDeckId
           failCount: pData[i][4] !== undefined ? parseFloat(pData[i][4]) : 0, 
           isLeech: pData[i][5] === 1,
           lastReviewed: pData[i][6] ? parseDateToString(pData[i][6]) : "",
-          ef: pData[i][7] !== undefined ? parseFloat(pData[i][7]) : 2.5
+          ef: pData[i][7] !== undefined ? parseFloat(pData[i][7]) : 2.5,
+          prevInterval: pData[i][8] !== undefined && pData[i][8] !== "" ? parseFloat(pData[i][8]) : null
         };
       }
     }
@@ -664,69 +697,106 @@ function saveSegmentResults(batchArray, activeUserKey, displayName, customDeckId
     var confidence = item.confidence || (isCorrect ? 'good' : 'again');
     var wasNew = item.wasNew;
 
-    var cardState = savedProgress[cardId] || { interval: 1, failCount: 0, isLeech: false, ef: 2.5 };
+    var cardState = savedProgress[cardId] || { interval: 1, failCount: 0, isLeech: false, ef: 2.5, prevInterval: null };
     var currentInterval = parseFloat(cardState.interval) || 1;
     var currentEF = parseFloat(cardState.ef) || 2.5;
-    var failCount = parseFloat(cardState.failCount) || 0; 
+    var failCount = parseFloat(cardState.failCount) || 0;
+    var prevInterval = (cardState.prevInterval !== undefined && cardState.prevInterval !== null && cardState.prevInterval !== "") ? parseFloat(cardState.prevInterval) : null;
+    var wasLeech = !!cardState.isLeech;
 
     // Map confidence to SM-2 Quality score (0-5)
     var q = 4;
-    if (!isCorrect || confidence === 'again') q = 1;
-    else if (confidence === 'hard') q = 3;
-    else if (confidence === 'good') q = 4;
-    else if (confidence === 'easy') q = 5;
-
-    var newInterval = 1;
-
-    if (q < 3) {
-      failCount++;
-      newInterval = (1 / 24); 
-    } else {
-      if (item.isTypo) failCount += 0.5;
-
-      if (wasNew) {
-        if (q === 3) newInterval = (1 / 24);  
-        else if (q === 4) newInterval = 0.25; 
-        else if (q === 5) newInterval = 1;    
-      } else if (currentInterval < 1) {
-        if (q === 5) {
-          newInterval = (currentInterval >= 0.5) ? 3 : 1;
-        } else if (q === 3) {
-          newInterval = currentInterval;
-        } else {
-          if (currentInterval <= 0.26) {
-            newInterval = 0.5; 
-          } else if (currentInterval <= 0.51) {
-            newInterval = 1;   
-          } else {
-            newInterval = 1;
-          }
-        }
-      } else {
-        var nowTimeMs = new Date().getTime();
-        var nextReviewMs = new Date(cardState.nextReview.replace(' ', 'T')).getTime();
-        var daysEarly = (nextReviewMs - nowTimeMs) / (1000 * 60 * 60 * 24);
-
-        if (daysEarly > 0.5 && currentInterval >= 1) {
-          var elapsedDays = Math.max(0, currentInterval - daysEarly);
-          
-          if (elapsedDays < 0.5) {
-            newInterval = currentInterval;
-          } else {
-            newInterval = currentInterval + (elapsedDays * (currentEF - 1));
-          }
-        } else {
-          newInterval = currentInterval * currentEF;
-        }
-      }
+    if (!isCorrect || confidence === 'again') {
+      q = 1;
+    } else if (item.isTypo) {
+      q = 3;
+    } else if (confidence === 'hard') {
+      q = 3;
+    } else if (confidence === 'good') {
+      q = 4;
+    } else if (confidence === 'easy') {
+      q = 5;
     }
 
-    var newEF = currentEF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
-    if (newEF < 1.3) newEF = 1.3;
+    if (!isCorrect) {
+      failCount += 1;
+    } else if (item.isTypo) {
+      failCount += 0.5;
+    }
+
+    if (!isCorrect || item.isTypo) {
+      var cardStage = getStageFromInterval(currentInterval, wasNew);
+      console.log('Review note:', cardId, 'stage', cardStage, 'interval', currentInterval, 'EF', currentEF, 'failCount', failCount, 'typo', !!item.isTypo, 'difficultMode', !!item.inDifficultMode);
+    }
+
+    var newInterval = 1;
+    var newEF = currentEF;
+    var isLeech = wasLeech || failCount >= 1;
+
+    if (item.inDifficultMode && isCorrect) {
+      isLeech = false;
+      failCount = 0;
+      var baseInterval = prevInterval || currentInterval;
+      var baseStage = getStageFromInterval(baseInterval, wasNew);
+      var targetStage = Math.max(1, baseStage - 1);
+      newInterval = getIntervalForStage(targetStage);
+      newEF = Math.max(1.3, currentEF - 0.1);
+      prevInterval = null;
+    } else {
+      if (q < 3) {
+        newInterval = (1 / 24);
+      } else {
+        if (wasNew) {
+          if (q === 3) newInterval = (1 / 24);
+          else if (q === 4) newInterval = 0.25;
+          else if (q === 5) newInterval = 1;
+        } else if (currentInterval < 1) {
+          if (q === 5) {
+            newInterval = (currentInterval >= 0.5) ? 3 : 1;
+          } else if (q === 3) {
+            newInterval = currentInterval;
+          } else {
+            if (currentInterval <= 0.26) {
+              newInterval = 0.5;
+            } else if (currentInterval <= 0.51) {
+              newInterval = 1;
+            } else {
+              newInterval = 1;
+            }
+          }
+        } else {
+          var nowTimeMs = new Date().getTime();
+          var nextReviewMs = new Date(cardState.nextReview.replace(' ', 'T')).getTime();
+          var daysEarly = (nextReviewMs - nowTimeMs) / (1000 * 60 * 60 * 24);
+
+          if (daysEarly > 0.5 && currentInterval >= 1) {
+            var elapsedDays = Math.max(0, currentInterval - daysEarly);
+            if (elapsedDays < 0.5) {
+              newInterval = currentInterval;
+            } else {
+              newInterval = currentInterval + (elapsedDays * (currentEF - 1));
+            }
+          } else {
+            newInterval = currentInterval * currentEF;
+          }
+        }
+      }
+
+      if (!wasLeech && failCount >= 1 && prevInterval === null) {
+        prevInterval = currentInterval;
+      }
+
+      if (newInterval > 3) {
+        newInterval += (Math.random() * 0.1 - 0.05) * newInterval;
+      }
+
+      newEF = currentEF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+      if (newEF < 1.3) newEF = 1.3;
+    }
 
     var fuzzedInterval = applyFuzz(newInterval);
 
-    var isLeech = failCount >= 3;
+    isLeech = item.inDifficultMode && isCorrect ? false : (failCount >= 1);
 
     var msToAdd = fuzzedInterval * 24 * 60 * 60 * 1000;
     var nextDateObj = new Date(nowMs + msToAdd);
@@ -739,7 +809,8 @@ function saveSegmentResults(batchArray, activeUserKey, displayName, customDeckId
       failCount: failCount,
       isLeech: isLeech,
       lastReviewed: todayStr,
-      ef: newEF
+      ef: newEF,
+      prevInterval: prevInterval
     };
 
     if (wasNew) newDelta++;
@@ -864,7 +935,7 @@ function checkSpelling(text, lang) {
     ];
     
     // Strict prompt to ensure we only get 'OK' or the corrected text back
-    var promptStr = "You are a strict spellchecker for the language code '" + lang + "'. If the following text contains typos, output ONLY the corrected text without any quotes or explanations. If it is perfectly spelled, output exactly the word 'OK'. Text: " + cleanPrompt;
+    var promptStr = "You are a strict spellchecker for the language code '" + lang + "'. If the following text contains typos, output ONLY the corrected text without any quotes or explanations. If it is perfectly spelled, output exactly the word 'OK'. For Norwegian input (no, nb, nn): if the text is a noun or noun phrase missing the indefinite article, suggest the corrected form with the proper article prepended (en, ei, or et). Text: " + cleanPrompt;
     var payload = { "contents": [{ "parts": [{ "text": promptStr }] }], "generationConfig": { "temperature": 0.1 } };
     var options = { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true };
     

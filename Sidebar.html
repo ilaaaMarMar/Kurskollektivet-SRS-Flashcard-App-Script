@@ -405,8 +405,9 @@
           <button class="btn-primary" style="width:auto; padding:0 12px; white-space:nowrap;" onclick="runAiTranslation()" id="btnRunTranslate">🔍 Translate</button>
         </div>
         
-        <div id="spellcheckArea" style="display:none; color: var(--warning-text); font-size: 11px; margin-top: -4px; margin-bottom: 10px; font-weight: 600; text-align: left;">
-           <span id="lblDidYouMean">Did you mean:</span> <a href="#" id="spellcheckSuggestion" style="color: var(--primary); text-decoration: underline; cursor: pointer;"></a>
+        <div id="spellcheckArea" style="display:none; color: var(--warning-text); font-size: 14px; margin-top: -4px; margin-bottom: 10px; font-weight: 700; text-align: left;">
+           <span id="lblDidYouMean" style="font-size: 14px; font-weight: 800;">Did you mean:</span>
+           <a href="#" id="spellcheckSuggestion" style="color: var(--primary); text-decoration: none; cursor: pointer; font-size: 15px; font-weight: 800; padding: 6px 10px; border-radius: 8px; background: rgba(59, 130, 246, 0.12); display: inline-block; margin-top: 4px;">Suggestion</a>
         </div>
 
         <div id="transResultsArea" style="display:none; flex-direction:column; gap:6px; margin-bottom:12px; background:var(--bg-secondary); padding:8px; border-radius:8px;">
@@ -478,8 +479,7 @@
 
       <!-- Action Buttons -->
       <button class="btn-primary" id="startReviewBtn" onclick="startQuiz('due')">🚀 Study Due Cards</button>
-      <button class="btn-success" id="startNewBtn" onclick="startQuiz('new')">🌱 Study New Cards</button>
-      <button class="btn-secondary" id="dashStudyAllBtn" onclick="startQuiz('all')">🔀 Study Entire Deck</button>
+      <button class="btn-success" id="startNewBtn" onclick="startQuiz('new')">✨ Study New Cards</button>
 
       <div class="row">
         <button class="btn-violet" id="openTranslatorBtn" onclick="openTranslateModal()">🔍 Translate & Quick Add</button>
@@ -906,7 +906,7 @@
           popoutTitle: "Open in larger window", deckPrompt: "Paste the full Google Spreadsheet URL or ID for your deck (leave blank to reset to default):",
           namePrompt: "Choose your custom display name for the Leaderboard:", studiedToday: "Studied Today",
           dueForStudy: "Due For Study", studyDue: "🚀 Study Due Cards", studyNew: "🌱 Study New Cards", studyLeeches: "⚡ Study Difficult Cards",
-          studyAll: "🔀 Study Entire Deck", consistency: "🗓️ Study Consistency", deckMastery: "Deck Mastery Levels", topLearners: "🏆 Leaderboard",
+          consistency: "🗓️ Study Consistency", deckMastery: "Deck Mastery Levels", topLearners: "🏆 Leaderboard",
           lbAllTime: "All-Time", lbThisWeek: "This Week", lbThisMonth: "This Month", rangeWeek: "1 Week", rangeMonth: "1 Month", rangeYear: "1 Year",
           less: "Less", more: "More", reveal: "Reveal Answer", gotIt: "✅ Got It!", submit: "Submit Answer", nextCard: "Next Card ➔",
           returnDash: "🏠 Return to Dashboard", listen: "Listen", listenAns: "Listen Answer", override: "Actually, I was correct",
@@ -948,7 +948,7 @@
           popoutTitle: "Åpne i et større vindu", deckPrompt: "Lim inn Google-regnearkets URL eller ID for kortstokken din (la stå tom for å tilbakestille):",
           namePrompt: "Velg ditt tilpassede visningsnavn for ledertavlen:", studiedToday: "Studert i dag",
           dueForStudy: "Forfaller til repetisjon", studyDue: "🚀 Studer forfalte kort", studyNew: "🌱 Studer nye kort", studyLeeches: "⚡ Studer vanskelige kort",
-          studyAll: "🔀 Studer hele kortstokken", consistency: "🗓️ Studiekontinuitet", deckMastery: "Mestringsnivå", topLearners: "🏆 Ledertavle",
+          consistency: "🗓️ Studiekontinuitet", deckMastery: "Mestringsnivå", topLearners: "🏆 Ledertavle",
           lbAllTime: "Gjennom tidene", lbThisWeek: "Denne uken", lbThisMonth: "Denne måneden", rangeWeek: "1 uke", rangeMonth: "1 måned", rangeYear: "1 år",
           less: "Mindre", more: "Mer", reveal: "Vis svar", gotIt: "✅ Skjønte det!", submit: "Send inn svar", nextCard: "Neste kort ➔",
           returnDash: "🏠 Tilbake til dashbord", listen: "Lytt", listenAns: "Lytt til svar", override: "Jeg hadde faktisk rett",
@@ -990,7 +990,7 @@
           popoutTitle: "Apri in una finestra più grande", deckPrompt: "Incolla l'URL o l'ID del foglio Google per il tuo mazzo (lascia vuoto per ripristinare):",
           namePrompt: "Scegli il tuo nome visualizzato per la classifica:", studiedToday: "Studiato oggi",
           dueForStudy: "Da ripassare", studyDue: "🚀 Studia carte da ripassare", studyNew: "🌱 Studia nuove carte", studyLeeches: "⚡ Studia carte difficili",
-          studyAll: "🔀 Studia tutto il mazzo", consistency: "🗓️ Frequenza di studio", deckMastery: "Livelli di padronanza", topLearners: "🏆 Classifica",
+          consistency: "🗓️ Frequenza di studio", deckMastery: "Livelli di padronanza", topLearners: "🏆 Classifica",
           lbAllTime: "Tutti i tempi", lbThisWeek: "Questa settimana", lbThisMonth: "Questo mese", rangeWeek: "1 Settimana", rangeMonth: "1 Mese", rangeYear: "1 Anno",
           less: "Meno", more: "Di più", reveal: "Mostra risposta", gotIt: "✅ Capito!", submit: "Invia risposta", nextCard: "Prossima carta ➔",
           returnDash: "🏠 Torna alla dashboard", listen: "Ascolta", listenAns: "Ascolta risposta", override: "In realtà era giusto",
@@ -1801,7 +1801,7 @@
           let ef = cardState ? (parseFloat(cardState.ef) || 2.5) : 2.5; 
           let nextReviewStr = cardState ? (cardState.nextReview || todayStr) : todayStr;
           let failCount = cardState ? (parseFloat(cardState.failCount) || 0) : 0;
-          let isLeech = cardState ? (cardState.isLeech || failCount >= 3) : false;
+          let isLeech = cardState ? (cardState.isLeech || failCount >= 1) : false;
           
           let nextReviewDate = new Date(nextReviewStr.replace(' ', 'T'));
           let isDue = (!isNew && nextReviewDate.getTime() <= nowMs);
@@ -1884,7 +1884,7 @@
         const dueC = duePool.length; const newCardC = newPool.length; const leechC = leechPool.length;
 
         const startBtn = $('startReviewBtn'); const startNewBtn = $('startNewBtn');
-        const startLeechBtn = $('startLeechBtn'); const studyAllBtn = $('dashStudyAllBtn');
+        const startLeechBtn = $('startLeechBtn');
         $('btnViewStudied').disabled = studiedTodayPool.length === 0;
 
         if (dueCountdownInterval) clearInterval(dueCountdownInterval);
@@ -1892,7 +1892,7 @@
 
         if (allCards.length === 0) {
           startBtn.innerText = "⚠️ No Cards Found"; startBtn.disabled = true; startNewBtn.innerText = t.studyNew;
-          startNewBtn.disabled = true; startLeechBtn.disabled = true; studyAllBtn.disabled = true;
+          startNewBtn.disabled = true; startLeechBtn.disabled = true;
         } else {
           if (dueC === 0) { 
             if (nextDueTimestamp !== Infinity) {
@@ -1907,7 +1907,6 @@
           }
           if (newCardC === 0) { startNewBtn.innerText = t.noNewCards; startNewBtn.disabled = true; } else { startNewBtn.innerText = `${t.studyNew} (${newCardC})`; startNewBtn.disabled = false; }
           if (leechC === 0) { startLeechBtn.innerText = t.noLeechCards; startLeechBtn.disabled = true; } else { startLeechBtn.innerText = `${t.studyLeeches} (${leechC})`; startLeechBtn.disabled = false; }
-          studyAllBtn.innerText = t.studyAll; studyAllBtn.disabled = false;
         }
 
         renderHeatmap();
@@ -2154,10 +2153,7 @@
         activeQuizMode = mode;
         processCardsForActivePair();
 
-        if (mode === 'all') { 
-          nonDuePool = shuffleArray([...allCards]); duePool = []; newPool = []; 
-        } 
-        else if (mode === 'leeches') { 
+          if (mode === 'leeches') { 
           leechPool = shuffleArray(leechPool); 
         } 
         else if (mode === 'new') { 
@@ -2734,7 +2730,11 @@
 
       function submitAnswer(isCorrect, confidence, isTypo) {
         if (!currentCard) return;
-        const cardId = currentCard.id; 
+        const cardId = currentCard.id;
+        const currentStage = getStageFromInterval(currentCard.interval, currentCard.isNew);
+        if (!isCorrect) {
+          console.log('Incorrect answer', cardId, 'stage', currentStage, 'interval', currentCard.interval, 'EF', currentCard.ef, 'mode', activeQuizMode, 'typo', isTypo);
+        }
         
         let conf = confidence;
         if (!conf) {
@@ -2757,45 +2757,72 @@
         
         let q = 4;
         if (!isCorrect || conf === 'again') q = 1;
+        else if (isTypo) q = 3;
         else if (conf === 'hard') q = 3;
         else if (conf === 'good') q = 4;
         else if (conf === 'easy') q = 5;
 
         let currentInterval = currentCard.interval || 1;
         let currentEF = currentCard.ef || 2.5;
+        let currentPrevInterval = currentCard.prevInterval || null;
+        let inDifficultMode = activeQuizMode === 'leeches';
+        let localFailCount = currentCard.failCount || 0;
 
-        let newEF = currentEF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
-        if (newEF < 1.3) newEF = 1.3;
-
-        let newInterval = 1;
-
-        if (q < 3) {
-          newInterval = (15 / 1440); 
-        } else {
-          if (wasNewCard) {
-            if (q === 3) newInterval = (15 / 1440);
-            else if (q === 4) newInterval = 0.25; 
-            else if (q === 5) newInterval = 1;    
-          } else if (currentInterval < 1) { 
-            if (q === 5) newInterval = (currentInterval >= 0.5) ? 3 : 1;
-            else if (q === 3) newInterval = currentInterval;
-            else {
-              if (currentInterval <= 0.26) newInterval = 0.5; 
-              else if (currentInterval <= 0.51) newInterval = 1; 
-              else newInterval = 1;
-            }
-          } else {
-            if (q === 3) newInterval = currentInterval * 1.2;
-            else if (q === 4) newInterval = currentInterval * currentEF;
-            else if (q === 5) newInterval = currentInterval * currentEF * 1.3;
-          }
+        if (!isCorrect) {
+          localFailCount += 1;
+        } else if (isTypo) {
+          localFailCount += 0.5;
         }
 
-        if (newInterval > 3) newInterval += (Math.random() * 0.1 - 0.05) * newInterval;
+        let newEF = currentEF;
+        let newInterval = 1;
+
+        if (inDifficultMode && isCorrect) {
+          currentCard.isLeech = false;
+          localFailCount = 0;
+          let baseInterval = currentPrevInterval || currentInterval;
+          let baseStage = getStageFromInterval(baseInterval, currentCard.isNew);
+          let targetStage = Math.max(1, baseStage - 1);
+          newInterval = getIntervalForStage(targetStage);
+          newEF = Math.max(1.3, currentEF - 0.1);
+          currentCard.prevInterval = null;
+        } else {
+          if (q < 3) {
+            newInterval = (15 / 1440);
+          } else {
+            if (wasNewCard) {
+              if (q === 3) newInterval = (15 / 1440);
+              else if (q === 4) newInterval = 0.25;
+              else if (q === 5) newInterval = 1;
+            } else if (currentInterval < 1) {
+              if (q === 5) newInterval = (currentInterval >= 0.5) ? 3 : 1;
+              else if (q === 3) newInterval = currentInterval;
+              else {
+                if (currentInterval <= 0.26) newInterval = 0.5;
+                else if (currentInterval <= 0.51) newInterval = 1;
+                else newInterval = 1;
+              }
+            } else {
+              if (q === 3) newInterval = currentInterval * 1.2;
+              else if (q === 4) newInterval = currentInterval * currentEF;
+              else if (q === 5) newInterval = currentInterval * currentEF * 1.3;
+            }
+          }
+
+          if (!currentCard.isLeech && localFailCount >= 1) {
+            currentCard.prevInterval = currentInterval;
+          }
+
+          if (newInterval > 3) newInterval += (Math.random() * 0.1 - 0.05) * newInterval;
+
+          newEF = currentEF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+          if (newEF < 1.3) newEF = 1.3;
+        }
 
         currentCard.interval = newInterval;
         currentCard.ef = newEF;
-        currentCard.failCount = (currentCard.failCount || 0) + (q < 3 ? 1 : 0);
+        currentCard.failCount = localFailCount;
+        currentCard.isLeech = localFailCount >= 1;
 
         let msToAdd = newInterval * 24 * 60 * 60 * 1000;
         let nextDateObj = new Date(Date.now() + msToAdd);
@@ -2803,10 +2830,11 @@
         rawData.savedProgress[cardId] = {
           interval: newInterval,
           nextReview: nextDateObj.toISOString(),
-          failCount: currentCard.failCount,
-          isLeech: false,
+          failCount: localFailCount,
+          isLeech: currentCard.isLeech,
           lastReviewed: getClientTodayStr(),
-          ef: newEF
+          ef: newEF,
+          prevInterval: currentCard.prevInterval || null
         };
         
         if (isCorrect) {
@@ -2824,7 +2852,7 @@
           segmentStats.reviewCards++; studiedToday.oldCount = (studiedToday.oldCount || 0) + 1;
         }
 
-        const currentResult = { cardId: cardId, isCorrect: isCorrect, confidence: conf, wasNew: wasNewCard, isTypo: isTypo || false };
+        const currentResult = { cardId: cardId, isCorrect: isCorrect, confidence: conf, wasNew: wasNewCard, isTypo: isTypo || false, inDifficultMode: activeQuizMode === 'leeches' };
         pendingBatchResults.push(currentResult); 
 
         // SAVE TO SPREADSHEET IMMEDIATELY
