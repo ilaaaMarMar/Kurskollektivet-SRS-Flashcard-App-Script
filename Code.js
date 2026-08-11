@@ -263,8 +263,18 @@ function getFlashcardData(clientDisplayName, customDeckId, clientTodayStr, clien
   var ss = resolveSpreadsheet(customDeckId);
   var ssName = ss.getName();
   var activeDeckId = ss.getId();
-  var baseUrl = "https://script.google.com/macros/s/AKfycbypzH1uT_9sCzAQgw0MZ_MVuGC1NGHIWnAL0ajixNXiEx4ND2UyKASaNLKiWGElpGtM/exec";
-  var webAppUrl = baseUrl + "?deck=" + encodeURIComponent(activeDeckId) + "&name=" + encodeURIComponent(activeDisplayName);
+  var baseUrl = "";
+  try {
+    baseUrl = PropertiesService.getScriptProperties().getProperty('SRS_WEBAPP_URL') || "";
+  } catch (e) {}
+  if (!baseUrl) {
+    try {
+      baseUrl = ScriptApp.getService().getUrl() || "";
+    } catch (e) {}
+  }
+  var webAppUrl = baseUrl
+    ? (baseUrl + "?deck=" + encodeURIComponent(activeDeckId) + "&name=" + encodeURIComponent(activeDisplayName))
+    : "";
   var sheet = ss.getSheets()[0];
   var allValues = sheet.getDataRange().getValues();
 
@@ -360,7 +370,7 @@ function getFlashcardData(clientDisplayName, customDeckId, clientTodayStr, clien
   };
 }
 
-function saveDisplayName(activeUserKey, newDisplayName) {
+function saveDisplayName(newDisplayName) {
   if (!newDisplayName || newDisplayName === "undefined") return { success: false, message: "Name cannot be empty." };
   var docProps = PropertiesService.getDocumentProperties();
   var uKey = getActiveUserId();
@@ -494,7 +504,7 @@ function translateText(text, sourceLang, targetLang) {
   } catch (e) { return { success: false, error: e.toString() }; }
 }
 
-function addNewCardToSheet(frontText, backText, customDeckId) {
+function addNewCardToSheet(frontText, backText, customDeckId, colIdxA, colIdxB) {
   var lock = LockService.getDocumentLock();
   try {
     lock.waitLock(10000);
@@ -502,11 +512,22 @@ function addNewCardToSheet(frontText, backText, customDeckId) {
     var sheet = ss.getSheets()[0];
     var f = preventInjection(frontText ? frontText.toString().trim() : '');
     var b = preventInjection(backText ? backText.toString().trim() : '');
+    var cA = parseInt(colIdxA, 10);
+    var cB = parseInt(colIdxB, 10);
+
+    if (isNaN(cA) || cA < 0) cA = 0;
+    if (isNaN(cB) || cB < 0) cB = 1;
 
     if (!f || !b) return { success: false, error: "Both front and back required." };
     if (countWords(f) > 20 || countWords(b) > 20) return { success: false, error: "Text exceeds maximum 20 words limit." };
 
-    sheet.appendRow([f, b]);
+    var width = Math.max(sheet.getLastColumn(), cA + 1, cB + 1);
+    var rowData = [];
+    for (var i = 0; i < width; i++) rowData.push('');
+    rowData[cA] = f;
+    rowData[cB] = b;
+
+    sheet.appendRow(rowData);
     return { success: true, rowIndex: sheet.getLastRow(), front: f, back: b };
   } catch (e) {
     return { success: false, error: e.toString() };

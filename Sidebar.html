@@ -704,6 +704,7 @@
 
       let lastGradedCard = null;
       let pendingBatchResults = [];
+      let isFlushInFlight = false;
       let hasAutoPlayed = false;
       let isRetyping = false;
 
@@ -1120,7 +1121,7 @@
                     localStorage.setItem('srs_anon_display_name', rawData.displayName);
                   }
                 })
-                .saveDisplayName(activeUserKey, cleanName);
+                .saveDisplayName(cleanName);
             } else {
               $('loading-ui').style.display = 'block';
               $('main-ui').style.display = 'none';
@@ -1551,7 +1552,8 @@
         }
 
         const cleanA = cleanString(cardLangA);
-        const duplicateCard = allCards.find(c => cleanString(c.front) === cleanA);
+        const cleanB = cleanString(cardLangB);
+        const duplicateCard = allCards.find(c => cleanString(c.front) === cleanA && cleanString(c.back) === cleanB);
         if (duplicateCard) {
             showCustomAlert(`⚠️ Duplicate detected!\n\nThis word already exists in your deck as:\n\n${duplicateCard.front} ➔ ${duplicateCard.back}`);
             return;
@@ -1567,7 +1569,7 @@
             if (res.success) { showCustomAlert("🎉 Card added directly to your spreadsheet deck!"); closeTranslateModal(); fetchData(); } else { showCustomAlert("Error adding card: " + res.error); }
           })
           .withFailureHandler(e => { $('btnSaveTransCard').disabled = false; showCustomAlert("Error saving card: " + e); })
-          .addNewCardToSheet(cardLangA, cardLangB, savedDeckId);
+          .addNewCardToSheet(cardLangA, cardLangB, savedDeckId, selectedPair.idxA, selectedPair.idxB);
       }
 
       function openEditModal() {
@@ -1784,6 +1786,7 @@
         initDomCache();
         const savedTheme = localStorage.getItem('srs_app_theme') || 'kurskollektivet';
         changeAppTheme(savedTheme);
+        setupLifecycleSync();
         
         updateWindowModeUI(); window.onresize = updateWindowModeUI;
         try {
@@ -1924,9 +1927,9 @@
           let nextReviewStr = cardState ? (cardState.nextReview || todayStr) : todayStr;
           let failCount = cardState ? (parseFloat(cardState.failCount) || 0) : 0;
           let isLeech = cardState ? (cardState.isLeech || failCount >= 1) : false;
-          
-          let nextReviewDate = new Date(nextReviewStr.replace(' ', 'T'));
-          let isDue = (!isNew && nextReviewDate.getTime() <= nowMs);
+
+          const nextReviewMs = parseReviewDateMs(nextReviewStr, nowMs);
+          let isDue = (!isNew && nextReviewMs <= nowMs);
 
           let card = {
             id: cardId, front: front, back: back, interval: interval, nextReview: nextReviewStr, ef: ef,
@@ -1945,7 +1948,7 @@
           } else if (isDue) {
             duePool.push(card);
           } else {
-            nextDueTimestamp = Math.min(nextDueTimestamp, nextReviewDate.getTime());
+            nextDueTimestamp = Math.min(nextDueTimestamp, nextReviewMs);
           }
           
           if (cardState && cardState.lastReviewed === todayStr) studiedTodayPool.push(card);
@@ -2069,9 +2072,9 @@
         activeBadges.forEach(b => badgeAwardEventsById[b.id] = []);
 
         if (activeDates.length > 0) {
-            const firstDateStr = activeDates[0];
-            const firstDateObj = new Date(firstDateStr + "T00:00:00Z"); 
-            const weekMap = {}; const monthMap = {}; const yearMap = {};
+          const firstDateStr = activeDates[0];
+          const firstDateObj = new Date(firstDateStr + "T00:00:00Z");
+          const weekMap = {}; const monthMap = {}; const yearMap = {};
           const weekBadges = activeBadges.filter(b => b.type === 'week');
           const monthBadges = activeBadges.filter(b => b.type === 'month');
           const yearBadges = activeBadges.filter(b => b.type === 'year');
@@ -2363,9 +2366,50 @@
         }
       }
 
+      function flushPendingBatchResults(reason) {
+        if (!pendingBatchResults || pendingBatchResults.length === 0) return;
+        if (isFlushInFlight) return;
+
+        const batchToSync = pendingBatchResults.slice();
+        const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
+        isFlushInFlight = true;
+
+        google.script.run
+          .withSuccessHandler(() => {
+            if (pendingBatchResults.length === batchToSync.length) {
+              pendingBatchResults = [];
+            } else {
+              pendingBatchResults = pendingBatchResults.slice(batchToSync.length);
+            }
+            isFlushInFlight = false;
+          })
+          .withFailureHandler(e => {
+            console.warn("Batch sync error" + (reason ? " (" + reason + ")" : "") + ":", e);
+            isFlushInFlight = false;
+          })
+          .saveSegmentResults(batchToSync, activeUserKey, activeDisplayName, savedDeckId, getClientTodayStr(), getClientTimeZone());
+      }
+
+      function setupLifecycleSync() {
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden') {
+            flushPendingBatchResults('visibility_hidden');
+          }
+        });
+
+        window.addEventListener('pagehide', () => {
+          flushPendingBatchResults('pagehide');
+        });
+
+        window.addEventListener('beforeunload', () => {
+          flushPendingBatchResults('beforeunload');
+        });
+      }
+
       function showDashboard() {
         const btn1 = $('returnDashSummaryBtn'); if (btn1) btn1.innerText = "⏳ Loading...";
         const btn2 = $('returnDashBtn'); if (btn2) btn2.innerText = "⏳ Loading...";
+        flushPendingBatchResults('dashboard_exit');
         if (rawData && rawData.rawRows) {
           processCardsForActivePair();
         }
@@ -2531,7 +2575,6 @@
         const intervalDays = currentCard.interval;
         const pickModeWithScaffoldingBias = (modes, ivlDays) => {
           if (!modes || modes.length === 0) return 'typing';
-          if (ivlDays <= 14) return modes[Math.floor(Math.random() * modes.length)];
 
           const productionModes = new Set(['typing', 'cloze_typing']);
           const bridgeModes = new Set(['faded_hints', 'audio_dictation', 'cloze_mcq']);
@@ -2539,13 +2582,18 @@
 
           modes.forEach(mode => {
             let weight = 1;
-            if (ivlDays >= 60) {
+            // Scaffolding progression: recognition -> bridge -> production.
+            if (ivlDays < 3) {
+              if (productionModes.has(mode)) weight = 1;
+              else if (bridgeModes.has(mode)) weight = 2;
+              else weight = 7;
+            } else if (ivlDays < 14) {
+              if (productionModes.has(mode)) weight = 2;
+              else if (bridgeModes.has(mode)) weight = 7;
+              else weight = 3;
+            } else {
               if (productionModes.has(mode)) weight = 7;
               else if (bridgeModes.has(mode)) weight = 3;
-              else weight = 1;
-            } else {
-              if (productionModes.has(mode)) weight = 4;
-              else if (bridgeModes.has(mode)) weight = 2;
               else weight = 1;
             }
             for (let i = 0; i < weight; i++) weighted.push(mode);
@@ -2792,6 +2840,7 @@
       }
 
       function showSegmentSummary() {
+        flushPendingBatchResults('segment_summary');
         $('viewQuiz').style.display = 'none'; $('viewSummary').style.display = 'flex';
         const t = i18n[currentUiLang] || i18n.en;
         const btn1 = $('returnDashSummaryBtn'); if (btn1) btn1.innerText = t.returnDash;
@@ -2850,6 +2899,18 @@
       }
 
       function hideAllModes() { $('modeFlip').style.display = 'none'; $('modeTyping').style.display = 'none'; $('modeMCQ').style.display = 'none'; $('modeTF').style.display = 'none'; $('modeTiles').style.display = 'none'; }
+
+      function parseReviewDateMs(nextReviewStr, fallbackMs) {
+        if (!nextReviewStr) return fallbackMs;
+        const raw = String(nextReviewStr).trim();
+        if (!raw) return fallbackMs;
+
+        const hasTimezone = /(?:Z|[+\-]\d{2}:?\d{2})$/.test(raw);
+        const normalized = raw.includes(' ') ? raw.replace(' ', 'T') : raw;
+        const isoLike = hasTimezone ? normalized : (normalized + 'Z');
+        const parsedMs = Date.parse(isoLike);
+        return Number.isFinite(parsedMs) ? parsedMs : fallbackMs;
+      }
 
       function getSpeechLangTag(code) {
         if (!code) return 'en-US'; const c = code.toLowerCase().trim();
@@ -3167,12 +3228,6 @@
         };
         pendingBatchResults.push(currentResult); 
 
-        // SAVE TO SPREADSHEET IMMEDIATELY
-        const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
-        google.script.run
-          .withFailureHandler(e => console.warn("Sync error:", e))
-          .saveSegmentResults([currentResult], activeUserKey, activeDisplayName, savedDeckId, getClientTodayStr(), getClientTimeZone());
-
         if (currentMode === 'flip') { renderNextCard(); }
       }
 
@@ -3215,12 +3270,6 @@
             lastItem.isLeech = currentCard.isLeech;
             lastItem.lastReviewed = getClientTodayStr();
             lastItem.prevInterval = currentCard.prevInterval || null;
-
-            // Sync the correction immediately
-            const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
-            google.script.run
-              .withFailureHandler(e => console.warn("Sync error:", e))
-              .saveSegmentResults([lastItem], activeUserKey, activeDisplayName, savedDeckId, getClientTodayStr(), getClientTimeZone());
           }
         }
 
@@ -3244,6 +3293,7 @@
       
       function archiveCurrentCard() {
         if (!currentCard) return;
+        const archivedCardId = currentCard.id;
         
         const btn = $('btnArchiveCard');
         const oldText = btn.innerText;
@@ -3256,14 +3306,17 @@
           .withSuccessHandler(res => {
             if (res.success) {
               // Strip this card out of all active session pools
-              allCards = allCards.filter(c => c.id !== currentCard.id);
-              duePool = duePool.filter(c => c.id !== currentCard.id);
-              newPool = newPool.filter(c => c.id !== currentCard.id);
-              leechPool = leechPool.filter(c => c.id !== currentCard.id);
-              nonDuePool = nonDuePool.filter(c => c.id !== currentCard.id);
+              allCards = allCards.filter(c => c.id !== archivedCardId);
+              duePool = duePool.filter(c => c.id !== archivedCardId);
+              newPool = newPool.filter(c => c.id !== archivedCardId);
+              leechPool = leechPool.filter(c => c.id !== archivedCardId);
+              nonDuePool = nonDuePool.filter(c => c.id !== archivedCardId);
               
               // Remove it from the current queue and move to the next card
-              segmentQueue.shift();
+              const queueIdx = segmentQueue.findIndex(item => item && item.card && item.card.id === archivedCardId);
+              if (queueIdx !== -1) {
+                segmentQueue.splice(queueIdx, 1);
+              }
               renderNextCard(); 
               
               btn.innerText = oldText;
