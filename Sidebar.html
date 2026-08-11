@@ -1998,6 +1998,9 @@
         const t = i18n[currentUiLang] || i18n.en;
         const theme = localStorage.getItem('srs_badge_theme') || 'flora';
         const activeBadges = theme === 'fauna' ? badgesFauna : badgesFlora;
+        const storageScope = `${activeUserKey || 'unauthenticated_user'}::${(rawData && rawData.activeDeckId) || 'default_deck'}`;
+        const scopedEarnedKey = `srs_earned_badges_counts_${storageScope}`;
+        const scopedCooldownKey = `srs_reward_cooldowns_${storageScope}`;
         
         const themeSelect = $('themeSelect');
         if (themeSelect && themeSelect.value !== theme) {
@@ -2008,12 +2011,17 @@
         const activeDates = Object.keys(history).filter(d => history[d] > 0).sort();
         
         const badgeCounts = {};
+        const badgeAwardEventsById = {};
         activeBadges.forEach(b => badgeCounts[b.id] = 0);
+        activeBadges.forEach(b => badgeAwardEventsById[b.id] = []);
 
         if (activeDates.length > 0) {
             const firstDateStr = activeDates[0];
             const firstDateObj = new Date(firstDateStr + "T00:00:00Z"); 
             const weekMap = {}; const monthMap = {}; const yearMap = {};
+          const weekBadges = activeBadges.filter(b => b.type === 'week');
+          const monthBadges = activeBadges.filter(b => b.type === 'month');
+          const yearBadges = activeBadges.filter(b => b.type === 'year');
 
             activeDates.forEach(dateStr => {
                 const d = new Date(dateStr + "T00:00:00Z");
@@ -2032,19 +2040,84 @@
                 yearMap[yearKey] = (yearMap[yearKey] || 0) + 1;
             });
 
-            Object.values(weekMap).forEach(days => activeBadges.filter(b => b.type === 'week').forEach(b => { if (days >= b.req) badgeCounts[b.id]++; }));
-            Object.values(monthMap).forEach(days => activeBadges.filter(b => b.type === 'month').forEach(b => { if (days >= b.req) badgeCounts[b.id]++; }));
-            Object.values(yearMap).forEach(days => activeBadges.filter(b => b.type === 'year').forEach(b => { if (days >= b.req) badgeCounts[b.id]++; }));
+              Object.keys(weekMap).sort().forEach(weekKey => {
+                const days = weekMap[weekKey];
+                weekBadges.forEach(b => {
+                  if (days >= b.req) {
+                    badgeCounts[b.id]++;
+                    badgeAwardEventsById[b.id].push({
+                      badge: b,
+                      fingerprint: `${b.id}|week|${weekKey}|${b.req}`
+                    });
+                  }
+                });
+              });
+
+              Object.keys(monthMap).sort().forEach(monthKey => {
+                const days = monthMap[monthKey];
+                monthBadges.forEach(b => {
+                  if (days >= b.req) {
+                    badgeCounts[b.id]++;
+                    badgeAwardEventsById[b.id].push({
+                      badge: b,
+                      fingerprint: `${b.id}|month|${monthKey}|${b.req}`
+                    });
+                  }
+                });
+              });
+
+              Object.keys(yearMap).sort().forEach(yearKey => {
+                const days = yearMap[yearKey];
+                yearBadges.forEach(b => {
+                  if (days >= b.req) {
+                    badgeCounts[b.id]++;
+                    badgeAwardEventsById[b.id].push({
+                      badge: b,
+                      fingerprint: `${b.id}|year|${yearKey}|${b.req}`
+                    });
+                  }
+                });
+              });
         }
 
-        // Check global history first. If it doesn't exist yet, gracefully fall back to the old theme key so returning users don't get spammed.
-        let previouslyEarned = JSON.parse(localStorage.getItem('srs_earned_badges_counts_global') || null);
-        if (!previouslyEarned) {
-            previouslyEarned = JSON.parse(localStorage.getItem('srs_earned_badges_counts_' + theme) || '{}');
+        // Load per-user+deck earned counts first; then migrate from legacy keys.
+        let previouslyEarned = {};
+        try {
+          previouslyEarned = JSON.parse(localStorage.getItem(scopedEarnedKey) || '{}') || {};
+        } catch (e) {
+          previouslyEarned = {};
+        }
+
+        if (Object.keys(previouslyEarned).length === 0) {
+          let legacyGlobal = {};
+          let legacyTheme = {};
+          try {
+            legacyGlobal = JSON.parse(localStorage.getItem('srs_earned_badges_counts_global') || '{}') || {};
+          } catch (e) {
+            legacyGlobal = {};
+          }
+          try {
+            legacyTheme = JSON.parse(localStorage.getItem('srs_earned_badges_counts_' + theme) || '{}') || {};
+          } catch (e) {
+            legacyTheme = {};
+          }
+
+          activeBadges.forEach(b => {
+            const g = legacyGlobal[b.id] || 0;
+            const th = legacyTheme[b.id] || 0;
+            previouslyEarned[b.id] = Math.max(g, th);
+          });
+        }
+
+        let announcedCooldowns = {};
+        try {
+          announcedCooldowns = JSON.parse(localStorage.getItem(scopedCooldownKey) || '{}') || {};
+        } catch (e) {
+          announcedCooldowns = {};
         }
 
         const currentlyEarnedCounts = {};
-        const newlyEarned = [];
+        const newlyEarnedEvents = [];
 
         const badgeContainer = $('badgeScrollContainer');
         badgeContainer.innerHTML = '';
@@ -2054,9 +2127,26 @@
             currentlyEarnedCounts[b.id] = count;
             
             const prevCount = previouslyEarned[b.id] || 0;
-            if (count > prevCount) {
-                newlyEarned.push({ badge: b, count: count, prevCount: prevCount });
+            const events = badgeAwardEventsById[b.id] || [];
+
+            // Bootstrap cooldown memory using prior count-based history so existing users do not get re-announced.
+            if (prevCount > 0 && events.length > 0) {
+              const migrateCount = Math.min(prevCount, events.length);
+              for (let i = 0; i < migrateCount; i++) {
+                announcedCooldowns[events[i].fingerprint] = 1;
+              }
             }
+
+            events.forEach(evt => {
+              if (!announcedCooldowns[evt.fingerprint]) {
+                newlyEarnedEvents.push({ badge: b, count: count, prevCount: prevCount, fingerprint: evt.fingerprint });
+              }
+            });
+
+            // Keep cooldown set complete for currently achieved events once evaluated.
+            events.forEach(evt => {
+              announcedCooldowns[evt.fingerprint] = 1;
+            });
 
             const owned = count > 0;
             let suffix = b.type === 'week' ? t.daysWk : (b.type === 'month' ? t.daysMo : t.daysYr);
@@ -2070,10 +2160,19 @@
             `;
         });
 
-        localStorage.setItem('srs_earned_badges_counts_global', JSON.stringify(currentlyEarnedCounts));
+        try {
+          localStorage.setItem(scopedEarnedKey, JSON.stringify(currentlyEarnedCounts));
+        } catch (e) {
+          // If storage is unavailable, continue gracefully without persistence.
+        }
+        try {
+          localStorage.setItem(scopedCooldownKey, JSON.stringify(announcedCooldowns));
+        } catch (e) {
+          // If storage is unavailable, continue gracefully without persistence.
+        }
         
-        if (newlyEarned.length > 0) {
-            const topEarned = newlyEarned[newlyEarned.length - 1];
+        if (newlyEarnedEvents.length > 0) {
+            const topEarned = newlyEarnedEvents[newlyEarnedEvents.length - 1];
             const isFirstTime = topEarned.prevCount === 0;
             
             $('rewardModalIcon').innerText = topEarned.badge.emoji;
