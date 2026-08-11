@@ -600,13 +600,13 @@
           <div class="answer-text" id="flipAnswerText"></div>
           <button class="btn-audio" id="ansAudioBtn" onclick="playAnswerAudio()">🔊 <span id="lblListenAns">Listen Answer</span></button>
           <div class="confidence-grid" id="confGrid">
-            <button class="btn-conf-again" onclick="submitAnswer(false, 'again')">🔴 <br><strong id="lblConfAgain">Again</strong></button>
-            <button class="btn-conf-hard" onclick="submitAnswer(true, 'hard')">🟠 <br><strong id="lblConfHard">Hard</strong></button>
-            <button class="btn-conf-good" onclick="submitAnswer(true, 'good')">🟢 <br><strong id="lblConfGood">Good</strong></button>
-            <button class="btn-conf-easy" onclick="submitAnswer(true, 'easy')">🔵 <br><strong id="lblConfEasy">Easy</strong></button>
+            <button type="button" class="btn-conf-again" onclick="submitAnswer(false, 'again')">🔴 <br><strong id="lblConfAgain">Again</strong></button>
+            <button type="button" class="btn-conf-hard" onclick="submitAnswer(true, 'hard')">🟠 <br><strong id="lblConfHard">Hard</strong></button>
+            <button type="button" class="btn-conf-good" onclick="submitAnswer(true, 'good')">🟢 <br><strong id="lblConfGood">Good</strong></button>
+            <button type="button" class="btn-conf-easy" onclick="submitAnswer(true, 'easy')">🔵 <br><strong id="lblConfEasy">Easy</strong></button>
           </div>
         </div>
-        <button class="btn-primary" id="revealBtn" onclick="revealFlip()">Reveal Answer</button>
+        <button type="button" class="btn-primary" id="revealBtn" onclick="revealFlip()">Reveal Answer</button>
       </div>
 
       <div id="modeTyping" class="mode-container">
@@ -2187,6 +2187,9 @@
         segmentQueue = [];
         
         let targetBatchSize = 10;
+        if (activeQuizMode === 'leeches') {
+            targetBatchSize = Math.min(10, leechPool.length);
+        }
         
         if (activeQuizMode === 'due') {
             while (segmentQueue.length < targetBatchSize && duePool.length > 0) {
