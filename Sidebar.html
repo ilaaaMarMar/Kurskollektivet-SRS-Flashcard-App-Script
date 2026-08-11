@@ -1749,6 +1749,13 @@
         $('loading-ui').style.display = 'none'; $('main-ui').style.display = 'block';
         const t = i18n[currentUiLang] || i18n.en;
 
+        if (rawData && rawData.savedProgress && data && data.savedProgress) {
+          data.savedProgress = { ...data.savedProgress, ...rawData.savedProgress };
+        }
+        if (rawData && rawData.studiedToday && data) {
+          data.studiedToday = { ...data.studiedToday, ...rawData.studiedToday };
+        }
+
         rawData = data;
         activeUserKey = data.activeUserKey;
         activeDisplayName = (data.displayName && data.displayName !== "undefined") ? data.displayName : "Learner";
@@ -2148,7 +2155,7 @@
         if (rawData && rawData.rawRows) {
           processCardsForActivePair();
         }
-        fetchData();
+        setTimeout(fetchData, 700);
       }
 
       function startQuiz(mode) {
@@ -2882,6 +2889,8 @@
         } else {
           segmentStats.reviewCards++; studiedToday.oldCount = (studiedToday.oldCount || 0) + 1;
         }
+
+        rawData.studiedToday = studiedToday;
 
         const currentResult = { cardId: cardId, isCorrect: isCorrect, confidence: conf, wasNew: wasNewCard, isTypo: isTypo || false, inDifficultMode: activeQuizMode === 'leeches' };
         pendingBatchResults.push(currentResult); 

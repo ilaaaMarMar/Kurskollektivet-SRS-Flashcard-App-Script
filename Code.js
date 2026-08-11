@@ -556,14 +556,23 @@ function saveProgressToSheet(activeDeckId, uKey, progressMap) {
       while (headers.length < 9) headers.push(headers.length === 8 ? 'PrevInterval' : '');
     }
     var newData = [headers];
+    var userProgressByCardId = {};
 
     for (var i = 1; i < data.length; i++) {
-      if (data[i][0] !== uKey) newData.push(data[i]);
+      if (data[i][0] === uKey) {
+        userProgressByCardId[data[i][1]] = data[i];
+      } else {
+        newData.push(data[i]);
+      }
     }
 
     for (var cardId in progressMap) {
       var p = progressMap[cardId];
-      newData.push([uKey, cardId, p.interval, "'" + p.nextReview, p.failCount, p.isLeech ? 1 : 0, p.lastReviewed ? "'" + p.lastReviewed : "", p.ef, p.prevInterval || ""]);
+      userProgressByCardId[cardId] = [uKey, cardId, p.interval, "'" + p.nextReview, p.failCount, p.isLeech ? 1 : 0, p.lastReviewed ? "'" + p.lastReviewed : "", p.ef, p.prevInterval || ""];
+    }
+
+    for (var cardId in userProgressByCardId) {
+      newData.push(userProgressByCardId[cardId]);
     }
 
     sheet.clearContents();
