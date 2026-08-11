@@ -74,11 +74,47 @@ function preventInjection(text) {
   return str;
 }
 
-function parseDateToString(val) {
+var CACHED_SCRIPT_TIMEZONE = null;
+
+function getScriptTimeZone() {
+  if (CACHED_SCRIPT_TIMEZONE) return CACHED_SCRIPT_TIMEZONE;
+
+  try {
+    var active = SpreadsheetApp.getActive();
+    if (active) {
+      CACHED_SCRIPT_TIMEZONE = active.getSpreadsheetTimeZone();
+      if (CACHED_SCRIPT_TIMEZONE) return CACHED_SCRIPT_TIMEZONE;
+    }
+  } catch (e) {}
+
+  try {
+    var activeSs = SpreadsheetApp.getActiveSpreadsheet();
+    if (activeSs) {
+      CACHED_SCRIPT_TIMEZONE = activeSs.getSpreadsheetTimeZone();
+      if (CACHED_SCRIPT_TIMEZONE) return CACHED_SCRIPT_TIMEZONE;
+    }
+  } catch (e) {}
+
+  CACHED_SCRIPT_TIMEZONE = "GMT";
+  return CACHED_SCRIPT_TIMEZONE;
+}
+
+function resolveClientTimeZone(clientTimeZone) {
+  if (!clientTimeZone) return getScriptTimeZone();
+  var tz = clientTimeZone.toString().trim();
+  if (!tz) return getScriptTimeZone();
+
+  // Basic defensive validation for IANA timezone format.
+  if (!/^[A-Za-z_]+(?:\/[A-Za-z0-9_+\-]+)+$/.test(tz)) {
+    return getScriptTimeZone();
+  }
+  return tz;
+}
+
+function parseDateToString(val, timeZone) {
   if (!val) return "";
   if (val instanceof Date) {
-    var timeZone = SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getSpreadsheetTimeZone() : "GMT";
-    return Utilities.formatDate(val, timeZone, "yyyy-MM-dd");
+    return Utilities.formatDate(val, timeZone || getScriptTimeZone(), "yyyy-MM-dd");
   }
   return val.toString().trim();
 }
@@ -111,10 +147,10 @@ function getIntervalForStage(stage) {
   }
 }
 
-function getWeekKey() {
+function getWeekKey(timeZone) {
   var today = new Date();
-  var timeZone = SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getSpreadsheetTimeZone() : "GMT";
-  var year = Utilities.formatDate(today, timeZone, "yyyy");
+  var tz = timeZone || getScriptTimeZone();
+  var year = Utilities.formatDate(today, tz, "yyyy");
   var d = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
   var dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
@@ -123,10 +159,9 @@ function getWeekKey() {
   return year + "_W" + String(weekNo).padStart(2, '0');
 }
 
-function getMonthKey() {
+function getMonthKey(timeZone) {
   var today = new Date();
-  var timeZone = SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getSpreadsheetTimeZone() : "GMT";
-  return Utilities.formatDate(today, timeZone, "yyyy_MM");
+  return Utilities.formatDate(today, timeZone || getScriptTimeZone(), "yyyy_MM");
 }
 
 function cleanString(str) {
@@ -175,9 +210,8 @@ function getActiveUserId() {
   return "unauthenticated_user";
 }
 
-function getTodayString() {
-  var timeZone = SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getSpreadsheetTimeZone() : "GMT";
-  return Utilities.formatDate(new Date(), timeZone, "yyyy-MM-dd");
+function getTodayString(timeZone) {
+  return Utilities.formatDate(new Date(), timeZone || getScriptTimeZone(), "yyyy-MM-dd");
 }
 
 /**
@@ -201,11 +235,11 @@ function applyFuzz(intervalInDays) {
   return Math.max(0.01, intervalInDays + fuzz); // Ensure it never drops to 0
 }
 
-function getFlashcardData(clientDisplayName, customDeckId, clientTodayStr) {
+function getFlashcardData(clientDisplayName, customDeckId, clientTodayStr, clientTimeZone) {
   var activeUserKey = getActiveUserId();
   var docProps = PropertiesService.getDocumentProperties();
-  var todayStr = clientTodayStr || getTodayString();
-  var timeZone = SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getSpreadsheetTimeZone() : "GMT";
+  var timeZone = resolveClientTimeZone(clientTimeZone);
+  var todayStr = clientTodayStr || getTodayString(timeZone);
 
   var storedName = docProps.getProperty('SRS_NAME_' + activeUserKey);
   var activeDisplayName = "";
@@ -234,8 +268,8 @@ function getFlashcardData(clientDisplayName, customDeckId, clientTodayStr) {
   var sheet = ss.getSheets()[0];
   var allValues = sheet.getDataRange().getValues();
 
-  var weekKey = getWeekKey();
-  var monthKey = getMonthKey();
+  var weekKey = getWeekKey(timeZone);
+  var monthKey = getMonthKey(timeZone);
   var leaderboards = getLeaderboards(ss, weekKey, monthKey);
 
   var savedProgressRaw = {};
@@ -250,7 +284,7 @@ function getFlashcardData(clientDisplayName, customDeckId, clientTodayStr) {
           nextReview: pData[i][3] instanceof Date ? Utilities.formatDate(pData[i][3], timeZone, "yyyy-MM-dd HH:mm:ss") : (pData[i][3] ? pData[i][3].toString().trim() : todayStr),
           failCount: pData[i][4] !== undefined ? parseFloat(pData[i][4]) : 0, 
           isLeech: pData[i][5] === 1,
-          lastReviewed: pData[i][6] ? parseDateToString(pData[i][6]) : "",
+          lastReviewed: pData[i][6] ? parseDateToString(pData[i][6], timeZone) : "",
           ef: pData[i][7] !== undefined ? parseFloat(pData[i][7]) : 2.5
         };
       }
@@ -264,7 +298,7 @@ function getFlashcardData(clientDisplayName, customDeckId, clientTodayStr) {
     var histData = historySheet.getDataRange().getValues();
     for (var j = 1; j < histData.length; j++) {
       if (histData[j][0] === activeUserKey) {
-        var hDateStr = parseDateToString(histData[j][1]);
+        var hDateStr = parseDateToString(histData[j][1], timeZone);
         var hNew = parseInt(histData[j][2], 10) || 0;
         var hOld = parseInt(histData[j][3], 10) || 0;
         var hTotal = parseInt(histData[j][4], 10) || 0;
@@ -411,7 +445,9 @@ function translateText(text, sourceLang, targetLang) {
       if (!deeplKey) {
         deeplTrans = "DeepL Error: Script Property 'DEEPL_API_KEY' is missing or empty.";
       } else {
-        var deeplUrl = "https://api-free.deepl.com/v2/translate";
+        var trimmedDeepLKey = deeplKey.trim();
+        var isFreeDeepL = trimmedDeepLKey.endsWith(':fx');
+        var deeplUrl = isFreeDeepL ? "https://api-free.deepl.com/v2/translate" : "https://api.deepl.com/v2/translate";
         
         var srcDeepL = sourceLang ? sourceLang.toUpperCase() : null;
         if (srcDeepL === 'NO') srcDeepL = 'NB';
@@ -429,7 +465,7 @@ function translateText(text, sourceLang, targetLang) {
         var deeplOptions = {
           "method": "post",
           "contentType": "application/json",
-          "headers": { "Authorization": "DeepL-Auth-Key " + deeplKey.trim() },
+          "headers": { "Authorization": "DeepL-Auth-Key " + trimmedDeepLKey },
           "payload": JSON.stringify(deeplPayload),
           "muteHttpExceptions": true
         };
@@ -537,10 +573,13 @@ function getLeaderboards(ss, weekKey, monthKey) {
   };
 }
 
-function saveProgressToSheet(activeDeckId, uKey, progressMap) {
-  var lock = LockService.getDocumentLock();
+function saveProgressToSheet(activeDeckId, uKey, progressMap, lockAlreadyHeld) {
+  var lock = null;
   try {
-    lock.waitLock(15000);
+    if (!lockAlreadyHeld) {
+      lock = LockService.getDocumentLock();
+      lock.waitLock(15000);
+    }
     var ss = SpreadsheetApp.openById(activeDeckId);
     var sheet = ss.getSheetByName('SRS_Progress');
 
@@ -575,21 +614,28 @@ function saveProgressToSheet(activeDeckId, uKey, progressMap) {
       newData.push(userProgressByCardId[cardId]);
     }
 
-    sheet.clearContents();
     sheet.getRange(1, 1, newData.length, newData[0].length).setValues(newData);
+    var lastRow = sheet.getLastRow();
+    if (lastRow > newData.length) {
+      sheet.getRange(newData.length + 1, 1, lastRow - newData.length, newData[0].length).clearContent();
+    }
   } catch (e) {
     console.error("Failed to save progress: " + e.message);
   } finally {
-    lock.releaseLock();
+    if (lock) lock.releaseLock();
   }
 }
 
-function saveHistoryToSheet(activeDeckId, uKey, todayStr, newCardDelta, oldCardDelta) {
-  var lock = LockService.getDocumentLock();
+function saveHistoryToSheet(activeDeckId, uKey, todayStr, newCardDelta, oldCardDelta, lockAlreadyHeld, timeZone) {
+  var lock = null;
   try {
-    lock.waitLock(15000);
+    if (!lockAlreadyHeld) {
+      lock = LockService.getDocumentLock();
+      lock.waitLock(15000);
+    }
     var ss = SpreadsheetApp.openById(activeDeckId);
     var sheet = ss.getSheetByName('SRS_History');
+    var tz = timeZone || getScriptTimeZone();
 
     if (!sheet) {
       sheet = ss.insertSheet('SRS_History');
@@ -600,7 +646,7 @@ function saveHistoryToSheet(activeDeckId, uKey, todayStr, newCardDelta, oldCardD
     var rowIndex = -1;
 
     for (var i = 1; i < data.length; i++) {
-      var cellDateStr = parseDateToString(data[i][1]);
+      var cellDateStr = parseDateToString(data[i][1], tz);
       if (data[i][0] === uKey && cellDateStr === todayStr) {
         rowIndex = i + 1;
         break;
@@ -619,14 +665,17 @@ function saveHistoryToSheet(activeDeckId, uKey, todayStr, newCardDelta, oldCardD
   } catch (e) {
     console.error("Failed to save history: " + e.message);
   } finally {
-    lock.releaseLock();
+    if (lock) lock.releaseLock();
   }
 }
 
-function updateLeaderboardInSheet(activeDeckId, uKey, dName, reviewsCount, weekKey, monthKey) {
-  var lock = LockService.getDocumentLock();
+function updateLeaderboardInSheet(activeDeckId, uKey, dName, reviewsCount, weekKey, monthKey, lockAlreadyHeld) {
+  var lock = null;
   try {
-    lock.waitLock(15000);
+    if (!lockAlreadyHeld) {
+      lock = LockService.getDocumentLock();
+      lock.waitLock(15000);
+    }
     var ss = SpreadsheetApp.openById(activeDeckId);
     var sheet = getOrCreateLeaderboardSheet(ss);
     var data = sheet.getDataRange().getValues();
@@ -655,182 +704,109 @@ function updateLeaderboardInSheet(activeDeckId, uKey, dName, reviewsCount, weekK
   } catch (e) {
     console.error("Failed to update leaderboard: " + e.message);
   } finally {
-    lock.releaseLock();
+    if (lock) lock.releaseLock();
   }
 }
 
-function saveSegmentResults(batchArray, activeUserKey, displayName, customDeckId, clientTodayStr) {
+function saveSegmentResults(batchArray, activeUserKey, displayName, customDeckId, clientTodayStr, clientTimeZone) {
   if (!batchArray || batchArray.length === 0) return { success: true };
 
-  var ss = resolveSpreadsheet(customDeckId);
-  var activeDeckId = ss.getId();
-  var todayStr = clientTodayStr || getTodayString();
-  var uKey = getActiveUserId();
-  var weekKey = getWeekKey();
-  var monthKey = getMonthKey();
-  var timeZone = SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getSpreadsheetTimeZone() : "GMT";
+  var lock = LockService.getDocumentLock();
+  try {
+    lock.waitLock(15000);
 
-  var docProps = PropertiesService.getDocumentProperties();
-  var storedName = docProps.getProperty('SRS_NAME_' + uKey);
-  var dName = (storedName && storedName !== "undefined") ? storedName : (sanitizeText(displayName, 20) || "Learner");
+    var ss = resolveSpreadsheet(customDeckId);
+    var activeDeckId = ss.getId();
+    var timeZone = resolveClientTimeZone(clientTimeZone);
+    var todayStr = clientTodayStr || getTodayString(timeZone);
+    var uKey = getActiveUserId();
+    var weekKey = getWeekKey(timeZone);
+    var monthKey = getMonthKey(timeZone);
 
-  var savedProgress = {};
-  var progressSheet = ss.getSheetByName('SRS_Progress');
-  if (progressSheet) {
-    var pData = progressSheet.getDataRange().getValues();
-    for (var i = 1; i < pData.length; i++) {
-      if (pData[i][0] === uKey) {
-        var cId = pData[i][1];
-        savedProgress[cId] = {
-          interval: pData[i][2] !== undefined ? parseFloat(pData[i][2]) : 1,
-          nextReview: pData[i][3] instanceof Date ? Utilities.formatDate(pData[i][3], timeZone, "yyyy-MM-dd HH:mm:ss") : (pData[i][3] ? pData[i][3].toString().trim() : todayStr),
-          failCount: pData[i][4] !== undefined ? parseFloat(pData[i][4]) : 0, 
-          isLeech: pData[i][5] === 1,
-          lastReviewed: pData[i][6] ? parseDateToString(pData[i][6]) : "",
-          ef: pData[i][7] !== undefined ? parseFloat(pData[i][7]) : 2.5,
-          prevInterval: pData[i][8] !== undefined && pData[i][8] !== "" ? parseFloat(pData[i][8]) : null
-        };
-      }
-    }
-  }
+    var docProps = PropertiesService.getDocumentProperties();
+    var storedName = docProps.getProperty('SRS_NAME_' + uKey);
+    var dName = (storedName && storedName !== "undefined") ? storedName : (sanitizeText(displayName, 20) || "Learner");
 
-  var reviewsCount = 0;
-  var newDelta = 0;
-  var oldDelta = 0;
-  var nowMs = new Date().getTime();
-
-  batchArray.forEach(function (item) {
-    reviewsCount++;
-    var cardId = item.cardId;
-    var isCorrect = item.isCorrect;
-    var confidence = item.confidence || (isCorrect ? 'good' : 'again');
-    var wasNew = item.wasNew;
-
-    var cardState = savedProgress[cardId] || { interval: 1, failCount: 0, isLeech: false, ef: 2.5, prevInterval: null };
-    var currentInterval = parseFloat(cardState.interval) || 1;
-    var currentEF = parseFloat(cardState.ef) || 2.5;
-    var failCount = parseFloat(cardState.failCount) || 0;
-    var prevInterval = (cardState.prevInterval !== undefined && cardState.prevInterval !== null && cardState.prevInterval !== "") ? parseFloat(cardState.prevInterval) : null;
-    var wasLeech = !!cardState.isLeech;
-
-    // Map confidence to SM-2 Quality score (0-5)
-    var q = 4;
-    if (!isCorrect || confidence === 'again') {
-      q = 1;
-    } else if (item.isTypo) {
-      q = 3;
-    } else if (confidence === 'hard') {
-      q = 3;
-    } else if (confidence === 'good') {
-      q = 4;
-    } else if (confidence === 'easy') {
-      q = 5;
-    }
-
-    if (!isCorrect) {
-      failCount += 1;
-    } else if (item.isTypo) {
-      failCount += 0.5;
-    }
-
-    if (!isCorrect || item.isTypo) {
-      var cardStage = getStageFromInterval(currentInterval, wasNew);
-      console.log('Review note:', cardId, 'stage', cardStage, 'interval', currentInterval, 'EF', currentEF, 'failCount', failCount, 'typo', !!item.isTypo, 'difficultMode', !!item.inDifficultMode);
-    }
-
-    var newInterval = 1;
-    var newEF = currentEF;
-    var isLeech = wasLeech || failCount >= 1;
-
-    if (item.inDifficultMode && isCorrect) {
-      isLeech = false;
-      failCount = 0;
-      var baseInterval = prevInterval || currentInterval;
-      var baseStage = getStageFromInterval(baseInterval, wasNew);
-      var targetStage = Math.max(1, baseStage - 1);
-      newInterval = getIntervalForStage(targetStage);
-      newEF = Math.max(1.3, currentEF - 0.1);
-      prevInterval = null;
-    } else {
-      if (q < 3) {
-        newInterval = (1 / 24);
-      } else {
-        if (wasNew) {
-          if (q === 3) newInterval = (1 / 24);
-          else if (q === 4) newInterval = 0.25;
-          else if (q === 5) newInterval = 1;
-        } else if (currentInterval < 1) {
-          if (q === 5) {
-            newInterval = (currentInterval >= 0.5) ? 3 : 1;
-          } else if (q === 3) {
-            newInterval = currentInterval;
-          } else {
-            if (currentInterval <= 0.26) {
-              newInterval = 0.5;
-            } else if (currentInterval <= 0.51) {
-              newInterval = 1;
-            } else {
-              newInterval = 1;
-            }
-          }
-        } else {
-          var nowTimeMs = new Date().getTime();
-          var nextReviewMs = new Date(cardState.nextReview.replace(' ', 'T')).getTime();
-          var daysEarly = (nextReviewMs - nowTimeMs) / (1000 * 60 * 60 * 24);
-
-          if (daysEarly > 0.5 && currentInterval >= 1) {
-            var elapsedDays = Math.max(0, currentInterval - daysEarly);
-            if (elapsedDays < 0.5) {
-              newInterval = currentInterval;
-            } else {
-              newInterval = currentInterval + (elapsedDays * (currentEF - 1));
-            }
-          } else {
-            newInterval = currentInterval * currentEF;
-          }
+    var savedProgress = {};
+    var progressSheet = ss.getSheetByName('SRS_Progress');
+    if (progressSheet) {
+      var pData = progressSheet.getDataRange().getValues();
+      for (var i = 1; i < pData.length; i++) {
+        if (pData[i][0] === uKey) {
+          var cId = pData[i][1];
+          savedProgress[cId] = {
+            interval: pData[i][2] !== undefined ? parseFloat(pData[i][2]) : 1,
+            nextReview: pData[i][3] instanceof Date ? Utilities.formatDate(pData[i][3], timeZone, "yyyy-MM-dd HH:mm:ss") : (pData[i][3] ? pData[i][3].toString().trim() : todayStr),
+            failCount: pData[i][4] !== undefined ? parseFloat(pData[i][4]) : 0,
+            isLeech: pData[i][5] === 1,
+            lastReviewed: pData[i][6] ? parseDateToString(pData[i][6], timeZone) : "",
+            ef: pData[i][7] !== undefined ? parseFloat(pData[i][7]) : 2.5,
+            prevInterval: pData[i][8] !== undefined && pData[i][8] !== "" ? parseFloat(pData[i][8]) : null
+          };
         }
       }
-
-      if (!wasLeech && failCount >= 1 && prevInterval === null) {
-        prevInterval = currentInterval;
-      }
-
-      if (newInterval > 3) {
-        newInterval += (Math.random() * 0.1 - 0.05) * newInterval;
-      }
-
-      newEF = currentEF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
-      if (newEF < 1.3) newEF = 1.3;
     }
 
-    var fuzzedInterval = applyFuzz(newInterval);
+    var reviewsCount = 0;
+    var newDelta = 0;
+    var oldDelta = 0;
 
-    isLeech = item.inDifficultMode && isCorrect ? false : (failCount >= 1);
+    batchArray.forEach(function (item) {
+      reviewsCount++;
+      var cardId = item.cardId;
+      var wasNew = item.wasNew;
 
-    var msToAdd = fuzzedInterval * 24 * 60 * 60 * 1000;
-    var nextDateObj = new Date(nowMs + msToAdd);
+      var cardState = savedProgress[cardId] || { interval: 1, failCount: 0, isLeech: false, ef: 2.5, prevInterval: null };
+      var newInterval = item.newInterval !== undefined && item.newInterval !== null ? parseFloat(item.newInterval) : (parseFloat(cardState.interval) || 1);
+      if (!isFinite(newInterval) || newInterval <= 0) newInterval = parseFloat(cardState.interval) || 1;
 
-    var nextDateStr = Utilities.formatDate(nextDateObj, timeZone, "yyyy-MM-dd HH:mm:ss");
+      var newEF = item.newEF !== undefined && item.newEF !== null ? parseFloat(item.newEF) : (parseFloat(cardState.ef) || 2.5);
+      if (!isFinite(newEF) || newEF < 1.3) newEF = Math.max(1.3, parseFloat(cardState.ef) || 2.5);
 
-    savedProgress[cardId] = {
-      interval: newInterval, 
-      nextReview: nextDateStr,
-      failCount: failCount,
-      isLeech: isLeech,
-      lastReviewed: todayStr,
-      ef: newEF,
-      prevInterval: prevInterval
-    };
+      var failCount = item.failCount !== undefined && item.failCount !== null ? parseFloat(item.failCount) : (parseFloat(cardState.failCount) || 0);
+      if (!isFinite(failCount) || failCount < 0) failCount = parseFloat(cardState.failCount) || 0;
 
-    if (wasNew) newDelta++;
-    else oldDelta++;
-  });
+      var isLeech = item.isLeech !== undefined ? !!item.isLeech : !!cardState.isLeech;
+      var prevInterval = item.prevInterval !== undefined ? item.prevInterval : cardState.prevInterval;
+      if (prevInterval !== null && prevInterval !== "" && prevInterval !== undefined) {
+        var parsedPrev = parseFloat(prevInterval);
+        prevInterval = isFinite(parsedPrev) ? parsedPrev : null;
+      } else {
+        prevInterval = null;
+      }
 
-  saveProgressToSheet(activeDeckId, uKey, savedProgress);
-  saveHistoryToSheet(activeDeckId, uKey, todayStr, newDelta, oldDelta);
-  updateLeaderboardInSheet(activeDeckId, uKey, dName, reviewsCount, weekKey, monthKey);
+      var lastReviewed = item.lastReviewed ? item.lastReviewed.toString().trim() : todayStr;
+      if (!lastReviewed) lastReviewed = todayStr;
 
-  return { success: true };
+      var nextDateStr = item.nextReview ? item.nextReview.toString().trim() : "";
+      if (!nextDateStr) {
+        nextDateStr = cardState.nextReview || todayStr;
+      }
+
+      savedProgress[cardId] = {
+        interval: newInterval,
+        nextReview: nextDateStr,
+        failCount: failCount,
+        isLeech: isLeech,
+        lastReviewed: lastReviewed,
+        ef: newEF,
+        prevInterval: prevInterval
+      };
+
+      if (wasNew) newDelta++;
+      else oldDelta++;
+    });
+
+    saveProgressToSheet(activeDeckId, uKey, savedProgress, true);
+    saveHistoryToSheet(activeDeckId, uKey, todayStr, newDelta, oldDelta, true, timeZone);
+    updateLeaderboardInSheet(activeDeckId, uKey, dName, reviewsCount, weekKey, monthKey, true);
+
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function archiveMasteredCards(customDeckId, activeUserKey) {

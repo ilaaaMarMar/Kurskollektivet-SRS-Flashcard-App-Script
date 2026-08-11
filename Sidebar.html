@@ -1024,6 +1024,29 @@
 
       let currentUiLang = 'en';
 
+      // Hot-path DOM cache to avoid repeated tree queries in rapid handlers.
+      let typeInputEl = null;
+      let typeSubmitBtnEl = null;
+      let nextBtnEl = null;
+      let revealBtnEl = null;
+      let flipAnswerAreaEl = null;
+      let overrideBtnEl = null;
+
+      function initDomCache() {
+        typeInputEl = $('typeInput');
+        typeSubmitBtnEl = $('typeSubmitBtn');
+        nextBtnEl = $('nextBtn');
+        revealBtnEl = $('revealBtn');
+        flipAnswerAreaEl = $('flipAnswerArea');
+        overrideBtnEl = $('overrideBtn');
+      }
+
+      function ensureDomCache() {
+        if (!typeInputEl || !typeSubmitBtnEl || !nextBtnEl || !revealBtnEl || !flipAnswerAreaEl || !overrideBtnEl) {
+          initDomCache();
+        }
+      }
+
       function showCustomAlert(message) {
         const t = i18n[currentUiLang] || i18n.en;
         $('customDialogTitle').innerText = t.notice || "Notice";
@@ -1098,6 +1121,21 @@
       function countWords(str) {
         if (!str) return 0;
         return str.trim().split(/\s+/).filter(Boolean).length;
+      }
+
+      function applyClientFuzz(intervalInDays) {
+        let fuzzRange = 0;
+
+        if (intervalInDays <= 0.26) fuzzRange = 0.02;
+        else if (intervalInDays <= 0.51) fuzzRange = 0.04;
+        else if (intervalInDays <= 1) fuzzRange = 0.08;
+        else if (intervalInDays <= 4) fuzzRange = 0.5;
+        else if (intervalInDays <= 7) fuzzRange = 1;
+        else if (intervalInDays <= 14) fuzzRange = 2;
+        else fuzzRange = intervalInDays * 0.1;
+
+        const fuzz = (Math.random() * (fuzzRange * 2)) - fuzzRange;
+        return Math.max(0.01, intervalInDays + fuzz);
       }
 
       function validateTranslateInputs() {
@@ -1288,6 +1326,15 @@
         const m = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
         return `${y}-${m}-${day}`;
+      }
+
+      function getClientTimeZone() {
+        try {
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          return (tz && typeof tz === 'string') ? tz : 'UTC';
+        } catch (e) {
+          return 'UTC';
+        }
       }
 
       function openWebAppModal() { $('webAppModal').style.display = 'flex'; }
@@ -1650,6 +1697,7 @@
       }
 
       document.addEventListener('keydown', function(e) {
+        ensureDomCache();
         const quizView = $('viewQuiz');
         if (!quizView || quizView.style.display === 'none') return;
         const activeEl = document.activeElement;
@@ -1659,17 +1707,15 @@
 
         if (e.key === ' ' || e.key === 'Enter') {
           e.preventDefault();
-          const revealBtn = $('revealBtn'); const nextBtn = $('nextBtn');
-          if (currentMode === 'flip' && revealBtn && revealBtn.style.display !== 'none') { revealFlip(); } 
-          else if (nextBtn && nextBtn.style.display !== 'none') { 
+          if (currentMode === 'flip' && revealBtnEl && revealBtnEl.style.display !== 'none') { revealFlip(); } 
+          else if (nextBtnEl && nextBtnEl.style.display !== 'none') { 
             if (Date.now() - lastFeedbackTime < 600) return; 
             renderNextCard(); 
           }
         }
 
         if (currentMode === 'flip') {
-          const flipAnswerArea = $('flipAnswerArea');
-          if (flipAnswerArea && flipAnswerArea.style.display !== 'none') {
+          if (flipAnswerAreaEl && flipAnswerAreaEl.style.display !== 'none') {
             if (e.key === '1') { e.preventDefault(); submitAnswer(false, 'again'); }
             if (e.key === '2') { e.preventDefault(); submitAnswer(true, 'hard'); }
             if (e.key === '3') { e.preventDefault(); submitAnswer(true, 'good'); }
@@ -1696,6 +1742,7 @@
       });
 
       window.onload = function() {
+        initDomCache();
         const savedTheme = localStorage.getItem('srs_app_theme') || 'kurskollektivet';
         changeAppTheme(savedTheme);
         
@@ -1732,7 +1779,7 @@
             console.error("Initialization Failed:", error);
             showCustomAlert("Error loading flashcard data. Ensure you have access to the Google Spreadsheet."); 
           })
-          .getFlashcardData(customName, savedDeckId, getClientTodayStr());
+          .getFlashcardData(customName, savedDeckId, getClientTodayStr(), getClientTimeZone());
       }
 
       function fetchData() {
@@ -1742,7 +1789,7 @@
         google.script.run
           .withSuccessHandler(initApp)
           .withFailureHandler(() => { showCustomAlert("Error loading flashcard data. Ensure you have access to the Google Spreadsheet."); })
-          .getFlashcardData(customName, savedDeckId, getClientTodayStr());
+          .getFlashcardData(customName, savedDeckId, getClientTodayStr(), getClientTimeZone());
       }
 
       function initApp(data) {
@@ -2540,6 +2587,7 @@
       function setupClozeMCQ() {
         $('modeMCQ').style.display = 'flex';
         let wordPool = [];
+        const fallbackWords = ["det", "som", "med", "ikke", "eller"];
         allCards.forEach(c => {
           const promptWords = (isForward ? c.front : c.back).split(/\s+/);
           promptWords.forEach(w => {
@@ -2548,9 +2596,20 @@
           });
         });
         wordPool = shuffleArray([...new Set(wordPool)]).slice(0, 3);
-        while (wordPool.length < 3) { wordPool.push(["det", "som", "med", "ikke", "eller"][wordPool.length]); }
-        let options = shuffleArray([...wordPool, clozeTargetWordRaw.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/g, "")]);
-        mcqCorrectIndex = options.indexOf(clozeTargetWordRaw.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/g, ""));
+
+        if (wordPool.length < 3) {
+          const needed = 3 - wordPool.length;
+          const fallbackPool = fallbackWords.filter(w => w !== clozeTargetWordClean && !wordPool.includes(w));
+          wordPool = wordPool.concat(fallbackPool.slice(0, needed));
+        }
+
+        while (wordPool.length < 3) {
+          wordPool.push("ord");
+        }
+
+        const cleanTargetWord = clozeTargetWordRaw.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/g, "");
+        let options = shuffleArray([...wordPool, cleanTargetWord]);
+        mcqCorrectIndex = options.indexOf(cleanTargetWord);
         for (let i = 0; i < 4; i++) {
           const btn = $(`mcq${i}`); btn.innerText = `${['A','B','C','D'][i]}. ${options[i]}`; btn.disabled = false; btn.style.backgroundColor = 'var(--bg-card)';
         }
@@ -2653,7 +2712,8 @@
       function revealFlip() { $('revealBtn').style.display = 'none'; $('flipAnswerArea').style.display = 'flex'; handleAutoPlay('end'); }
 
       function checkTyping() {
-        const userInput = $('typeInput').value; 
+        ensureDomCache();
+        const userInput = typeInputEl.value; 
         const t = i18n[currentUiLang] || i18n.en;
 
         if (isRetyping) {
@@ -2666,22 +2726,22 @@
           
           if (pass) {
              isRetyping = false;
-             $('typeInput').disabled = true; 
-             $('typeSubmitBtn').disabled = true;
-             $('typeInput').style.borderColor = "var(--success)";
-             $('typeSubmitBtn').innerText = t.submit || "Submit Answer";
-             $('nextBtn').style.display = 'block';
-             setTimeout(() => { const nextBtn = $('nextBtn'); if (nextBtn) nextBtn.focus(); }, 100);
+             typeInputEl.disabled = true; 
+             typeSubmitBtnEl.disabled = true;
+             typeInputEl.style.borderColor = "var(--success)";
+             typeSubmitBtnEl.innerText = t.submit || "Submit Answer";
+             nextBtnEl.style.display = 'block';
+             setTimeout(() => { if (nextBtnEl) nextBtnEl.focus(); }, 100);
           } else {
-             $('typeInput').value = '';
-             $('typeInput').style.borderColor = "var(--danger)";
-             setTimeout(() => { $('typeInput').style.borderColor = "var(--border)"; }, 500);
+             typeInputEl.value = '';
+             typeInputEl.style.borderColor = "var(--danger)";
+             setTimeout(() => { typeInputEl.style.borderColor = "var(--border)"; }, 500);
           }
           return;
         }
 
-        if ($('typeInput').disabled) return;
-        $('typeInput').disabled = true; $('typeSubmitBtn').disabled = true;
+          if (typeInputEl.disabled) return;
+          typeInputEl.disabled = true; typeSubmitBtnEl.disabled = true;
         
         if (currentMode === 'audio_dictation') { $('promptSub').innerText = `${t.prompt} (${getDisplayLangCode(promptLangCode)})`; $('promptMain').innerText = targetPrompt; }
 
@@ -2718,14 +2778,14 @@
 
         if (!isCorrect) {
           isRetyping = true;
-          $('typeInput').disabled = false; 
-          $('typeSubmitBtn').disabled = false;
-          $('typeInput').value = '';
-          $('typeInput').placeholder = t.copyCorrect || "Copy the correct answer...";
-          $('typeSubmitBtn').innerText = t.retypeContinue || "Retype to Continue";
-          setTimeout(() => { $('typeInput').focus(); }, 100);
+          typeInputEl.disabled = false; 
+          typeSubmitBtnEl.disabled = false;
+          typeInputEl.value = '';
+          typeInputEl.placeholder = t.copyCorrect || "Copy the correct answer...";
+          typeSubmitBtnEl.innerText = t.retypeContinue || "Retype to Continue";
+          setTimeout(() => { typeInputEl.focus(); }, 100);
         } else {
-          setTimeout(() => { const nextBtn = $('nextBtn'); if (nextBtn) nextBtn.focus(); }, 100);
+          setTimeout(() => { if (nextBtnEl) nextBtnEl.focus(); }, 100);
         }
       }
 
@@ -2752,7 +2812,7 @@
           showFeedback(isCorrect, isCorrect ? `🎉 ${t.correct}` : `❌ ${t.incorrectAnswer} ${['A','B','C','D'][mcqCorrectIndex]}. 👉 ${targetAnswer}`);
           handleAutoPlay('end'); submitAnswer(isCorrect);
         }
-        setTimeout(() => { const nextBtn = $('nextBtn'); if (nextBtn) nextBtn.focus(); }, 100);
+        setTimeout(() => { if (nextBtnEl) nextBtnEl.focus(); }, 100);
       }
 
       function setupTF() {
@@ -2769,15 +2829,16 @@
         $('tfProposed').style.color = 'var(--success)'; $('tfProposed').innerText = targetAnswer;
         const feedbackMsg = isCorrect ? `🎉 ${t.correct}` : `❌ ${t.incorrectAnswer} 👉 ${targetAnswer}`;
         showFeedback(isCorrect, feedbackMsg); handleAutoPlay('end'); submitAnswer(isCorrect);
-        setTimeout(() => { const nextBtn = $('nextBtn'); if (nextBtn) nextBtn.focus(); }, 100);
+        setTimeout(() => { if (nextBtnEl) nextBtnEl.focus(); }, 100);
       }
 
       function showFeedback(isCorrect, message, hideNextBtn) {
+        ensureDomCache();
         const fb = $('feedbackBox'); fb.style.display = 'block'; fb.innerText = message; fb.className = `feedback ${isCorrect ? 'feedback-success' : 'feedback-error'}`;
         if (!hideNextBtn) {
-            $('nextBtn').style.display = 'block';
+          nextBtnEl.style.display = 'block';
         }
-        const overrideBtn = $('overrideBtn'); if (!isCorrect) { overrideBtn.style.display = 'block'; } else { overrideBtn.style.display = 'none'; }
+        if (!isCorrect) { overrideBtnEl.style.display = 'block'; } else { overrideBtnEl.style.display = 'none'; }
         lastFeedbackTime = Date.now();
       }
 
@@ -2872,17 +2933,20 @@
           if (newEF < 1.3) newEF = 1.3;
         }
 
-        currentCard.interval = newInterval;
+        const finalInterval = applyClientFuzz(newInterval);
+
+        currentCard.interval = finalInterval;
         currentCard.ef = newEF;
         currentCard.failCount = localFailCount;
         currentCard.isLeech = localFailCount >= 1;
 
-        let msToAdd = newInterval * 24 * 60 * 60 * 1000;
+        let msToAdd = finalInterval * 24 * 60 * 60 * 1000;
         let nextDateObj = new Date(Date.now() + msToAdd);
+        const nextReviewIso = nextDateObj.toISOString();
 
         rawData.savedProgress[cardId] = {
-          interval: newInterval,
-          nextReview: nextDateObj.toISOString(),
+          interval: finalInterval,
+          nextReview: nextReviewIso,
           failCount: localFailCount,
           isLeech: currentCard.isLeech,
           lastReviewed: getClientTodayStr(),
@@ -2907,59 +2971,91 @@
 
         rawData.studiedToday = studiedToday;
 
-        const currentResult = { cardId: cardId, isCorrect: isCorrect, confidence: conf, wasNew: wasNewCard, isTypo: isTypo || false, inDifficultMode: activeQuizMode === 'leeches' };
+        const currentResult = {
+          cardId: cardId,
+          isCorrect: isCorrect,
+          confidence: conf,
+          wasNew: wasNewCard,
+          isTypo: isTypo || false,
+          inDifficultMode: activeQuizMode === 'leeches',
+          newInterval: finalInterval,
+          newEF: newEF,
+          nextReview: nextReviewIso,
+          failCount: localFailCount,
+          isLeech: currentCard.isLeech,
+          lastReviewed: getClientTodayStr(),
+          prevInterval: currentCard.prevInterval || null
+        };
         pendingBatchResults.push(currentResult); 
 
         // SAVE TO SPREADSHEET IMMEDIATELY
         const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
         google.script.run
           .withFailureHandler(e => console.warn("Sync error:", e))
-          .saveSegmentResults([currentResult], activeUserKey, activeDisplayName, savedDeckId, getClientTodayStr());
+          .saveSegmentResults([currentResult], activeUserKey, activeDisplayName, savedDeckId, getClientTodayStr(), getClientTimeZone());
 
         if (currentMode === 'flip') { renderNextCard(); }
       }
 
       function handleOverride() {
+        ensureDomCache();
         if (!lastGradedCard) return;
         segmentStats.wrong = Math.max(0, segmentStats.wrong - 1); segmentStats.correct++;
         const t = i18n[currentUiLang] || i18n.en;
 
         if (currentCard) {
-            currentCard.interval = Math.round((lastGradedCard.interval || 1) * (lastGradedCard.ef || 2.5));
-            if (currentCard.interval < 1) currentCard.interval = 1;
+            const correctedBaseInterval = Math.max(1, Math.round((lastGradedCard.interval || 1) * (lastGradedCard.ef || 2.5)));
+            currentCard.interval = applyClientFuzz(correctedBaseInterval);
+            currentCard.ef = Math.max(1.3, lastGradedCard.ef || 2.5);
+            currentCard.failCount = Math.max(0, (currentCard.failCount || 0) - 1);
+            currentCard.isLeech = currentCard.failCount >= 1;
         }
 
         if (pendingBatchResults.length > 0) {
           const lastItem = pendingBatchResults[pendingBatchResults.length - 1];
           if (lastItem && lastItem.cardId === lastGradedCard.id) {
             lastItem.isCorrect = true; lastItem.confidence = 'good';
+            lastItem.isTypo = false;
             
             let msToAdd = currentCard.interval * 24 * 60 * 60 * 1000;
             let nextDateObj = new Date(Date.now() + msToAdd);
+            const nextReviewIso = nextDateObj.toISOString();
             if (rawData.savedProgress[lastGradedCard.id]) {
                 rawData.savedProgress[lastGradedCard.id].interval = currentCard.interval;
-                rawData.savedProgress[lastGradedCard.id].nextReview = nextDateObj.toISOString();
+                rawData.savedProgress[lastGradedCard.id].nextReview = nextReviewIso;
+                rawData.savedProgress[lastGradedCard.id].failCount = currentCard.failCount;
+                rawData.savedProgress[lastGradedCard.id].isLeech = currentCard.isLeech;
+                rawData.savedProgress[lastGradedCard.id].ef = currentCard.ef;
+                rawData.savedProgress[lastGradedCard.id].lastReviewed = getClientTodayStr();
             }
+
+            lastItem.newInterval = currentCard.interval;
+            lastItem.newEF = currentCard.ef;
+            lastItem.nextReview = nextReviewIso;
+            lastItem.failCount = currentCard.failCount;
+            lastItem.isLeech = currentCard.isLeech;
+            lastItem.lastReviewed = getClientTodayStr();
+            lastItem.prevInterval = currentCard.prevInterval || null;
 
             // Sync the correction immediately
             const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
             google.script.run
               .withFailureHandler(e => console.warn("Sync error:", e))
-              .saveSegmentResults([lastItem], activeUserKey, activeDisplayName, savedDeckId, getClientTodayStr());
+              .saveSegmentResults([lastItem], activeUserKey, activeDisplayName, savedDeckId, getClientTodayStr(), getClientTimeZone());
           }
         }
 
         const fb = $('feedbackBox'); fb.innerText = `${t.overriddenSuccess}\n${t.answer}: ${lastGradedCard.targetAnswer}`; fb.className = 'feedback feedback-success';
-        $('overrideBtn').style.display = 'none';
+        overrideBtnEl.style.display = 'none';
         
         if (isRetyping) {
             isRetyping = false;
-            $('typeInput').disabled = true;
-            $('typeSubmitBtn').disabled = true;
-            $('typeInput').style.borderColor = "var(--success)";
-            $('typeSubmitBtn').innerText = t.submit || "Submit Answer";
-            $('nextBtn').style.display = 'block';
-            setTimeout(() => { const nextBtn = $('nextBtn'); if (nextBtn) nextBtn.focus(); }, 100);
+          typeInputEl.disabled = true;
+          typeSubmitBtnEl.disabled = true;
+          typeInputEl.style.borderColor = "var(--success)";
+          typeSubmitBtnEl.innerText = t.submit || "Submit Answer";
+          nextBtnEl.style.display = 'block';
+          setTimeout(() => { if (nextBtnEl) nextBtnEl.focus(); }, 100);
         }
       }
 
