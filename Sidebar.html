@@ -409,6 +409,7 @@
            <span id="lblDidYouMean" style="font-size: 14px; font-weight: 800;">Did you mean:</span>
            <a href="#" id="spellcheckSuggestion" style="color: var(--primary); text-decoration: none; cursor: pointer; font-size: 15px; font-weight: 800; padding: 6px 10px; border-radius: 8px; background: rgba(59, 130, 246, 0.12); display: inline-block; margin-top: 4px;">Suggestion</a>
         </div>
+          <div id="spellcheckUnavailableNote" class="warning-box" style="display:none; margin-top:-4px; margin-bottom:10px; font-size:11px;"></div>
 
         <div id="transResultsArea" style="display:none; flex-direction:column; gap:6px; margin-bottom:12px; background:var(--bg-secondary); padding:8px; border-radius:8px;">
           <div style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; text-align:left;" id="lblSelectBestTrans">Select the best translation:</div>
@@ -427,6 +428,8 @@
               <span style="font-size:10px; font-weight:700; color:var(--primary); text-transform:uppercase;">✨ Google Gemini AI</span>
               <span style="font-size:13px; font-weight:600; color:var(--text-main);" id="optGeminiTransText">...</span>
           </button>
+
+          <div id="translationApiNotice" class="warning-box" style="display:none; font-size:11px; margin-top:4px;"></div>
         </div>
         <label style="font-size:11px; font-weight:600; color:var(--text-muted); display:block; text-align:left;" id="lblResultText">Final Card Answer:</label>
         <input type="text" id="transResultInput" style="margin-top:2px; margin-bottom:12px;" placeholder="Result will appear here..." oninput="validateTranslateInputs()">
@@ -905,7 +908,7 @@
           addCardToDeck: "➕ Add to Deck", dockSidebar: "↙ Dock to Sidebar", popOut: "↗ Pop Out", dockTitle: "Dock back into spreadsheet sidebar",
           popoutTitle: "Open in larger window", deckPrompt: "Paste the full Google Spreadsheet URL or ID for your deck (leave blank to reset to default):",
           namePrompt: "Choose your custom display name for the Leaderboard:", studiedToday: "Studied Today",
-          dueForStudy: "Due For Study", studyDue: "🚀 Study Due Cards", studyNew: "🌱 Study New Cards", studyLeeches: "⚡ Study Difficult Cards",
+          dueForStudy: "Due For Study", studyDue: "🚀 Study Due Cards", studyNew: "✨ Study New Cards", studyLeeches: "⚡ Study Difficult Cards",
           consistency: "🗓️ Study Consistency", deckMastery: "Deck Mastery Levels", topLearners: "🏆 Leaderboard",
           lbAllTime: "All-Time", lbThisWeek: "This Week", lbThisMonth: "This Month", rangeWeek: "1 Week", rangeMonth: "1 Month", rangeYear: "1 Year",
           less: "Less", more: "More", reveal: "Reveal Answer", gotIt: "✅ Got It!", submit: "Submit Answer", nextCard: "Next Card ➔",
@@ -933,6 +936,9 @@
           weekDaysInitials: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
           copyCorrect: "Copy the correct answer...", retypeContinue: "Retype to Continue",
           newRewardUnlocked: "🎉 New Reward!", rewardUnlocked: "🎉 Reward!", woohoo: "Woohoo!", didYouMean: "Did you mean:",
+          aiSpellcheckUnavailable: "AI spellcheck unavailable (Gemini API key not configured).",
+          translationApiMissing: "{{provider}} translation requires API key setup in Script Properties.",
+          translationApisMissing: "{{providers}} translation requires API key setup in Script Properties.",
           loggedInAs: "👤 Logged in as:", switchAccount: "🔄 Switch Account", switchAccountTitle: "Switch Google Account", initializing: "Initializing...", displayNameLabel: "Display Name:", enterNamePlaceholder: "Enter your name", studiedModalTitle: "Cards Studied Today", notice: "Notice", inputRequired: "Input Required", ok: "OK", notLoggedIn: "Not Logged In",
           themeLight: "☀️ Light Theme", themeDark: "🌙 Dark Theme", themeKurs: "🎨 Kurskollektivet Theme", archiveCard: "🗃️ Archive"
         },
@@ -947,7 +953,7 @@
           addCardToDeck: "➕ Legg til kort", dockSidebar: "↙ Fest til sidepanel", popOut: "↗ Åpne i eget vindu", dockTitle: "Fest tilbake i regnearkets sidepanel",
           popoutTitle: "Åpne i et større vindu", deckPrompt: "Lim inn Google-regnearkets URL eller ID for kortstokken din (la stå tom for å tilbakestille):",
           namePrompt: "Velg ditt tilpassede visningsnavn for ledertavlen:", studiedToday: "Studert i dag",
-          dueForStudy: "Forfaller til repetisjon", studyDue: "🚀 Studer forfalte kort", studyNew: "🌱 Studer nye kort", studyLeeches: "⚡ Studer vanskelige kort",
+          dueForStudy: "Forfaller til repetisjon", studyDue: "🚀 Studer forfalte kort", studyNew: "✨ Studer nye kort", studyLeeches: "⚡ Studer vanskelige kort",
           consistency: "🗓️ Studiekontinuitet", deckMastery: "Mestringsnivå", topLearners: "🏆 Ledertavle",
           lbAllTime: "Gjennom tidene", lbThisWeek: "Denne uken", lbThisMonth: "Denne måneden", rangeWeek: "1 uke", rangeMonth: "1 måned", rangeYear: "1 år",
           less: "Mindre", more: "Mer", reveal: "Vis svar", gotIt: "✅ Skjønte det!", submit: "Send inn svar", nextCard: "Neste kort ➔",
@@ -975,6 +981,9 @@
           weekDaysInitials: ['M', 'T', 'O', 'T', 'F', 'L', 'S'],
           copyCorrect: "Kopier det riktige svaret...", retypeContinue: "Skriv på nytt for å fortsette",
           newRewardUnlocked: "🎉 Ny belønning!", rewardUnlocked: "🎉 Belønning!", woohoo: "Hurra!", didYouMean: "Mente du:",
+          aiSpellcheckUnavailable: "AI-stavekontroll utilgjengelig (Gemini API-nøkkel er ikke konfigurert).",
+          translationApiMissing: "{{provider}}-oversettelse krever API-nøkkel i Script Properties.",
+          translationApisMissing: "{{providers}}-oversettelse krever API-nøkler i Script Properties.",
           loggedInAs: "👤 Logget inn som:", switchAccount: "🔄 Bytt konto", switchAccountTitle: "Bytt Google-konto", initializing: "Initialiserer...", displayNameLabel: "Visningsnavn:", enterNamePlaceholder: "Skriv inn navnet ditt", studiedModalTitle: "Kort studert i dag", notice: "Varsel", inputRequired: "Inndata kreves", ok: "OK", notLoggedIn: "Ikke logget inn",
           themeLight: "☀️ Lyst Tema", themeDark: "🌙 Mørkt Tema", themeKurs: "🎨 Kurskollektivet Tema", archiveCard: "🗃️ Arkiver"
         },
@@ -989,7 +998,7 @@
           addCardToDeck: "➕ Aggiungi al mazzo", dockSidebar: "↙ Aggancia alla barra", popOut: "↗ Apri in nuova finestra", dockTitle: "Riavvia nella barra laterale",
           popoutTitle: "Apri in una finestra più grande", deckPrompt: "Incolla l'URL o l'ID del foglio Google per il tuo mazzo (lascia vuoto per ripristinare):",
           namePrompt: "Scegli il tuo nome visualizzato per la classifica:", studiedToday: "Studiato oggi",
-          dueForStudy: "Da ripassare", studyDue: "🚀 Studia carte da ripassare", studyNew: "🌱 Studia nuove carte", studyLeeches: "⚡ Studia carte difficili",
+          dueForStudy: "Da ripassare", studyDue: "🚀 Studia carte da ripassare", studyNew: "✨ Studia nuove carte", studyLeeches: "⚡ Studia carte difficili",
           consistency: "🗓️ Frequenza di studio", deckMastery: "Livelli di padronanza", topLearners: "🏆 Classifica",
           lbAllTime: "Tutti i tempi", lbThisWeek: "Questa settimana", lbThisMonth: "Questo mese", rangeWeek: "1 Settimana", rangeMonth: "1 Mese", rangeYear: "1 Anno",
           less: "Meno", more: "Di più", reveal: "Mostra risposta", gotIt: "✅ Capito!", submit: "Invia risposta", nextCard: "Prossima carta ➔",
@@ -1017,6 +1026,9 @@
           weekDaysInitials: ['L', 'M', 'M', 'G', 'V', 'S', 'D'],
           copyCorrect: "Copia la risposta corretta...", retypeContinue: "Riscrivi per continuare",
           newRewardUnlocked: "🎉 Nuovo Premio!", rewardUnlocked: "🎉 Premio!", woohoo: "Evviva!", didYouMean: "Forse cercavi:",
+          aiSpellcheckUnavailable: "Controllo ortografico AI non disponibile (chiave API Gemini non configurata).",
+          translationApiMissing: "La traduzione {{provider}} richiede una chiave API nelle Script Properties.",
+          translationApisMissing: "La traduzione {{providers}} richiede chiavi API nelle Script Properties.",
           loggedInAs: "👤 Accesso come:", switchAccount: "🔄 Cambia account", switchAccountTitle: "Cambia account Google", initializing: "Inizializzazione...", displayNameLabel: "Nome visualizzato:", enterNamePlaceholder: "Inserisci il tuo nome", studiedModalTitle: "Carte studiate oggi", notice: "Avviso", inputRequired: "Input richiesto", ok: "OK", notLoggedIn: "Non collegato",
           themeLight: "☀️ Tema Chiaro", themeDark: "🌙 Tema Scuro", themeKurs: "🎨 Tema Kurskollektivet", archiveCard: "🗃️ Archivia"
         }
@@ -1412,6 +1424,7 @@
       function closeTranslateModal() { $('translateModal').style.display = 'none'; }
 
       function runAiTranslation() {
+        const t = i18n[currentUiLang] || i18n.en;
         const text = $('transSourceInput').value.trim();
         if (!text) return;
         if (countWords(text) > 20) { validateTranslateInputs(); return; }
@@ -1424,6 +1437,8 @@
         $('transResultInput').value = "Fetching translations...";
         $('transResultsArea').style.display = 'none';
         $('spellcheckArea').style.display = 'none';
+        $('spellcheckUnavailableNote').style.display = 'none';
+        $('translationApiNotice').style.display = 'none';
         
         // 1. Concurrent Call: Spellcheck
         google.script.run.withSuccessHandler(res => {
@@ -1435,7 +1450,13 @@
                     $('transSourceInput').value = res.corrected;
                     runAiTranslation(); // Re-run translation with corrected text
                 };
+            } else if (!res || !res.success) {
+                $('spellcheckUnavailableNote').innerText = t.aiSpellcheckUnavailable || "AI spellcheck unavailable (Gemini API key not configured).";
+                $('spellcheckUnavailableNote').style.display = 'block';
             }
+        }).withFailureHandler(() => {
+            $('spellcheckUnavailableNote').innerText = t.aiSpellcheckUnavailable || "AI spellcheck unavailable (Gemini API key not configured).";
+            $('spellcheckUnavailableNote').style.display = 'block';
         }).checkSpelling(text, sourceCode);
         
         // 2. Main Call: Translation
@@ -1443,6 +1464,7 @@
           .withSuccessHandler(res => {
             if (res.success) {
               $('transResultsArea').style.display = 'flex';
+              const missingProviders = [];
               
               if (res.google && !res.google.includes("unavailable")) {
                 $('optGoogleTrans').style.display = 'flex'; 
@@ -1455,7 +1477,10 @@
                 $('optDeeplTrans').style.display = 'flex'; 
                 $('optDeeplTransText').innerText = res.deepl; 
                 $('optDeeplTrans').setAttribute('data-val', res.deepl);
-              } else { $('optDeeplTrans').style.display = 'none'; }
+              } else {
+                $('optDeeplTrans').style.display = 'none';
+                if (res.deepl && res.deepl.indexOf("missing or empty") !== -1) missingProviders.push("DeepL");
+              }
 
               if (res.gemini && res.gemini.trim().length > 0 && !res.gemini.startsWith("Gemini Error")) {
                 $('optGeminiTrans').style.display = 'flex'; 
@@ -1465,7 +1490,21 @@
                 if (!res.gemini.startsWith("Gemini Error") && (!res.google || res.google.includes("unavailable"))) { 
                    $('transResultInput').value = res.gemini; 
                 }
-              } else { $('optGeminiTrans').style.display = 'none'; }
+              } else {
+                $('optGeminiTrans').style.display = 'none';
+                if (res.gemini && res.gemini.indexOf("missing or empty") !== -1) missingProviders.push("Gemini");
+              }
+
+              if (missingProviders.length > 0) {
+                const providerText = missingProviders.join(" + ");
+                const tpl = missingProviders.length > 1
+                  ? (t.translationApisMissing || "{{providers}} translation requires API key setup in Script Properties.")
+                  : (t.translationApiMissing || "{{provider}} translation requires API key setup in Script Properties.");
+                $('translationApiNotice').innerText = tpl
+                  .replace("{{providers}}", providerText)
+                  .replace("{{provider}}", providerText);
+                $('translationApiNotice').style.display = 'block';
+              }
 
               validateTranslateInputs();
             } else { 
@@ -1800,7 +1839,21 @@
           data.savedProgress = { ...data.savedProgress, ...rawData.savedProgress };
         }
         if (rawData && rawData.studiedToday && data) {
-          data.studiedToday = { ...data.studiedToday, ...rawData.studiedToday };
+          const serverStudied = data.studiedToday || { newCount: 0, oldCount: 0 };
+          const localStudied = rawData.studiedToday || { newCount: 0, oldCount: 0 };
+          data.studiedToday = {
+            newCount: Math.max(serverStudied.newCount || 0, localStudied.newCount || 0),
+            oldCount: Math.max(serverStudied.oldCount || 0, localStudied.oldCount || 0)
+          };
+        }
+        if (rawData && rawData.studyHistory && data) {
+          const mergedHistory = Object.assign({}, data.studyHistory || {});
+          Object.keys(rawData.studyHistory).forEach(function(dateKey) {
+            var serverVal = parseInt(mergedHistory[dateKey] || 0, 10) || 0;
+            var localVal = parseInt(rawData.studyHistory[dateKey] || 0, 10) || 0;
+            mergedHistory[dateKey] = Math.max(serverVal, localVal);
+          });
+          data.studyHistory = mergedHistory;
         }
 
         rawData = data;
@@ -2476,6 +2529,30 @@
         const answerWordCount = countWords(targetAnswer); const promptWordCount = countWords(targetPrompt);
         let availableModes = [];
         const intervalDays = currentCard.interval;
+        const pickModeWithScaffoldingBias = (modes, ivlDays) => {
+          if (!modes || modes.length === 0) return 'typing';
+          if (ivlDays <= 14) return modes[Math.floor(Math.random() * modes.length)];
+
+          const productionModes = new Set(['typing', 'cloze_typing']);
+          const bridgeModes = new Set(['faded_hints', 'audio_dictation', 'cloze_mcq']);
+          const weighted = [];
+
+          modes.forEach(mode => {
+            let weight = 1;
+            if (ivlDays >= 60) {
+              if (productionModes.has(mode)) weight = 7;
+              else if (bridgeModes.has(mode)) weight = 3;
+              else weight = 1;
+            } else {
+              if (productionModes.has(mode)) weight = 4;
+              else if (bridgeModes.has(mode)) weight = 2;
+              else weight = 1;
+            }
+            for (let i = 0; i < weight; i++) weighted.push(mode);
+          });
+
+          return weighted[Math.floor(Math.random() * weighted.length)] || modes[0];
+        };
 
         if (forcedMode) {
           currentMode = forcedMode;
@@ -2520,7 +2597,7 @@
         if (availableModes.length === 0) availableModes = ['typing'];
 
         if (!forcedMode) {
-          currentMode = availableModes[Math.floor(Math.random() * availableModes.length)];
+          currentMode = pickModeWithScaffoldingBias(availableModes, intervalDays);
         }
         
         $('typeBadge').innerText = currentMode.replace('_', ' ').toUpperCase();
@@ -3059,6 +3136,7 @@
           segmentStats.wrong++;
         }
 
+        const todayKey = getClientTodayStr();
         const studiedToday = (rawData && rawData.studiedToday) ? rawData.studiedToday : { newCount: 0, oldCount: 0 };
 
         if (wasNewCard) {
@@ -3069,6 +3147,8 @@
         }
 
         rawData.studiedToday = studiedToday;
+  if (!rawData.studyHistory) rawData.studyHistory = {};
+  rawData.studyHistory[todayKey] = (parseInt(rawData.studyHistory[todayKey] || 0, 10) || 0) + 1;
 
         const currentResult = {
           cardId: cardId,
@@ -3082,7 +3162,7 @@
           nextReview: nextReviewIso,
           failCount: localFailCount,
           isLeech: currentCard.isLeech,
-          lastReviewed: getClientTodayStr(),
+          lastReviewed: todayKey,
           prevInterval: currentCard.prevInterval || null
         };
         pendingBatchResults.push(currentResult); 
