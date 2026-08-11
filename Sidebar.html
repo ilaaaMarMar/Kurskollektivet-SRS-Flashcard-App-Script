@@ -2145,6 +2145,9 @@
       function showDashboard() {
         const btn1 = $('returnDashSummaryBtn'); if (btn1) btn1.innerText = "⏳ Loading...";
         const btn2 = $('returnDashBtn'); if (btn2) btn2.innerText = "⏳ Loading...";
+        if (rawData && rawData.rawRows) {
+          processCardsForActivePair();
+        }
         fetchData();
       }
 
@@ -2567,6 +2570,13 @@
         let reviewCardsCount = segmentStats.reviewCards;
 
         if (correctCount === 0 && wrongCount === 0 && pendingBatchResults && pendingBatchResults.length > 0) {
+          correctCount = pendingBatchResults.filter(r => r.isCorrect).length;
+          wrongCount = pendingBatchResults.filter(r => !r.isCorrect).length;
+          newCardsCount = pendingBatchResults.filter(r => r.wasNew).length;
+          reviewCardsCount = pendingBatchResults.filter(r => !r.wasNew).length;
+        }
+
+        if (pendingBatchResults && pendingBatchResults.length > 0) {
           correctCount = pendingBatchResults.filter(r => r.isCorrect).length;
           wrongCount = pendingBatchResults.filter(r => !r.isCorrect).length;
           newCardsCount = pendingBatchResults.filter(r => r.wasNew).length;
