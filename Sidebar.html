@@ -1,0 +1,2928 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    /* THEME DEFINITIONS */
+    :root {
+      --bg-body: #f8f9fa;
+      --bg-card: #ffffff;
+      --text-main: #202124;
+      --text-muted: #5f6368;
+      --border: #dadce0;
+      --bg-secondary: #f1f3f4;
+      --bg-secondary-hover: #e8eaed;
+      --primary: #1a73e8;
+      --primary-hover: #1557b0;
+      --bg-primary-light: #e8f0fe;
+      --border-primary-light: #d2e3fc;
+      --success: #34a853;
+      --success-hover: #2d9247;
+      --bg-success-light: #e6f4ea;
+      --border-success-light: #ceead6;
+      --success-text: #137333;
+      --danger: #ea4335;
+      --danger-hover: #d93025;
+      --bg-danger-light: #fce8e6;
+      --border-danger-light: #fad2cf;
+      --danger-text: #c5221f;
+      --warning: #e65c00;
+      --warning-hover: #cc5200;
+      --bg-warning-light: #fef7e0;
+      --border-warning-light: #feefc3;
+      --warning-text: #b06000;
+      --violet: #8e24aa;
+      --violet-hover: #7b1fa2;
+      --btn-secondary: #5f6368;
+      --btn-secondary-hover: #4e5156;
+      --btn-secondary-text: #ffffff;
+      --hm-0: #ebedf0;
+      --hm-0-odd: #e1e4e8;
+      --hm-1: #cce8cf;
+      --hm-2: #81c995;
+      --hm-3: #34a853;
+      --hm-4: #137333;
+      
+      /* Confidence Buttons */
+      --hard-text: var(--warning-text);
+      --hard-bg: var(--bg-warning-light);
+      --hard-border: var(--border-warning-light);
+      --easy-text: var(--primary);
+      --easy-bg: var(--bg-primary-light);
+      --easy-border: var(--border-primary-light);
+    }
+
+    [data-theme="dark"] {
+      --bg-body: #121212;
+      --bg-card: #1e1e1e;
+      --text-main: #e8eaed;
+      --text-muted: #9fbad1;
+      --border: #3c4043;
+      --bg-secondary: #303134;
+      --bg-secondary-hover: #444444;
+      --primary: #FF9900;
+      --primary-hover: #e68a00;
+      --bg-primary-light: rgba(64, 120, 163, 0.15);
+      --border-primary-light: #4078A3;
+      --success: #70BF4F;
+      --success-hover: #5da43f;
+      --bg-success-light: rgba(112, 191, 79, 0.2);
+      --border-success-light: #70BF4F;
+      --success-text: #b9e0aa;
+      --danger: #E94420;
+      --danger-hover: #d13d1c;
+      --bg-danger-light: rgba(233, 68, 32, 0.2);
+      --border-danger-light: #E94420;
+      --danger-text: #fda996;
+      --warning: #E94420;
+      --warning-hover: #d13d1c;
+      --bg-warning-light: rgba(233, 68, 32, 0.2);
+      --border-warning-light: #E94420;
+      --warning-text: #fda996;
+      --violet: #4078A3;
+      --violet-hover: #36658a;
+      --btn-secondary: #5f6368;
+      --btn-secondary-hover: #757b82;
+      --btn-secondary-text: #ffffff;
+      --hm-0: #303134;
+      --hm-0-odd: #3c4043;
+      --hm-1: #2b541b;
+      --hm-2: #4a8034;
+      --hm-3: #5da43f;
+      --hm-4: #70BF4F;
+
+      /* Confidence Buttons overrides */
+      --hard-text: #FF9900;
+      --hard-bg: rgba(255, 153, 0, 0.15);
+      --hard-border: rgba(255, 153, 0, 0.5);
+      --easy-text: #4078A3;
+      --easy-bg: rgba(64, 120, 163, 0.15);
+      --easy-border: rgba(64, 120, 163, 0.5);
+    }
+
+    [data-theme="kurskollektivet"] {
+      --bg-body: #F3E7CE;
+      --bg-card: #F3F3F3;
+      --text-main: #444444;
+      --text-muted: #686868;
+      --border: #9c9c9c;
+      --bg-secondary: #e5e5e5;
+      --bg-secondary-hover: #d5d5d5;
+      --primary: #FF9900; 
+      --primary-hover: #e68a00;
+      --bg-primary-light: #ffce9d;
+      --border-primary-light: #FF9900;
+      --success: #70BF4F;
+      --success-hover: #5da43f;
+      --bg-success-light: #b9e0aa;
+      --border-success-light: #70BF4F;
+      --success-text: #2b541b;
+      --danger: #E94420;
+      --danger-hover: #d13d1c;
+      --bg-danger-light: #fda996;
+      --border-danger-light: #E94420;
+      --danger-text: #731e0b;
+      --warning: #E94420;
+      --warning-hover: #d13d1c;
+      --bg-warning-light: #fda996;
+      --border-warning-light: #E94420;
+      --warning-text: #731e0b;
+      --violet: #4078A3;
+      --violet-hover: #36658a;
+      --btn-secondary: #9c9c9c;
+      --btn-secondary-hover: #686868;
+      --btn-secondary-text: #ffffff;
+      --hm-0: #e5e5e5;
+      --hm-0-odd: #d5d5d5;
+      --hm-1: #b9e0aa;
+      --hm-2: #92d07e;
+      --hm-3: #70BF4F;
+      --hm-4: #4a8034;
+
+      /* Confidence Buttons overrides */
+      --hard-text: #995c00; 
+      --hard-bg: #ffe0b2; 
+      --hard-border: #ffb84d; 
+      --easy-text: #264a66; 
+      --easy-bg: #d1e2f0; 
+      --easy-border: #92b8d6;
+    }
+
+    /* BASE STYLES */
+    body {
+      font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+      margin: 0; padding: 14px; background-color: var(--bg-body); color: var(--text-main);
+      display: flex; flex-direction: column; align-items: center; box-sizing: border-box;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    /* RESPONSIVE LOGO CROP STYLES */
+    .logo-container {
+      width: 100%; 
+      max-width: 380px; 
+      margin: 0 auto 10px auto; 
+      overflow: hidden; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      border-radius: 4px;
+      transition: max-width 0.3s ease;
+    }
+    #appLogo {
+      width: 100%; 
+      display: block;
+      transition: transform 0.3s ease;
+    }
+    /* Cuts heavily on top/bottom, barely trims left/right */
+    [data-theme="kurskollektivet"] .logo-container {
+      max-width: 355px;
+    }
+    [data-theme="kurskollektivet"] #appLogo {
+      transform: scale(1.002, 1.04);
+    }
+
+    .view-section { display: none; width: 100%; max-width: 700px; margin: 0 auto; box-sizing: border-box; }
+    .error-text { color: var(--danger-text); font-size: 12px; display: none; margin-bottom: 10px; text-align: left; }
+    .modal {
+      display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%;
+      overflow: auto; background-color: rgba(0, 0, 0, 0.6); justify-content: center; align-items: center;
+      padding: 14px; box-sizing: border-box;
+    }
+    .modal-content {
+      background-color: var(--bg-card); padding: 20px; border: 1px solid var(--border); width: 100%; max-width: 400px;
+      border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); color: var(--text-main);
+    }
+    .modal-content h3 { color: var(--text-main); margin-top: 0; }
+    .user-bar-container { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; width: 100%; max-width: 700px; margin: 0 auto 12px auto; gap: 8px; box-sizing: border-box; }
+    .user-profile-badge {
+      font-size: 11px; color: var(--success-text); background: var(--bg-success-light); border: 1px solid var(--border-success-light); padding: 6px 10px;
+      border-radius: 10px; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      display: flex; gap: 4px; align-items: center; cursor: default; font-weight: 600;
+    }
+    .btn-outline { 
+      font-size: 11px; padding: 5px 8px; background-color: var(--bg-card); border: 1px solid var(--border); 
+      border-radius: 10px; color: var(--text-muted); font-weight: 600; cursor: pointer; text-decoration: none; display: flex; align-items: center; 
+    }
+    .btn-outline:hover { background-color: var(--bg-secondary); color: var(--text-main); }
+    @media (max-width: 480px) { .user-profile-badge, .btn-outline { flex: 1 1 100%; justify-content: center; } }
+    .lang-select-btn { font-size: 11px; padding: 4px 6px; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; color: var(--text-main); font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .lang-select-btn:hover { background-color: var(--bg-secondary); }
+    .btn-popout { font-size: 11px; padding: 3px 8px; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; color: var(--primary); font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .btn-popout:hover { background-color: var(--bg-primary-light); }
+    .dash-container { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+    .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; box-sizing: border-box; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04); transition: background-color 0.2s; }
+    .stat-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .stat-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0; }
+    .btn-view-list { font-size: 10px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); background-color: var(--bg-body); color: var(--primary); font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .btn-view-list:hover { background-color: var(--bg-primary-light); }
+    .btn-view-list:disabled { opacity: 0.4; cursor: not-allowed; color: var(--text-muted); }
+    .stat-number-row { display: flex; align-items: baseline; justify-content: space-between; }
+    .stat-big { font-size: 26px; font-weight: 800; color: var(--primary); }
+    .stat-detail { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+    .box-grid { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+    .box-item { background: var(--bg-secondary); padding: 7px 10px; border-radius: 6px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
+    .box-label { font-weight: 600; color: var(--text-main); }
+    .box-val { font-weight: 700; color: var(--primary); font-size: 11px; }
+    .heatmap-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    select.range-select, select.pair-select { font-size: 11px; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border); background-color: var(--bg-body); color: var(--text-main); font-weight: 600; cursor: pointer; }
+    .heatmap-stats-bar { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+    .heatmap-container { width: 100%; overflow-x: auto; padding-bottom: 4px; }
+    .heatmap-grid { display: grid; box-sizing: border-box; }
+    .hm-cell { transition: transform 0.1s; box-sizing: border-box; }
+    .hm-cell:hover { transform: scale(1.1); }
+    .hm-lvl-0 { background-color: var(--hm-0); }
+    .hm-lvl-0-odd { background-color: var(--hm-0-odd); }
+    .hm-lvl-1 { background-color: var(--hm-1); }
+    .hm-lvl-2 { background-color: var(--hm-2); }
+    .hm-lvl-3 { background-color: var(--hm-3); }
+    .hm-lvl-4 { background-color: var(--hm-4); }
+    .heatmap-legend { display: flex; align-items: center; justify-content: flex-end; gap: 3px; font-size: 10px; color: var(--text-muted); margin-top: 8px; }
+    .hm-legend-box { width: 9px; height: 9px; border-radius: 2px; }
+    .summary-banner { background: var(--bg-success-light); border: 1px solid var(--border-success-light); color: var(--success-text); padding: 12px; border-radius: 10px; text-align: center; font-weight: 700; font-size: 14px; margin-bottom: 12px; }
+    .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--bg-secondary); font-size: 13px; }
+    .summary-row:last-child { border-bottom: none; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 10px; flex-wrap: wrap; row-gap: 8px; }
+    .badge-container { display: flex; gap: 4px; flex-wrap: wrap; row-gap: 4px; }
+    .badge { font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 600; text-transform: uppercase; }
+    .badge-info { background-color: var(--bg-primary-light); color: var(--primary); }
+    .badge-mode { background-color: var(--bg-warning-light); color: var(--warning-text); }
+    .auto-play-toggle { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; cursor: pointer; }
+    .card-box { width: 100%; min-height: 130px; background: var(--bg-card); border: 2px solid var(--primary); border-radius: 12px; padding: 14px; box-sizing: border-box; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06); position: relative; }
+    .prompt-sub { font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 0.5px; }
+    .prompt-main { font-size: 20px; font-weight: 700; word-break: break-word; color: var(--text-main); }
+    .clue-box { font-size: 12px; background-color: var(--bg-secondary); border-radius: 6px; padding: 6px 10px; margin-top: 8px; color: var(--text-main); font-style: italic; width: 90%; }
+    .btn-audio { background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600; color: var(--primary); margin-top: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+    .btn-audio:hover { background-color: var(--bg-primary-light); }
+    .mode-container { width: 100%; display: none; flex-direction: column; gap: 8px; }
+    button { padding: 10px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.2s; font-size: 13px; }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background-color: var(--primary); color: #ffffff; width: 100%; }
+    .btn-primary:hover { background-color: var(--primary-hover); }
+    .btn-success { background-color: var(--success); color: #ffffff; width: 100%; margin-top: 6px; }
+    .btn-success:hover { background-color: var(--success-hover); }
+    .btn-violet { background-color: var(--violet); color: #ffffff; width: 100%; margin-top: 6px; }
+    .btn-violet:hover { background-color: var(--violet-hover); }
+    .btn-warning { background-color: var(--warning); color: #ffffff; width: 100%; margin-top: 6px; }
+    .btn-warning:hover { background-color: var(--warning-hover); }
+    .btn-wrong { background-color: var(--danger); color: #ffffff; }
+    .btn-correct { background-color: var(--success); color: #ffffff; width: 100%; }
+    .btn-mcq { background-color: var(--bg-card); border: 1.5px solid var(--border-primary-light); color: var(--text-main); text-align: left; padding: 10px 12px; }
+    .btn-mcq:hover { background-color: var(--bg-secondary); }
+    .btn-secondary { background-color: var(--btn-secondary); color: var(--btn-secondary-text); width: 100%; margin-top: 6px; }
+    .btn-secondary:hover { background-color: var(--btn-secondary-hover); }
+    .confidence-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; margin-top: 8px; }
+    
+    .btn-conf-again { background-color: var(--bg-danger-light); color: var(--danger-text); border: 1px solid var(--border-danger-light); font-size: 11px; padding: 8px 4px; }
+    .btn-conf-again:hover { background-color: var(--border-danger-light); }
+    
+    .btn-conf-good { background-color: var(--bg-success-light); color: var(--success-text); border: 1px solid var(--border-success-light); font-size: 11px; padding: 8px 4px; }
+    .btn-conf-good:hover { background-color: var(--border-success-light); }
+    
+    /* Dynamically updated confidence buttons to support themes natively */
+    .btn-conf-hard { background-color: var(--hard-bg); color: var(--hard-text); border: 1px solid var(--hard-border); font-size: 11px; padding: 8px 4px; }
+    .btn-conf-hard:hover { background-color: var(--hard-border); }
+    
+    .btn-conf-easy { background-color: var(--easy-bg); color: var(--easy-text); border: 1px solid var(--easy-border); font-size: 11px; padding: 8px 4px; }
+    .btn-conf-easy:hover { background-color: var(--easy-border); }
+
+    .tiles-answer-box { width: 100%; min-height: 42px; background: var(--bg-card); border: 1.5px dashed var(--border); border-radius: 8px; padding: 6px; box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
+    .tiles-pool-box { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 8px; }
+    .tile-btn { background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--text-main); cursor: pointer; }
+    .tile-btn:hover { background-color: var(--bg-primary-light); color: var(--primary); }
+    .btn-override { background-color: var(--bg-warning-light); border: 1px solid var(--border-warning-light); color: var(--warning-text); width: 100%; margin-top: 6px; font-weight: 600; }
+    input[type="text"] { width: 100%; padding: 10px; border: 1.5px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 14px; margin-bottom: 6px; outline: none; background: var(--bg-card); color: var(--text-main); }
+    .answer-container { display: flex; flex-direction: column; align-items: center; margin-bottom: 8px; }
+    .answer-text { font-size: 18px; font-weight: 700; color: var(--primary); }
+    .feedback { width: 100%; padding: 12px; border-radius: 10px; text-align: center; font-weight: 600; font-size: 13px; box-sizing: border-box; display: none; margin-bottom: 8px; white-space: pre-line; }
+    .feedback-success { background-color: var(--bg-success-light); color: var(--success-text); border: 1.5px solid var(--border-success-light); }
+    .feedback-error { background-color: var(--bg-danger-light); color: var(--danger-text); border: 1.5px solid var(--border-danger-light); }
+    .row { display: flex; gap: 8px; width: 100%; }
+    .row button { flex: 1 1 0; width: 50%; }
+    .stats { font-size: 12px; color: var(--text-muted); margin-top: 8px; text-align: center; }
+    .warning-box { display: none; background-color: var(--bg-danger-light); color: var(--danger-text); border: 1px solid var(--border-danger-light); border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: 700; margin-bottom: 10px; text-align: center; }
+    
+    /* Gamification Badges CSS */
+    .gamification-box { background: linear-gradient(145deg, var(--bg-card) 0%, var(--bg-secondary) 100%); }
+    .badge-scroll-container { display: flex; overflow-x: auto; gap: 16px; padding-bottom: 12px; padding-top: 16px; }
+    .badge-scroll-container::-webkit-scrollbar { height: 6px; }
+    .badge-scroll-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .badge-col { display: flex; flex-direction: column; align-items: center; min-width: 70px; position: relative; opacity: 0.35; filter: grayscale(100%); transition: all 0.3s ease; }
+    .badge-col.owned { opacity: 1; filter: grayscale(0%); transform: translateY(-2px); }
+    .badge-emoji { font-size: 34px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.1)); line-height: 1.1; }
+    .badge-name { font-size: 10px; font-weight: 700; color: var(--text-muted); margin-top: 8px; text-align: center; white-space: nowrap; }
+    .badge-count { position: absolute; top: -12px; right: 2px; color: white; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 12px; display: none; box-shadow: 0 1px 3px rgba(0,0,0,0.2); z-index: 2; border: 1.5px solid #ffffff; }
+    .badge-col.owned .badge-count { display: block; }
+  </style>
+</head>
+
+<body>
+  <div class="logo-container">
+    <img id="appLogo" src="https://github.com/ilaaaMarMar/Kurskollektivet/blob/main/LOGO%20KK%20banner%20cropped.png?raw=true" alt="Kurskollektivet Logo" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='block';">
+    <div id="logoFallback" style="display:none; font-size: 26px; font-weight: 900; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; width: 100%; text-align: center;">Kurskollektivet</div>
+  </div>
+
+  <div id="customDialogModal" class="modal" style="z-index:9999;">
+    <div class="modal-content">
+      <h3 style="margin-top:0;" id="customDialogTitle">Notice</h3>
+      <p id="customDialogText" style="font-size:13px; color:var(--text-muted); margin-bottom:14px; white-space:pre-wrap;"></p>
+      <input type="text" id="customDialogInput" style="display:none; margin-bottom:14px; width:100%; box-sizing:border-box;">
+      <div class="row">
+        <button class="btn-secondary" id="btnDialogCancel" style="display:none;">Cancel</button>
+        <button class="btn-primary" id="btnDialogConfirm">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rewardModal" class="modal" style="z-index:2500;">
+    <div class="modal-content" style="text-align: center; max-width: 300px;">
+      <div id="rewardModalTitle" style="font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">🎉 New Reward!</div>
+      <div id="rewardModalIcon" style="font-size: 60px; margin: 10px 0; filter: drop-shadow(0px 4px 4px rgba(0,0,0,0.15));">🏆</div>
+      <div id="rewardModalName" style="font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">Badge Name</div>
+      <button class="btn-primary" style="margin-top: 14px;" onclick="document.getElementById('rewardModal').style.display='none'" id="btnRewardDismiss">Woohoo!</button>
+    </div>
+  </div>
+
+  <div id="studiedCardsModal" class="modal">
+    <div class="modal-content" style="max-height: 80vh; display:flex; flex-direction:column;">
+      <h3 style="margin-top: 0; margin-bottom: 8px;" id="lblStudiedModalTitle">Cards Studied Today</h3>
+      <div id="studiedCardsList" style="overflow-y:auto; flex:1; text-align:left; font-size:13px; color:var(--text-main); border-top:1px solid var(--border); padding-top:10px;"></div>
+      <button class="btn-secondary" style="margin-top:14px;" onclick="document.getElementById('studiedCardsModal').style.display='none'" id="btnStudiedModalClose">Close</button>
+    </div>
+  </div>
+
+  <div id="loading-ui" style="text-align: center; margin-top: 50px; font-weight: 600; color: var(--text-muted); width: 100%;">
+    <p id="lblInitializing">Initializing...</p>
+  </div>
+
+  <div id="name-check-ui" class="view-section" style="background: var(--bg-card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); width: 100%; max-width: 400px; margin-top: 40px; box-shadow: 0 4px 10px rgba(0,0,0,0.06); box-sizing: border-box;">
+    <h3 id="text-welcome-setup" style="margin-top:0; color:var(--text-main);">Account Setup</h3>
+    <label for="display-name-input" style="font-size:12px; font-weight:600; color:var(--text-muted); display:block; text-align:left; margin-bottom:4px;" id="lblDisplayName">Display Name:</label>
+    <input type="text" id="display-name-input" placeholder="Enter your name">
+    <div id="name-error" class="error-text"></div>
+    <button class="btn-primary" id="btn-save-name">Save Name</button>
+  </div>
+
+  <div id="main-ui" class="view-section" style="width: 100%;">
+    <div id="webAppModal" class="modal" style="z-index:1000;">
+      <div class="modal-content">
+        <div style="font-weight:700; font-size:14px; margin-bottom:10px; color:var(--text-main);" id="lblWebAppTitle">🌐 Web App Link</div>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;" id="lblWebAppDesc">Copy the link below to access your flashcards directly in your browser.</p>
+        <input type="text" id="webAppUrlInput" readonly style="background:var(--bg-secondary); cursor:pointer; text-align:center; margin-bottom:12px;" onclick="this.select()">
+        <div class="row">
+          <button class="btn-secondary" onclick="closeWebAppModal()" id="btnCancelWebApp">Close</button>
+          <button class="btn-primary" onclick="copyWebAppLink()" id="btnCopyWebApp">📋 Copy Link</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="editCardModal" class="modal" style="z-index:1000;">
+      <div class="modal-content">
+        <div style="font-weight:700; font-size:14px; margin-bottom:10px; color:var(--text-main);" id="lblEditModalTitle">✏️ Edit Card</div>
+        <div id="editWordWarning" class="warning-box"></div>
+        <label style="font-size:11px; font-weight:600; color:var(--text-muted); display:block; text-align:left;" id="lblEditFront">Front Text:</label>
+        <input type="text" id="editFrontInput" style="margin-top:2px; margin-bottom:10px;" oninput="validateEditInputs()">
+        <label style="font-size:11px; font-weight:600; color:var(--text-muted); display:block; text-align:left;" id="lblEditBack">Back Text:</label>
+        <input type="text" id="editBackInput" style="margin-top:2px; margin-bottom:12px;" oninput="validateEditInputs()">
+        <div class="row">
+          <button class="btn-secondary" onclick="closeEditModal()" id="btnCancelEdit">Cancel</button>
+          <button class="btn-primary" onclick="saveCardEdit()" id="btnSaveEdit">Save to Sheet</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="translateModal" class="modal" style="z-index:1000;">
+      <div class="modal-content">
+        <div style="font-weight:700; font-size:14px; margin-bottom:10px; color:var(--text-main);" id="lblTranslateTitle">🔍 Dictionary & Quick Add</div>
+        <div id="transWordWarning" class="warning-box"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <label style="font-size:11px; font-weight:600; color:var(--text-muted);" id="lblTransDir">Direction:</label>
+          <select id="transDirSelect" style="padding:4px 8px; font-size:12px; font-weight:700; color:var(--primary); border-radius:6px; border:1px solid var(--border); background:var(--bg-secondary); cursor:pointer;"></select>
+        </div>
+        <label style="font-size:11px; font-weight:600; color:var(--text-muted); display:block; text-align:left;" id="lblLookUpText">Look up word / phrase:</label>
+        <div style="display:flex; gap:6px; margin-top:2px; margin-bottom:10px;">
+          <input type="text" id="transSourceInput" style="margin-bottom:0;" placeholder="Type word..." oninput="validateTranslateInputs()" onkeydown="if(event.key==='Enter') runAiTranslation()">
+          <button class="btn-primary" style="width:auto; padding:0 12px; white-space:nowrap;" onclick="runAiTranslation()" id="btnRunTranslate">🔍 Translate</button>
+        </div>
+        
+        <div id="spellcheckArea" style="display:none; color: var(--warning-text); font-size: 11px; margin-top: -4px; margin-bottom: 10px; font-weight: 600; text-align: left;">
+           <span id="lblDidYouMean">Did you mean:</span> <a href="#" id="spellcheckSuggestion" style="color: var(--primary); text-decoration: underline; cursor: pointer;"></a>
+        </div>
+
+        <div id="transResultsArea" style="display:none; flex-direction:column; gap:6px; margin-bottom:12px; background:var(--bg-secondary); padding:8px; border-radius:8px;">
+          <div style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; text-align:left;" id="lblSelectBestTrans">Select the best translation:</div>
+          
+          <button class="btn-mcq" style="padding:8px 10px; display:flex; flex-direction:column; gap:2px;" onclick="selectTranslationOption(this.getAttribute('data-val'))" id="optGoogleTrans">
+              <span style="font-size:10px; font-weight:700; color:var(--primary); text-transform:uppercase;">🌐 Google Translate</span>
+              <span style="font-size:13px; font-weight:600; color:var(--text-main);" id="optGoogleTransText">...</span>
+          </button>
+          
+          <button class="btn-mcq" style="padding:8px 10px; display:flex; flex-direction:column; gap:2px;" onclick="selectTranslationOption(this.getAttribute('data-val'))" id="optDeeplTrans">
+              <span style="font-size:10px; font-weight:700; color:var(--primary); text-transform:uppercase;">🟦 DeepL Translator</span>
+              <span style="font-size:13px; font-weight:600; color:var(--text-main);" id="optDeeplTransText">...</span>
+          </button>
+
+          <button class="btn-mcq" style="padding:8px 10px; display:flex; flex-direction:column; gap:2px;" onclick="selectTranslationOption(this.getAttribute('data-val'))" id="optGeminiTrans">
+              <span style="font-size:10px; font-weight:700; color:var(--primary); text-transform:uppercase;">✨ Google Gemini AI</span>
+              <span style="font-size:13px; font-weight:600; color:var(--text-main);" id="optGeminiTransText">...</span>
+          </button>
+        </div>
+        <label style="font-size:11px; font-weight:600; color:var(--text-muted); display:block; text-align:left;" id="lblResultText">Final Card Answer:</label>
+        <input type="text" id="transResultInput" style="margin-top:2px; margin-bottom:12px;" placeholder="Result will appear here..." oninput="validateTranslateInputs()">
+        <div class="row">
+          <button class="btn-secondary" onclick="closeTranslateModal()" id="btnCancelTranslate">Close</button>
+          <button class="btn-success" onclick="saveTranslatedCard()" id="btnSaveTransCard">➕ Add to Deck</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="user-bar-container">
+      <div class="user-profile-badge" id="userProfileBadge" title="Your Active Google Account">
+         <span style="opacity: 0.8;" id="lblLoggedIn">👤 Logged in as:</span> <strong id="userEmailDisplay">Loading...</strong>
+      </div>
+      <a href="https://accounts.google.com/AccountChooser" target="_blank" class="btn-outline" title="Switch Google Account" id="btnSwitchAccount">🔄 Switch Account</a>
+      
+      <button class="lang-select-btn" onclick="openWebAppModal()" title="Open Web App Link" id="btnWebApp">🌐 Web App ↗</button>
+      <select id="uiLangSelect" class="lang-select-btn" onchange="changeUiLanguage(this.value)">
+          <option value="en">🇬🇧 EN</option>
+          <option value="no">🇳🇴 NO</option>
+          <option value="it">🇮🇹 IT</option>
+      </select>
+      <select id="themeSelectUI" class="lang-select-btn" onchange="changeAppTheme(this.value)">
+          <option value="kurskollektivet">🎨 Kurskollektivet Theme</option>
+          <option value="dark">🌙 Dark Theme</option>
+          <option value="light">☀️ Light Theme</option>
+      </select>
+      <button class="btn-popout" id="popoutToggleBtn" onclick="handleWindowToggle()">↗ Pop Out</button>
+    </div>
+
+    <div id="viewDashboard" class="dash-container">
+      <div class="stat-card">
+        <div class="stat-title" id="lblLangCombo">Language Combination</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; padding: 6px; background-color: var(--bg-primary-light); border: 1.5px solid var(--border-primary-light); border-radius: 8px; box-sizing: border-box; width: 100%;">
+            <select id="langASelect" style="flex:1; min-width:0; text-overflow:ellipsis; padding:6px; border:none; background:var(--bg-card); font-size:13px; font-weight:800; color:var(--primary); border-radius:4px; cursor:pointer; text-align:center; text-align-last:center; text-transform:uppercase;"></select>
+            <span style="font-size: 16px; font-weight: 800; color: var(--text-muted); flex-shrink: 0;">➔</span>
+            <select id="langBSelect" style="flex:1; min-width:0; text-overflow:ellipsis; padding:6px; border:none; background:var(--bg-card); font-size:13px; font-weight:800; color:var(--primary); border-radius:4px; cursor:pointer; text-align:center; text-align-last:center; text-transform:uppercase;"></select>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-title" id="lblSelectedDeck">Selected Deck</div>
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-main); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px;">
+          <span id="dashDeckName" style="word-break: break-word; flex: 1 1 100%; line-height: 1.4;">Loading deck...</span>
+          <div style="display: flex; gap: 4px; flex-shrink: 0; margin-top: 2px;">
+            <button onclick="promptSwitchDeck()" style="font-size: 11px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--primary); cursor: pointer; font-weight:700;" id="btnSwitchDeck">🔄 Change Deck</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <button class="btn-primary" id="startReviewBtn" onclick="startQuiz('due')">🚀 Study Due Cards</button>
+      <button class="btn-success" id="startNewBtn" onclick="startQuiz('new')">🌱 Study New Cards</button>
+      <button class="btn-secondary" id="dashStudyAllBtn" onclick="startQuiz('all')">🔀 Study Entire Deck</button>
+
+      <div class="row">
+        <button class="btn-violet" id="openTranslatorBtn" onclick="openTranslateModal()">🔍 Translate & Quick Add</button>
+        <button class="btn-warning" id="startLeechBtn" onclick="startQuiz('leeches')">⚡ Study Difficult Cards</button>
+      </div>
+
+      <!-- Studied Today -->
+      <div class="stat-card" id="cardStudiedToday">
+        <div class="stat-header-row">
+          <div class="stat-title" id="lblStudiedToday">Studied Today</div>
+          <button class="btn-view-list" id="btnViewStudied" onclick="openStudiedModal()">📋 View List</button>
+        </div>
+        <div class="stat-number-row">
+          <div class="stat-big" id="dashStudiedTotal">0</div>
+          <div class="stat-detail">
+            <span style="color:var(--success); font-weight:700;" id="dashStudiedNew">0</span> <span id="lblNew">new</span> &bull;
+            <span style="color:var(--primary); font-weight:700;" id="dashStudiedOld">0</span> <span id="lblReview">review</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deck Mastery Levels -->
+      <div class="stat-card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="stat-title" id="lblDeckMastery">Deck Mastery Levels</div>
+          <button id="btnArchive" onclick="archiveMasteredCards()" style="font-size:10px; padding:3px 6px; background-color: var(--bg-secondary); color: var(--text-muted); border-radius:4px; border:1px solid var(--border); cursor:pointer;">🗃️ Archive Mastered</button>
+        </div>
+        <div class="box-grid" id="dashBoxGrid"></div>
+      </div>
+
+      <!-- Study Consistency -->
+      <div class="stat-card">
+        <div class="heatmap-header">
+          <div class="stat-title" id="lblStudyConsistency" style="margin-bottom:0;">🗓️ Study Consistency</div>
+          <select id="hmRangeSelect" class="range-select" onchange="renderHeatmap()">
+              <option value="7" selected id="optRangeWeek">1 Week</option>
+              <option value="30" id="optRangeMonth">1 Month</option>
+              <option value="365" id="optRangeYear">1 Year</option>
+          </select>
+        </div>
+        <div class="heatmap-stats-bar" id="hmStatsBar">Active 0 days</div>
+        <div class="heatmap-container" id="hmScrollContainer">
+          <div id="hmWrapper" style="width: 100%; margin: 0 auto; position: relative;">
+            <div id="hmMonthHeader" style="display:none;"></div>
+            <div class="heatmap-grid" id="heatmapGrid"></div>
+          </div>
+        </div>
+        <div class="heatmap-legend">
+          <span id="lblLess">Less</span>
+          <div class="hm-legend-box hm-lvl-0"></div>
+          <div class="hm-legend-box hm-lvl-1"></div>
+          <div class="hm-legend-box hm-lvl-2"></div>
+          <div class="hm-legend-box hm-lvl-3"></div>
+          <div class="hm-legend-box hm-lvl-4"></div>
+          <span id="lblMore">More</span>
+        </div>
+      </div>
+
+      <!-- GAMIFICATION BADGES BOX (Rewards) -->
+      <div class="stat-card gamification-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+            <div class="stat-title" id="lblRewards" style="margin-bottom: 0;">🏅 Rewards</div>
+            <select id="themeSelect" class="range-select" onchange="changeBadgeTheme(this.value)">
+                <option value="flora">🌿 Flora</option>
+                <option value="fauna">🐾 Fauna</option>
+            </select>
+        </div>
+        <div id="badgeScrollContainer" class="badge-scroll-container">
+          <!-- Badges dynamically injected here -->
+        </div>
+      </div>
+
+      <!-- Leaderboard -->
+      <div class="stat-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <div class="stat-title" id="lblTopLearners" style="margin-bottom:0;">🏆 Leaderboard</div>
+          <select id="lbPeriodSelect" class="range-select" onchange="renderLeaderboard()">
+              <option value="week" selected id="optLbThisWeek">This Week</option>
+              <option value="month" id="optLbThisMonth">This Month</option>
+              <option value="all" id="optLbAllTime">All-Time</option>
+          </select>
+        </div>
+        <div class="box-grid" id="leaderboardGrid"></div>
+      </div>
+      
+    </div>
+
+    <div id="viewQuiz" style="display:none; width:100%;">
+      <div class="top-bar">
+        <div class="badge-container">
+          <span class="badge badge-info" id="dirBadge">NO ➔ EN</span>
+          <span class="badge badge-mode" id="typeBadge">FLIP</span>
+          <span class="badge badge-info" id="boxBadge">Int: 1d</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
+          <button class="lang-select-btn" onclick="archiveCurrentCard()" title="Archive Card" id="btnArchiveCard" style="font-weight: 700; color: var(--text-muted);">🗃️ Archive</button>
+          <button class="lang-select-btn" onclick="openEditModal()" title="Edit Card in Sheet" id="btnEditCard" style="font-weight: 700; color: var(--primary);">✏️ Edit</button>
+          <label class="auto-play-toggle">
+              <input type="checkbox" id="autoPlayChk" checked> <span id="lblAutoAudio">Auto-Audio</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card-box" id="promptCardBox">
+        <div class="prompt-sub" id="promptSub">PROMPT</div>
+        <div class="prompt-main" id="promptMain">...</div>
+        <div class="clue-box" id="clueBox" style="display:none;"></div>
+        <button class="btn-audio" id="promptAudioBtn" onclick="playPromptAudio()">🔊 <span id="lblListen">Listen</span></button>
+        <button class="btn-audio" id="cantListenBtn" onclick="handleCantListen()" style="display:none; background-color: var(--bg-card); color: var(--text-muted); border-color: var(--border);">🔇 <span id="lblCantListen">Can't listen</span></button>
+      </div>
+
+      <div id="feedbackBox" class="feedback"></div>
+      <button class="btn-override" id="overrideBtn" style="display:none;" onclick="handleOverride()">✏️ <span id="lblOverride">Actually, I was correct</span></button>
+
+      <div id="modeFlip" class="mode-container">
+        <div id="flipAnswerArea" class="answer-container" style="display:none;">
+          <div class="prompt-sub" id="answerSub">ANSWER</div>
+          <div class="answer-text" id="flipAnswerText"></div>
+          <button class="btn-audio" id="ansAudioBtn" onclick="playAnswerAudio()">🔊 <span id="lblListenAns">Listen Answer</span></button>
+          <div class="confidence-grid" id="confGrid">
+            <button class="btn-conf-again" onclick="submitAnswer(false, 'again')">🔴 <br><strong id="lblConfAgain">Again</strong></button>
+            <button class="btn-conf-hard" onclick="submitAnswer(true, 'hard')">🟠 <br><strong id="lblConfHard">Hard</strong></button>
+            <button class="btn-conf-good" onclick="submitAnswer(true, 'good')">🟢 <br><strong id="lblConfGood">Good</strong></button>
+            <button class="btn-conf-easy" onclick="submitAnswer(true, 'easy')">🔵 <br><strong id="lblConfEasy">Easy</strong></button>
+          </div>
+        </div>
+        <button class="btn-primary" id="revealBtn" onclick="revealFlip()">Reveal Answer</button>
+      </div>
+
+      <div id="modeTyping" class="mode-container">
+        <input type="text" id="typeInput" placeholder="Type answer..." onkeydown="if(event.key==='Enter') checkTyping()">
+        <button class="btn-primary" id="typeSubmitBtn" onclick="checkTyping()">Submit Answer</button>
+      </div>
+
+      <div id="modeMCQ" class="mode-container">
+        <button class="btn-mcq" id="mcq0" onclick="checkMCQ(0)"></button>
+        <button class="btn-mcq" id="mcq1" onclick="checkMCQ(1)"></button>
+        <button class="btn-mcq" id="mcq2" onclick="checkMCQ(2)"></button>
+        <button class="btn-mcq" id="mcq3" onclick="checkMCQ(3)"></button>
+      </div>
+
+      <div id="modeTF" class="mode-container">
+        <div id="tfSubheader" style="text-align:center; font-size: 13px; color: var(--text-muted);">Is this matching translation correct?</div>
+        <div id="tfProposed" style="text-align:center; font-size:18px; font-weight:bold; margin: 4px 0 6px 0; color:var(--primary);"></div>
+        <button class="btn-audio" id="tfAudioBtn" style="margin: 0 auto 10px auto;" onclick="playProposedTFTranslationAudio()">🔊 Listen Proposed</button>
+        <div class="row">
+          <button class="btn-wrong" id="tfFalseBtn" onclick="checkTF(false)">❌ False</button>
+          <button class="btn-correct" id="tfTrueBtn" onclick="checkTF(true)">✅ True</button>
+        </div>
+      </div>
+
+      <div id="modeTiles" class="mode-container">
+        <div class="tiles-answer-box" id="tilesAnswerBox"></div>
+        <div class="tiles-pool-box" id="tilesPoolBox"></div>
+        <div class="row">
+          <button class="btn-secondary" onclick="resetTiles()" id="btnResetTiles">↩ Reset</button>
+          <button class="btn-primary" onclick="checkTiles()" id="btnSubmitTiles">Submit Order</button>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="nextBtn" style="display:none; margin-top:8px;" onclick="renderNextCard()">Next Card ➔</button>
+      <div class="stats" id="statsText">0 cards remaining in batch</div>
+      <button class="btn-secondary" id="returnDashBtn" onclick="showDashboard()">🏠 Return to Dashboard</button>
+    </div>
+
+    <div id="viewSummary" class="dash-container" style="display:none;">
+      <div class="summary-banner" id="summaryBanner">Segment Complete!</div>
+      <div class="stat-card">
+        <div class="stat-title" id="lblSegmentPerf">Segment Performance</div>
+        <div class="summary-row"><span id="lblAccuracy">Accuracy Rate</span><strong id="sumAccuracy" style="color:var(--primary);">0%</strong></div>
+        <div class="summary-row"><span id="lblCorrectAns">Correct Answers</span><strong id="sumCorrect" style="color:var(--success);">0</strong></div>
+        <div class="summary-row"><span id="lblPracticeNeeded">Practice Needed</span><strong id="sumWrong" style="color:var(--danger);">0</strong></div>
+        <div class="summary-row"><span id="lblNewLearnt">New Cards Learnt</span><strong id="sumNew">0</strong></div>
+        <div class="summary-row"><span id="lblReviewPracticed">Review Cards Practiced</span><strong id="sumReview">0</strong></div>
+      </div>
+      <button class="btn-primary" id="continueBatchBtn" onclick="startNextSegment()">▶ Continue</button>
+      <button class="btn-secondary" id="returnDashSummaryBtn" onclick="showDashboard()">🏠 Return to Dashboard</button>
+    </div>
+  </div> 
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+      let rawData = null;
+      let activeUserKey = "";
+      let activeDisplayName = "";
+      let currentWebAppUrl = "";
+
+      let selectedPair = { idxA: 0, idxB: 1, codeA: 'no', codeB: 'en' };
+
+      let allCards = [];
+      let duePool = [];
+      let newPool = [];
+      let leechPool = [];
+      let nonDuePool = [];
+      let studiedTodayPool = [];
+
+      let activeQuizMode = 'due';
+      let segmentQueue = [];
+      let currentCard = null;
+      
+      let isForward = true;
+      let targetPrompt = "";
+      let targetAnswer = "";
+      let promptLangCode = "en";
+      let answerLangCode = "en";
+      let currentMode = "";
+      
+      let mcqCorrectIndex = -1;
+      let tfIsActuallyCorrect = false;
+      let tfProposedText = "";
+
+      let clozeTargetWordRaw = "";
+      let clozeTargetWordClean = "";
+      let clozeClueType = "";
+
+      let currentTileSelected = [];
+      let targetTileWords = [];
+
+      let lastGradedCard = null;
+      let pendingBatchResults = [];
+      let hasAutoPlayed = false;
+      let isRetyping = false;
+
+      let segmentStats = { correct: 0, wrong: 0, newCards: 0, reviewCards: 0, dueClearedNotice: false };
+      let nextDueTimestamp = Infinity;
+      let dueCountdownInterval = null;
+      let lastFeedbackTime = 0; 
+
+      const badgesFlora = [
+        { id: 'w4', req: 4, type: 'week', emoji: '🌱', name: '4 Days/Wk', color: 'var(--success)' }, 
+        { id: 'w5', req: 5, type: 'week', emoji: '☘️', name: '5 Days/Wk', color: '#0f9d58' },
+        { id: 'w6', req: 6, type: 'week', emoji: '🌿', name: '6 Days/Wk', color: '#00bfa5' }, 
+        { id: 'w7', req: 7, type: 'week', emoji: '🪴', name: '7 Days/Wk', color: '#00bcd4' }, 
+        { id: 'm10', req: 10, type: 'month', emoji: '🌼', name: '10 Days/Mo', color: '#4285f4' }, 
+        { id: 'm20', req: 20, type: 'month', emoji: '🌸', name: '20 Days/Mo', color: 'var(--primary)' },
+        { id: 'm30', req: 30, type: 'month', emoji: '🌺', name: '30 Days/Mo', color: '#3f51b5' }, 
+        { id: 'y60', req: 60, type: 'year', emoji: '🍄', name: '60 Days/Yr', color: '#673ab7' }, 
+        { id: 'y90', req: 90, type: 'year', emoji: '🪷', name: '90 Days/Yr', color: 'var(--violet)' },
+        { id: 'y120', req: 120, type: 'year', emoji: '🌹', name: '120 Days/Yr', color: '#ab47bc' },
+        { id: 'y150', req: 150, type: 'year', emoji: '🌻', name: '150 Days/Yr', color: '#e91e63' }, 
+        { id: 'y180', req: 180, type: 'year', emoji: '🌵', name: '180 Days/Yr', color: '#f06292' },
+        { id: 'y210', req: 210, type: 'year', emoji: '🎋', name: '210 Days/Yr', color: 'var(--danger)' }, 
+        { id: 'y240', req: 240, type: 'year', emoji: '🌴', name: '240 Days/Yr', color: '#d32f2f' },
+        { id: 'y270', req: 270, type: 'year', emoji: '🌳', name: '270 Days/Yr', color: '#ff5722' }, 
+        { id: 'y300', req: 300, type: 'year', emoji: '🌲', name: '300 Days/Yr', color: '#f57c00' },
+        { id: 'y330', req: 330, type: 'year', emoji: '🎄', name: '330 Days/Yr', color: '#ff9800' }, 
+        { id: 'y360', req: 360, type: 'year', emoji: '🍀', name: '360 Days/Yr', color: '#f9a825' }  
+      ];
+
+      const badgesFauna = [
+        { id: 'w4', req: 4, type: 'week', emoji: '🐛', name: '4 Days/Wk', color: 'var(--success)' }, 
+        { id: 'w5', req: 5, type: 'week', emoji: '🦋', name: '5 Days/Wk', color: '#0f9d58' },
+        { id: 'w6', req: 6, type: 'week', emoji: '🐁', name: '6 Days/Wk', color: '#00bfa5' }, 
+        { id: 'w7', req: 7, type: 'week', emoji: '🐇', name: '7 Days/Wk', color: '#00bcd4' }, 
+        { id: 'm10', req: 10, type: 'month', emoji: '🦊', name: '10 Days/Mo', color: '#4285f4' }, 
+        { id: 'm20', req: 20, type: 'month', emoji: '🐺', name: '20 Days/Mo', color: 'var(--primary)' },
+        { id: 'm30', req: 30, type: 'month', emoji: '🐻', name: '30 Days/Mo', color: '#3f51b5' }, 
+        { id: 'y60', req: 60, type: 'year', emoji: '🦅', name: '60 Days/Yr', color: '#673ab7' }, 
+        { id: 'y90', req: 90, type: 'year', emoji: '🐅', name: '90 Days/Yr', color: 'var(--violet)' },
+        { id: 'y120', req: 120, type: 'year', emoji: '🐆', name: '120 Days/Yr', color: '#ab47bc' },
+        { id: 'y150', req: 150, type: 'year', emoji: '🦍', name: '150 Days/Yr', color: '#e91e63' }, 
+        { id: 'y180', req: 180, type: 'year', emoji: '🦏', name: '180 Days/Yr', color: '#f06292' },
+        { id: 'y210', req: 210, type: 'year', emoji: '🐘', name: '210 Days/Yr', color: 'var(--danger)' }, 
+        { id: 'y240', req: 240, type: 'year', emoji: '🐋', name: '240 Days/Yr', color: '#d32f2f' },
+        { id: 'y270', req: 270, type: 'year', emoji: '🦖', name: '270 Days/Yr', color: '#ff5722' }, 
+        { id: 'y300', req: 300, type: 'year', emoji: '🦄', name: '300 Days/Yr', color: '#f57c00' },
+        { id: 'y330', req: 330, type: 'year', emoji: '🐉', name: '330 Days/Yr', color: '#ff9800' }, 
+        { id: 'y360', req: 360, type: 'year', emoji: '🐦‍🔥', name: '360 Days/Yr', color: '#f9a825' }  
+      ];
+
+      const ALL_LANGUAGES = [
+        { code: 'af', name: "Afrikaans" },
+        { code: 'sq', name: "Albanian - (Shqip)" },
+        { code: 'am', name: "Amharic - (አማርኛ)" },
+        { code: 'ar', name: "Arabic - (العربية)" },
+        { code: 'an', name: "Aragonese - (Aragonés)" },
+        { code: 'hy', name: "Armenian - (Հայերեն)" },
+        { code: 'ast', name: "Asturian - (Asturianu)" },
+        { code: 'ay', name: "Aymara - (Aymar aru)" },
+        { code: 'az', name: "Azerbaijani - (Azərbaycan dili)" },
+        { code: 'eu', name: "Basque - (Euskara)" },
+        { code: 'be', name: "Belarusian - (Беларуская)" },
+        { code: 'bn', name: "Bengali - (বাংলা)" },
+        { code: 'brx', name: "Bodo - (बर')" },
+        { code: 'bs', name: "Bosnian - (Bosanski)" },
+        { code: 'br', name: "Breton - (Brezhoneg)" },
+        { code: 'bg', name: "Bulgarian - (Български)" },
+        { code: 'ca', name: "Catalan - (Català)" },
+        { code: 'ce', name: "Chechen (Нохчийн мотт)" },
+        { code: 'zh', name: "Chinese (中文)" },
+        { code: 'co', name: "Corsican - (Corsu)" },
+        { code: 'hr', name: "Croatian - (Hrvatski)" },
+        { code: 'cs', name: "Czech - (Čeština)" },
+        { code: 'da', name: "Danish - (Dansk)" },
+        { code: 'dv', name: "Dhivehi - (ދިވެހި)" },
+        { code: 'nl', name: "Dutch (Nederlands)" },
+        { code: 'dz', name: "Dzongkha (རྫོང་ཁ)" },
+        { code: 'en', name: "English" },
+        { code: 'eo', name: "Esperanto" },
+        { code: 'et', name: "Estonian (Eesti)" },
+        { code: 'ee', name: "Ewe (Eʋegbe)" },
+        { code: 'fo', name: "Faroese - (Føroyskt)" },
+        { code: 'fil', name: "Filipino (Wikang Filipino)" },
+        { code: 'fi', name: "Finnish (Suomi)" },
+        { code: 'fr', name: "French (Français)" },
+        { code: 'gl', name: "Galician - (Galego)" },
+        { code: 'ka', name: "Georgian - (ქართული)" },
+        { code: 'de', name: "German - (Deutsch)" },
+        { code: 'el', name: "Greek - (Ελληνικά)" },
+        { code: 'gn', name: "Guarani - (Avañe'ẽ)" },
+        { code: 'gu', name: "Gujarati - (ગુજરાતી)" },
+        { code: 'ha', name: "Hausa - (هَوُسَ)" },
+        { code: 'haw', name: "Hawaiian - (ʻŌlelo Hawaiʻi)" },
+        { code: 'he', name: "Hebrew - (עברית)" },
+        { code: 'hi', name: "Hindi - (हिन्दी)" },
+        { code: 'hu', name: "Hungarian - (Magyar)" },
+        { code: 'is', name: "Icelandic - (Íslenska)" },
+        { code: 'id', name: "Indonesian - (Bahasa Indonesia)" },
+        { code: 'ia', name: "Interlingua" },
+        { code: 'iu', name: "Inuktitut - (ᐃᓄᒃᑎᑐᑦ)" },
+        { code: 'ga', name: "Irish - (Gaeilge)" },
+        { code: 'it', name: "Italian - (Italiano)" },
+        { code: 'ja', name: "Japanese - (日本語)" },
+        { code: 'kl', name: "Kalaallisut - (Kalaallisut)" },
+        { code: 'kn', name: "Kannada - (ಕನ್ನಡ)" },
+        { code: 'ks', name: "Kashmiri - (कॉशुर / كٲشُر‎)" },
+        { code: 'kk', name: "Kazakh - (Қазақ тілі)" },
+        { code: 'km', name: "Khmer - (ខ្មែរ)" },
+        { code: 'rw', name: "Kinyarwanda - (Ikinyarwanda)" },
+        { code: 'ko', name: "Korean - (한국어)" },
+        { code: 'ku', name: "Kurdish - (Kurdî)" },
+        { code: 'ky', name: "Kyrgyz - (Кыргызча)" },
+        { code: 'lo', name: "Lao - (ລາວ)" },
+        { code: 'la', name: "Latin - (Latina)" },
+        { code: 'lv', name: "Latvian - (Latviešu)" },
+        { code: 'ln', name: "Lingala - (Lingála)" },
+        { code: 'lt', name: "Lithuanian - (Lietuvių)" },
+        { code: 'lg', name: "Luganda - (Luganda)" },
+        { code: 'lb', name: "Luxembourgish - (Lëtzebuergesch)" },
+        { code: 'mk', name: "Macedonian - (Македонски)" },
+        { code: 'mai', name: "Maithili - (मैथिली)" },
+        { code: 'ms', name: "Malay - (Bahasa Melayu)" },
+        { code: 'ml', name: "Malayalam - (മലയാളം)" },
+        { code: 'mt', name: "Maltese - (Malti)" },
+        { code: 'mni', name: "Manipuri - (ꯃꯅꯤꯄꯨꯔꯤ)" },
+        { code: 'mr', name: "Marathi - (मराठी)" },
+        { code: 'mn', name: "Mongolian - (Монгол)" },
+        { code: 'ne', name: "Nepali - (नेपाली)" },
+        { code: 'nso', name: "Northern Sotho - (Sesotho sa Leboa)" },
+        { code: 'no', name: "Norwegian (Norsk)" },
+        { code: 'nb', name: "Norwegian Bokmål - (Norsk bokmål)" },
+        { code: 'nn', name: "Norwegian Nynorsk - (Nynorsk)" },
+        { code: 'oc', name: "Occitan" },
+        { code: 'or', name: "Oriya - (ଓଡ଼ିଆ)" },
+        { code: 'om', name: "Oromo - (Afaan Oromoo)" },
+        { code: 'os', name: "Ossetian - (Ирон æвзаг)" },
+        { code: 'ps', name: "Pashto - (پښتو)" },
+        { code: 'fa', name: "Persian - (فارسی)" },
+        { code: 'pl', name: "Polish - (Polski)" },
+        { code: 'pt', name: "Portuguese - (Português)" },
+        { code: 'pa', name: "Punjabi - (ਪੰਜਾਬੀ)" },
+        { code: 'qu', name: "Quechua - (Runa Simi)" },
+        { code: 'ro', name: "Romanian - (Română)" },
+        { code: 'mo', name: "Romanian Moldova - (Română Moldova)" },
+        { code: 'rm', name: "Romansh - (Rumantsch)" },
+        { code: 'ru', name: "Russian - (Русский)" },
+        { code: 'sm', name: "Samoan - (Gagana Samoa)" },
+        { code: 'sat', name: "Santali - (ᱥᱟᱱᱛᱟᱲᱤ)" },
+        { code: 'sc', name: "Sardinian - (Sardu)" },
+        { code: 'gd', name: "Scottish Gaelic - (Gàidhlig)" },
+        { code: 'sr', name: "Serbian - (Српски)" },
+        { code: 'sh', name: "Serbo_Croatian - (Srpskohrvatski)" },
+        { code: 'sn', name: "Shona - (ChiShona)" },
+        { code: 'sd', name: "Sindhi - (سنڌي)" },
+        { code: 'si', name: "Sinhala - (සිංහල)" },
+        { code: 'sk', name: "Slovak - (Slovenčina)" },
+        { code: 'sl', name: "Slovenian - (Slovenščina)" },
+        { code: 'so', name: "Somali - (Soomaali)" },
+        { code: 'st', name: "Southern - Sotho (Sesotho)" },
+        { code: 'es', name: "Spanish - (Español)" },
+        { code: 'su', name: "Sundanese - (Basa Sunda)" },
+        { code: 'sw', name: "Swahili - (Kiswahili)" },
+        { code: 'sv', name: "Swedish - (Svenska)" },
+        { code: 'tg', name: "Tajik - (Тоҷикӣ)" },
+        { code: 'ta', name: "Tamil - (தமிழ்)" },
+        { code: 'tt', name: "Tatar - (Татар)" },
+        { code: 'te', name: "Telugu - (తెలుగు)" },
+        { code: 'th', name: "Thai - (ไทย)" },
+        { code: 'ti', name: "Tigrinya - (ትግርኛ)" },
+        { code: 'to', name: "Tongan - (Lea fakatonga)" },
+        { code: 'tn', name: "Tswana - (Setswana)" },
+        { code: 'tr', name: "Turkish - (Türkçe)" },
+        { code: 'tk', name: "Turkmen - (Türkmençe)" },
+        { code: 'tw', name: "Twi - (Twi)" },
+        { code: 'udm', name: "Udmurt - (Удмурт кыл)" },
+        { code: 'uk', name: "Ukrainian - (Українська)" },
+        { code: 'ur', name: "Urdu - (اردو)" },
+        { code: 'ug', name: "Uyghur - (ئۇيغۇرچە)" },
+        { code: 'uz', name: "Uzbek - (O'zbek)" },
+        { code: 've', name: "Venda - (Tshivenḓa)" },
+        { code: 'vi', name: "Vietnamese - (Tiếng Việt)" },
+        { code: 'wa', name: "Walloon - (Walon)" },
+        { code: 'cy', name: "Welsh - (Cymraeg)" },
+        { code: 'fy', name: "Western Frisian - (Frysk)" },
+        { code: 'wo', name: "Wolof - (Wollof)" },
+        { code: 'xh', name: "Xhosa - (isiXhosa)" },
+        { code: 'yi', name: "Yiddish - (ייִדיש)" },
+        { code: 'yo', name: "Yoruba - (Èdè Yorùbá)" },
+        { code: 'za', name: "Zhuang - (Saɯ cueŋƅ)" },
+        { code: 'zu', name: "Zulu - (isiZulu)" }
+      ];
+
+      const i18n = {
+        en: {
+          setupTitle: "Account Setup", saveNameBtn: "Save Name",
+          langCombo: "Language Combination", selectedDeck: "Selected Deck", switchDeck: "🔄 Change Deck", editCard: "✏️ Edit",
+          webAppBtn: "🌐 Web App ↗", webAppTitle: "🌐 Web App Link", webAppDesc: "Copy the link below to access your flashcards directly in your browser on any device.",
+          copyLink: "Copy Link", copied: "Copied!",
+          editModalTitle: "✏️ Edit Card", editFront: "Front Text:", editBack: "Back Text:", saveSheet: "Save to Sheet", cancel: "Cancel", close: "Close",
+          openTranslator: "🔍 Translate & Quick Add", translateModalTitle: "🔍 Dictionary & Quick Add", transDir: "Direction:",
+          lookUpText: "Look up word / phrase:", runTranslate: "🔍 Translate", selectBestTrans: "Select the best translation:", resultText: "Final Card Answer:",
+          addCardToDeck: "➕ Add to Deck", dockSidebar: "↙ Dock to Sidebar", popOut: "↗ Pop Out", dockTitle: "Dock back into spreadsheet sidebar",
+          popoutTitle: "Open in larger window", deckPrompt: "Paste the full Google Spreadsheet URL or ID for your deck (leave blank to reset to default):",
+          namePrompt: "Choose your custom display name for the Leaderboard:", studiedToday: "Studied Today",
+          dueForStudy: "Due For Study", studyDue: "🚀 Study Due Cards", studyNew: "🌱 Study New Cards", studyLeeches: "⚡ Study Difficult Cards",
+          studyAll: "🔀 Study Entire Deck", consistency: "🗓️ Study Consistency", deckMastery: "Deck Mastery Levels", topLearners: "🏆 Leaderboard",
+          lbAllTime: "All-Time", lbThisWeek: "This Week", lbThisMonth: "This Month", rangeWeek: "1 Week", rangeMonth: "1 Month", rangeYear: "1 Year",
+          less: "Less", more: "More", reveal: "Reveal Answer", gotIt: "✅ Got It!", submit: "Submit Answer", nextCard: "Next Card ➔",
+          returnDash: "🏠 Return to Dashboard", listen: "Listen", listenAns: "Listen Answer", override: "Actually, I was correct",
+          autoAudio: "Auto-Audio", tfHeader: "Is this matching translation correct?", tfActualHeader: "Actual Correct Translation",
+          trueBtn: "✅ True", falseBtn: "❌ False", newLabel: "new", reviewLabel: "review", outOf: "out of", cards: "cards", reviews: "reviews",
+          active: "Active", thisWeek: "This Week", days: "days", noActivity: "No activity yet. Start studying!", prompt: "PROMPT", answer: "ANSWER",
+          segmentPerf: "Segment Performance", accuracy: "Accuracy Rate", correctAns: "Correct Answers", practiceNeeded: "Practice Needed",
+          newLearnt: "New Cards Learnt", reviewPracticed: "Review Cards Practiced", continueNext: "▶ Continue (Next 10 Cards)",
+          continueBatch: "▶ Continue", continueNext10: "▶ Continue (Next 10 Cards)",
+          allCaughtUp: "🎉 All Caught Up Today!", noNewCards: "🌱 No New Cards Available", noLeechCards: "⚡ No Difficult Cards Found!",
+          typeInLang: "Type answer in", typeMissingInLang: "Type missing word in", meaning: "Meaning", listenAudioClue: "🔊 Listen to the audio clue below to find the missing word!",
+          correct: "Correct!", incorrectMissing: "Incorrect. Missing word was", fullSentence: "Full Sentence", translation: "Translation",
+          correctAcceptedTypo: "Correct! (Accepted minor typo/formatting)", incorrectAnswer: "Incorrect. Expected:", overriddenSuccess: "✅ Overridden to Correct!",
+          remainingInBatch: "card(s) remaining in batch", segComplete: "📊 Segment Complete!", allCaughtUpSummary: "🎉 All caught up with due cards!",
+          confAgain: "Again", confHard: "Hard", confGood: "Good", confEasy: "Easy", resetTiles: "↩ Reset", submitOrder: "Submit Order",
+          audioModeBadge: "🎧 LISTENING MODE", audioModePrompt: "Listen closely to the audio clip below:", wordLimitExceeded: "⚠️ Text exceeds 20 words limit",
+          cantListen: "Can't listen",
+          viewList: "View List", archiveMastered: "Archive Mastered", rewards: "Rewards",
+          daysWk: "Days/Wk", daysMo: "Days/Mo", daysYr: "Days/Yr",
+          stage1: "Stage 1: New / Lapse (<1d)", stage2: "Stage 2: Early Recall (1-3d)", stage3: "Stage 3: Short-Term (4-7d)", stage4: "Stage 4: Medium-Term (8-14d)",
+          stage5: "Stage 5: Reinforced (15-30d)", stage6: "Stage 6: Solid (31-60d)", stage7: "Stage 7: Retained (61-90d)", stage8: "Stage 8: Long-Term (91-180d)",
+          stage9: "Stage 9: Deep Memory (181-359d)", stage10: "Stage 10: Fully Mastered (360d+)",
+          nextReviewIn: "Next review in", dueReadyRefresh: "Due Cards Ready! (Click to Refresh)", unitD: "d", unitH: "h", unitM: "m", unitS: "s",
+          weekDaysInitials: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+          copyCorrect: "Copy the correct answer...", retypeContinue: "Retype to Continue",
+          newRewardUnlocked: "🎉 New Reward!", rewardUnlocked: "🎉 Reward!", woohoo: "Woohoo!", didYouMean: "Did you mean:",
+          loggedInAs: "👤 Logged in as:", switchAccount: "🔄 Switch Account", switchAccountTitle: "Switch Google Account", initializing: "Initializing...", displayNameLabel: "Display Name:", enterNamePlaceholder: "Enter your name", studiedModalTitle: "Cards Studied Today", notice: "Notice", inputRequired: "Input Required", ok: "OK", notLoggedIn: "Not Logged In",
+          themeLight: "☀️ Light Theme", themeDark: "🌙 Dark Theme", themeKurs: "🎨 Kurskollektivet Theme", archiveCard: "🗃️ Archive"
+        },
+        no: {
+          setupTitle: "Kontooppsett", saveNameBtn: "Lagre Navn",
+          langCombo: "Språkkombinasjon", selectedDeck: "Valgt kortstokk", switchDeck: "🔄 Bytt kortstokk", editCard: "✏️ Rediger",
+          webAppBtn: "🌐 Nettapp ↗", webAppTitle: "🌐 Nettapp-lenke", webAppDesc: "Kopier lenken nedenfor for å få tilgang til flashkortene dine direkte i nettleseren.",
+          copyLink: "Kopier lenke", copied: "Kopiert!",
+          editModalTitle: "✏️ Rediger kort", editFront: "Tekst forside:", editBack: "Tekst bakside:", saveSheet: "Lagre i regneark", cancel: "Avbryt", close: "Lukk",
+          openTranslator: "🔍 Oversett & Hurtiginnlegg", translateModalTitle: "🔍 Ordbok & Hurtiginnlegg", transDir: "Retning:",
+          lookUpText: "Søk opp ord / uttrykk:", runTranslate: "🔍 Oversett", selectBestTrans: "Velg beste oversettelse:", resultText: "Endelig svar på kortet:",
+          addCardToDeck: "➕ Legg til kort", dockSidebar: "↙ Fest til sidepanel", popOut: "↗ Åpne i eget vindu", dockTitle: "Fest tilbake i regnearkets sidepanel",
+          popoutTitle: "Åpne i et større vindu", deckPrompt: "Lim inn Google-regnearkets URL eller ID for kortstokken din (la stå tom for å tilbakestille):",
+          namePrompt: "Velg ditt tilpassede visningsnavn for ledertavlen:", studiedToday: "Studert i dag",
+          dueForStudy: "Forfaller til repetisjon", studyDue: "🚀 Studer forfalte kort", studyNew: "🌱 Studer nye kort", studyLeeches: "⚡ Studer vanskelige kort",
+          studyAll: "🔀 Studer hele kortstokken", consistency: "🗓️ Studiekontinuitet", deckMastery: "Mestringsnivå", topLearners: "🏆 Ledertavle",
+          lbAllTime: "Gjennom tidene", lbThisWeek: "Denne uken", lbThisMonth: "Denne måneden", rangeWeek: "1 uke", rangeMonth: "1 måned", rangeYear: "1 år",
+          less: "Mindre", more: "Mer", reveal: "Vis svar", gotIt: "✅ Skjønte det!", submit: "Send inn svar", nextCard: "Neste kort ➔",
+          returnDash: "🏠 Tilbake til dashbord", listen: "Lytt", listenAns: "Lytt til svar", override: "Jeg hadde faktisk rett",
+          autoAudio: "Auto-lyd", tfHeader: "Er denne oversettelsen riktig?", tfActualHeader: "Riktig oversettelse",
+          trueBtn: "✅ Sant", falseBtn: "❌ Usant", newLabel: "nye", reviewLabel: "repetisjon", outOf: "av", cards: "kort", reviews: "repetisjoner",
+          active: "Aktiv", thisWeek: "Denne uken", days: "dager", noActivity: "Ingen aktivitet ennå. Start å studere!", prompt: "PROMPT", answer: "SVAR",
+          segmentPerf: "Resultat for økten", accuracy: "Nøyaktighet", correctAns: "Riktige svar", practiceNeeded: "Trenger øving",
+          newLearnt: "Nye kort lært", reviewPracticed: "Repeterte kort", continueNext: "▶ Fortsett (Neste 10)",
+          continueBatch: "▶ Fortsett", continueNext10: "▶ Fortsett (Neste 10)",
+          allCaughtUp: "🎉 Ferdig for i dag!", noNewCards: "🌱 Ingen nye kort tilgjengelig", noLeechCards: "⚡ Ingen vanskelige kort funnet!",
+          typeInLang: "Skriv svaret på", typeMissingInLang: "Skriv det manglende ordet på", meaning: "Betydning", listenAudioClue: "🔊 Lytt til lydsporet nedenfor for å finne det manglende ordet!",
+          correct: "Riktig!", incorrectMissing: "Feil. Det manglende ordet var", fullSentence: "Hel setning", translation: "Oversettelse",
+          correctAcceptedTypo: "Riktig! (Godtok liten skrivefeil)", incorrectAnswer: "Feil. Forventet:", overriddenSuccess: "✅ Endret til Riktig!",
+          remainingInBatch: "kort gjenstår i runden", segComplete: "📊 Runde fullført!", allCaughtUpSummary: "🎉 Ferdig for i dag!",
+          confAgain: "Igjen", confHard: "Vanskelig", confGood: "Bra", confEasy: "Enkelt", resetTiles: "↩ Nullstill", submitOrder: "Send inn rekkefølge",
+          audioModeBadge: "🎧 LYTTE-MODUS", audioModePrompt: "Lytt nøye til lydklippet nedenfor:", wordLimitExceeded: "⚠️ Teksten overskrider grensen på 20 ord",
+          cantListen: "Kan ikke lytte",
+          viewList: "Vis liste", archiveMastered: "Arkiver mestrede", rewards: "Belønninger",
+          daysWk: "Dager/Uke", daysMo: "Dager/Mnd", daysYr: "Dager/År",
+          stage1: "Nivå 1: Ny / Gjenlæring (<1d)", stage2: "Nivå 2: Tidlig gjenkalling (1-3d)", stage3: "Nivå 3: Korttidsminne (4-7d)", stage4: "Nivå 4: Mellomtidsminne (8-14d)",
+          stage5: "Nivå 5: Forsterket (15-30d)", stage6: "Nivå 6: Solid (31-60d)", stage7: "Nivå 7: Fastholdt (61-90d)", stage8: "Nivå 8: Langtidsminne (91-180d)",
+          stage9: "Nivå 9: Dyp hukommelse (181-359d)", stage10: "Nivå 10: Fullt mestret (360d+)",
+          nextReviewIn: "Neste repetisjon om", dueReadyRefresh: "Klar for repetisjon! (Klikk for å oppdatere)", unitD: "d", unitH: "t", unitM: "m", unitS: "s",
+          weekDaysInitials: ['M', 'T', 'O', 'T', 'F', 'L', 'S'],
+          copyCorrect: "Kopier det riktige svaret...", retypeContinue: "Skriv på nytt for å fortsette",
+          newRewardUnlocked: "🎉 Ny belønning!", rewardUnlocked: "🎉 Belønning!", woohoo: "Hurra!", didYouMean: "Mente du:",
+          loggedInAs: "👤 Logget inn som:", switchAccount: "🔄 Bytt konto", switchAccountTitle: "Bytt Google-konto", initializing: "Initialiserer...", displayNameLabel: "Visningsnavn:", enterNamePlaceholder: "Skriv inn navnet ditt", studiedModalTitle: "Kort studert i dag", notice: "Varsel", inputRequired: "Inndata kreves", ok: "OK", notLoggedIn: "Ikke logget inn",
+          themeLight: "☀️ Lyst Tema", themeDark: "🌙 Mørkt Tema", themeKurs: "🎨 Kurskollektivet Tema", archiveCard: "🗃️ Arkiver"
+        },
+        it: {
+          setupTitle: "Configurazione Account", saveNameBtn: "Salva Nome",
+          langCombo: "Combinazione linguistica", selectedDeck: "Mazzo selezionato", switchDeck: "🔄 Cambia mazzo", editCard: "✏️ Modifica",
+          webAppBtn: "🌐 Web App ↗", webAppTitle: "🌐 Link Web App", webAppDesc: "Copia il link sottostante per accedere alle tue flashcard nel browser su qualsiasi dispositivo.",
+          copyLink: "Copia Link", copied: "Copiato!",
+          editModalTitle: "✏️ Modifica carta", editFront: "Testo frontale:", editBack: "Testo posteriore:", saveSheet: "Salva nel foglio", cancel: "Annulla", close: "Chiudi",
+          openTranslator: "🔍 Traduci & Aggiungi", translateModalTitle: "🔍 Dizionario & Aggiunta Rapida", transDir: "Direzione:",
+          lookUpText: "Cerca parola / frase:", runTranslate: "🔍 Traduci", selectBestTrans: "Seleziona la traduzione migliore:", resultText: "Risposta finale:",
+          addCardToDeck: "➕ Aggiungi al mazzo", dockSidebar: "↙ Aggancia alla barra", popOut: "↗ Apri in nuova finestra", dockTitle: "Riavvia nella barra laterale",
+          popoutTitle: "Apri in una finestra più grande", deckPrompt: "Incolla l'URL o l'ID del foglio Google per il tuo mazzo (lascia vuoto per ripristinare):",
+          namePrompt: "Scegli il tuo nome visualizzato per la classifica:", studiedToday: "Studiato oggi",
+          dueForStudy: "Da ripassare", studyDue: "🚀 Studia carte da ripassare", studyNew: "🌱 Studia nuove carte", studyLeeches: "⚡ Studia carte difficili",
+          studyAll: "🔀 Studia tutto il mazzo", consistency: "🗓️ Frequenza di studio", deckMastery: "Livelli di padronanza", topLearners: "🏆 Classifica",
+          lbAllTime: "Tutti i tempi", lbThisWeek: "Questa settimana", lbThisMonth: "Questo mese", rangeWeek: "1 Settimana", rangeMonth: "1 Mese", rangeYear: "1 Anno",
+          less: "Meno", more: "Di più", reveal: "Mostra risposta", gotIt: "✅ Capito!", submit: "Invia risposta", nextCard: "Prossima carta ➔",
+          returnDash: "🏠 Torna alla dashboard", listen: "Ascolta", listenAns: "Ascolta risposta", override: "In realtà era giusto",
+          autoAudio: "Audio auto", tfHeader: "Questa traduzione è corretta?", tfActualHeader: "Traduzione corretta",
+          trueBtn: "✅ Vero", falseBtn: "❌ Falso", newLabel: "nuove", reviewLabel: "ripasso", outOf: "su", cards: "carte", reviews: "ripassi",
+          active: "Attivo", thisWeek: "Questa settimana", days: "giorni", noActivity: "Nessuna attività finora!", prompt: "DOMANDA", answer: "RISPOSTA",
+          segmentPerf: "Risultati Sessione", accuracy: "Precisione", correctAns: "Risposte corrette", practiceNeeded: "Da rivedere",
+          newLearnt: "Nuove carte imparate", reviewPracticed: "Carte ripassate", continueNext: "▶ Continua (Prossime 10)",
+          continueBatch: "▶ Continua", continueNext10: "▶ Continua (Prossime 10)",
+          allCaughtUp: "🎉 Hai finito per oggi!", noNewCards: "🌱 Nessuna nuova carta disponibile", noLeechCards: "⚡ Nessuna carta difficile trovata!",
+          typeInLang: "Digita la risposta in", typeMissingInLang: "Digita la parola mancante in", meaning: "Significato", listenAudioClue: "🔊 Ascolta l'audio qui sotto per trovare la parola mancante!",
+          correct: "Corretto!", incorrectMissing: "Errato. La parola mancante era", fullSentence: "Frase completa", translation: "Traduzione",
+          correctAcceptedTypo: "Corretto! (Accettato piccolo errore di battitura)", incorrectAnswer: "Errato. Atteso:", overriddenSuccess: "✅ Modificato in Corretto!",
+          remainingInBatch: "carte rimanenti", segComplete: "📊 Sessione completata!", allCaughtUpSummary: "🎉 Hai finito per oggi!",
+          confAgain: "Ancora", confHard: "Difficile", confGood: "Buono", confEasy: "Facile", resetTiles: "↩ Ripristina", submitOrder: "Invia ordine",
+          audioModeBadge: "🎧 MODALITÀ ASCOLTO", audioModePrompt: "Ascolta attentamente la traccia audio qui sotto:", wordLimitExceeded: "⚠️ Il testo supera il limite di 20 parole",
+          cantListen: "Non posso ascoltare",
+          viewList: "Visualizza elenco", archiveMastered: "Archivia completate", rewards: "Premi",
+          daysWk: "Giorni/Sett", daysMo: "Giorni/Mese", daysYr: "Giorni/Anno",
+          stage1: "Fase 1: Nuova / Errore (<1g)", stage2: "Fase 2: Primo richiamo (1-3g)", stage3: "Fase 3: Memoria a breve termine (4-7g)", stage4: "Fase 4: Memoria a medio termine (8-14g)",
+          stage5: "Fase 5: Rinforzata (15-30g)", stage6: "Fase 6: Solida (31-60g)", stage7: "Fase 7: Trattenuta (61-90g)", stage8: "Fase 8: Memoria a lungo termine (91-180g)",
+          stage9: "Fase 9: Memoria profonda (181-359g)", stage10: "Fase 10: Completamente appresa (360g+)",
+          nextReviewIn: "Prossimo ripasso tra", dueReadyRefresh: "Carte da ripassare pronte! (Clicca per aggiornare)", unitD: "g", unitH: "h", unitM: "m", unitS: "s",
+          weekDaysInitials: ['L', 'M', 'M', 'G', 'V', 'S', 'D'],
+          copyCorrect: "Copia la risposta corretta...", retypeContinue: "Riscrivi per continuare",
+          newRewardUnlocked: "🎉 Nuovo Premio!", rewardUnlocked: "🎉 Premio!", woohoo: "Evviva!", didYouMean: "Forse cercavi:",
+          loggedInAs: "👤 Accesso come:", switchAccount: "🔄 Cambia account", switchAccountTitle: "Cambia account Google", initializing: "Inizializzazione...", displayNameLabel: "Nome visualizzato:", enterNamePlaceholder: "Inserisci il tuo nome", studiedModalTitle: "Carte studiate oggi", notice: "Avviso", inputRequired: "Input richiesto", ok: "OK", notLoggedIn: "Non collegato",
+          themeLight: "☀️ Tema Chiaro", themeDark: "🌙 Tema Scuro", themeKurs: "🎨 Tema Kurskollektivet", archiveCard: "🗃️ Archivia"
+        }
+      };
+
+      let currentUiLang = 'en';
+
+      function showCustomAlert(message) {
+        const t = i18n[currentUiLang] || i18n.en;
+        $('customDialogTitle').innerText = t.notice || "Notice";
+        $('customDialogText').innerText = message;
+        $('customDialogInput').style.display = 'none';
+        $('btnDialogCancel').style.display = 'none';
+        $('btnDialogConfirm').innerText = t.ok || "OK";
+        $('btnDialogConfirm').onclick = () => { $('customDialogModal').style.display = 'none'; };
+        $('customDialogModal').style.display = 'flex';
+      }
+
+      function showCustomPrompt(message, defaultValue, callback) {
+        const t = i18n[currentUiLang] || i18n.en;
+        $('customDialogTitle').innerText = t.inputRequired || "Input Required";
+        $('customDialogText').innerText = message;
+        const inputEl = $('customDialogInput');
+        inputEl.style.display = 'block';
+        inputEl.value = defaultValue || '';
+        $('btnDialogCancel').style.display = 'block';
+        $('btnDialogCancel').innerText = t.cancel || "Cancel";
+        $('btnDialogCancel').onclick = () => { $('customDialogModal').style.display = 'none'; if(callback) callback(null); };
+        $('btnDialogConfirm').innerText = t.ok || "OK";
+        $('btnDialogConfirm').onclick = () => { $('customDialogModal').style.display = 'none'; if(callback) callback(inputEl.value); };
+        $('customDialogModal').style.display = 'flex';
+        setTimeout(() => inputEl.focus(), 100);
+      }
+
+      function escapeHTML(str) {
+        if (!str) return "";
+        return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+      }
+
+      function validateDisplayName(name) {
+        const errorEl = $('name-error');
+        const trimmedName = name.trim();
+        if (!trimmedName) { errorEl.innerText = "Display name cannot be empty."; errorEl.style.display = 'block'; return false; }
+        if (trimmedName.length < 3) { errorEl.innerText = "Display name must be at least 3 characters long."; errorEl.style.display = 'block'; return false; }
+        if (!/^[a-zA-Z0-9\s_]+$/.test(trimmedName)) { errorEl.innerText = "Display name can only contain letters, numbers, and underscores."; errorEl.style.display = 'block'; return false; }
+        errorEl.style.display = 'none';
+        return true;
+      }
+
+      function setupNameCheckListener() {
+        $('btn-save-name').addEventListener('click', () => {
+          const nameInput = $('display-name-input').value;
+          if (validateDisplayName(nameInput)) {
+            const cleanName = nameInput.trim();
+            localStorage.setItem('srs_anon_display_name', cleanName);
+            activeDisplayName = cleanName;
+            $('name-check-ui').style.display = 'none';
+            $('main-ui').style.display = 'block';
+
+            if (rawData) {
+              google.script.run
+                .withSuccessHandler(res => {
+                  if (res && !res.success) {
+                    showCustomAlert(res.message);
+                    activeDisplayName = rawData.displayName;
+                    localStorage.setItem('srs_anon_display_name', rawData.displayName);
+                  }
+                })
+                .saveDisplayName(activeUserKey, cleanName);
+            } else {
+              $('loading-ui').style.display = 'block';
+              $('main-ui').style.display = 'none';
+              fetchData(); 
+            }
+          }
+        });
+      }
+
+      function countWords(str) {
+        if (!str) return 0;
+        return str.trim().split(/\s+/).filter(Boolean).length;
+      }
+
+      function validateTranslateInputs() {
+        const sourceVal = $('transSourceInput').value;
+        const resultVal = $('transResultInput').value;
+        const countSource = countWords(sourceVal);
+        const countResult = countWords(resultVal);
+        const warningDiv = $('transWordWarning');
+        const saveBtn = $('btnSaveTransCard');
+        const runBtn = $('btnRunTranslate');
+        const t = i18n[currentUiLang] || i18n.en;
+
+        let hasError = false;
+        let messages = [];
+        if (countSource > 20) { hasError = true; messages.push(`Source (${countSource}/20 words)`); }
+        if (countResult > 20) { hasError = true; messages.push(`Result (${countResult}/20 words)`); }
+
+        if (hasError) {
+          warningDiv.style.display = 'block';
+          warningDiv.innerText = `${t.wordLimitExceeded}: ${messages.join(', ')}. Please shorten to proceed.`;
+          saveBtn.disabled = true;
+          runBtn.disabled = countSource > 20;
+        } else {
+          warningDiv.style.display = 'none';
+          warningDiv.innerText = '';
+          saveBtn.disabled = false;
+          runBtn.disabled = false;
+        }
+      }
+
+      function validateEditInputs() {
+        const frontVal = $('editFrontInput').value;
+        const backVal = $('editBackInput').value;
+        const countFront = countWords(frontVal);
+        const countBack = countWords(backVal);
+        const warningDiv = $('editWordWarning');
+        const saveBtn = $('btnSaveEdit');
+        const t = i18n[currentUiLang] || i18n.en;
+
+        let hasError = false;
+        let messages = [];
+        if (countFront > 20) { hasError = true; messages.push(`Front (${countFront}/20 words)`); }
+        if (countBack > 20) { hasError = true; messages.push(`Back (${countBack}/20 words)`); }
+
+        if (hasError) {
+          warningDiv.style.display = 'block';
+          warningDiv.innerText = `${t.wordLimitExceeded}: ${messages.join(', ')}. Please shorten to proceed.`;
+          saveBtn.disabled = true;
+        } else {
+          warningDiv.style.display = 'none';
+          warningDiv.innerText = '';
+          saveBtn.disabled = false;
+        }
+      }
+
+      function detectDefaultUiLanguage() {
+        const saved = localStorage.getItem('srs_ui_lang');
+        if (saved && i18n[saved]) return saved;
+        const navLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+        if (navLang.startsWith('no') || navLang.startsWith('nb') || navLang.startsWith('nn')) return 'no';
+        if (navLang.startsWith('it')) return 'it';
+        return 'en';
+      }
+
+      function changeAppTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('srs_app_theme', theme);
+        const sel = $('themeSelectUI');
+        if (sel) sel.value = theme;
+      }
+
+      function applyUiLanguage(langCode) {
+        if (!i18n[langCode]) langCode = 'en';
+        currentUiLang = langCode;
+        localStorage.setItem('srs_ui_lang', langCode);
+        $('uiLangSelect').value = langCode;
+        const t = i18n[langCode];
+
+        $('text-welcome-setup').innerText = t.setupTitle;
+        $('btn-save-name').innerText = t.saveNameBtn;
+        $('lblLangCombo').innerText = t.langCombo;
+        $('lblSelectedDeck').innerText = t.selectedDeck;
+        $('btnSwitchDeck').innerText = t.switchDeck;
+        $('btnEditCard').innerText = t.editCard;
+        const btnArchiveCard = $('btnArchiveCard'); if(btnArchiveCard) btnArchiveCard.innerText = t.archiveCard || "🗃️ Archive";
+        $('btnWebApp').innerText = t.webAppBtn;
+        $('lblWebAppTitle').innerText = t.webAppTitle;
+        $('lblWebAppDesc').innerText = t.webAppDesc;
+        $('btnCancelWebApp').innerText = t.close;
+        $('btnCopyWebApp').innerText = "📋 " + t.copyLink;
+        $('lblEditModalTitle').innerText = t.editModalTitle;
+        $('lblEditFront').innerText = t.editFront;
+        $('lblEditBack').innerText = t.editBack;
+        $('btnSaveEdit').innerText = t.saveSheet;
+        $('btnCancelEdit').innerText = t.cancel;
+        $('openTranslatorBtn').innerText = t.openTranslator;
+        $('lblTranslateTitle').innerText = t.translateModalTitle;
+        $('lblTransDir').innerText = t.transDir;
+        $('lblLookUpText').innerText = t.lookUpText;
+        $('btnRunTranslate').innerText = t.runTranslate;
+        $('lblSelectBestTrans').innerText = t.selectBestTrans;
+        $('lblResultText').innerText = t.resultText;
+        $('btnSaveTransCard').innerText = t.addCardToDeck || "➕ Add to Deck"; 
+        $('btnCancelTranslate').innerText = t.close;
+        $('lblStudiedToday').innerText = t.studiedToday;
+        $('lblStudyConsistency').innerText = t.consistency;
+        $('lblDeckMastery').innerText = t.deckMastery;
+        $('lblTopLearners').innerText = t.topLearners; 
+        $('optLbThisWeek').innerText = t.lbThisWeek;
+        $('optLbThisMonth').innerText = t.lbThisMonth;
+        $('optLbAllTime').innerText = t.lbAllTime;
+        $('optRangeWeek').innerText = t.rangeWeek;
+        $('optRangeMonth').innerText = t.rangeMonth;
+        $('optRangeYear').innerText = t.rangeYear;
+        $('lblLess').innerText = t.less;
+        $('lblMore').innerText = t.more;
+        $('lblNew').innerText = t.newLabel;
+        $('lblReview').innerText = t.reviewLabel;
+        $('startLeechBtn').innerText = t.studyLeeches;
+        $('revealBtn').innerText = t.reveal;
+        $('typeSubmitBtn').innerText = t.submit;
+        $('nextBtn').innerText = t.nextCard;
+        
+        $('btnViewStudied').innerText = "📋 " + t.viewList;
+        const btnArchive = $('btnArchive'); if(btnArchive) btnArchive.innerText = "🗃️ " + t.archiveMastered;
+        const lblRewards = $('lblRewards'); if(lblRewards) lblRewards.innerText = "🏅 " + t.rewards;
+
+        const returnDashBtn = $('returnDashBtn');
+        if(returnDashBtn && !returnDashBtn.innerText.includes("Loading")) returnDashBtn.innerText = t.returnDash;
+        const returnDashSummaryBtn = $('returnDashSummaryBtn');
+        if(returnDashSummaryBtn && !returnDashSummaryBtn.innerText.includes("Loading")) returnDashSummaryBtn.innerText = t.returnDash;
+
+        $('lblListen').innerText = t.listen;
+        $('lblListenAns').innerText = t.listenAns;
+        $('lblOverride').innerText = t.override;
+        $('lblAutoAudio').innerText = t.autoAudio;
+        $('lblConfAgain').innerText = t.confAgain;
+        $('lblConfHard').innerText = t.confHard;
+        $('lblConfGood').innerText = t.confGood;
+        $('lblConfEasy').innerText = t.confEasy;
+        $('btnResetTiles').innerText = t.resetTiles;
+        $('btnSubmitTiles').innerText = t.submitOrder;
+        $('tfSubheader').innerText = t.tfHeader;
+        $('tfTrueBtn').innerText = t.trueBtn;
+        $('tfFalseBtn').innerText = t.falseBtn;
+        $('lblSegmentPerf').innerText = t.segmentPerf;
+        $('lblAccuracy').innerText = t.accuracy;
+        $('lblCorrectAns').innerText = t.correctAns;
+        $('lblPracticeNeeded').innerText = t.practiceNeeded;
+        $('lblNewLearnt').innerText = t.newLearnt;
+        $('lblReviewPracticed').innerText = t.reviewPracticed;
+        $('lblCantListen').innerText = t.cantListen;
+
+        const lblDidYouMean = $('lblDidYouMean'); if (lblDidYouMean) lblDidYouMean.innerText = t.didYouMean || "Did you mean:";
+        const rewardBtn = $('btnRewardDismiss'); if (rewardBtn) rewardBtn.innerText = t.woohoo || "Woohoo!";
+        
+        const lblLoggedIn = $('lblLoggedIn'); if (lblLoggedIn) lblLoggedIn.innerText = t.loggedInAs || "👤 Logged in as:";
+        const btnSwitchAccount = $('btnSwitchAccount'); 
+        if (btnSwitchAccount) {
+            btnSwitchAccount.innerText = t.switchAccount || "🔄 Switch Account";
+            btnSwitchAccount.title = t.switchAccountTitle || "Switch Google Account";
+        }
+        const lblInitializing = $('lblInitializing'); if (lblInitializing) lblInitializing.innerText = t.initializing || "Initializing...";
+        const lblDisplayName = $('lblDisplayName'); if (lblDisplayName) lblDisplayName.innerText = t.displayNameLabel || "Display Name:";
+        const displayNameInput = $('display-name-input'); if (displayNameInput) displayNameInput.placeholder = t.enterNamePlaceholder || "Enter your name";
+        const lblStudiedModalTitle = $('lblStudiedModalTitle'); if (lblStudiedModalTitle) lblStudiedModalTitle.innerText = t.studiedModalTitle || "Cards Studied Today";
+        const btnStudiedModalClose = $('btnStudiedModalClose'); if (btnStudiedModalClose) btnStudiedModalClose.innerText = t.close || "Close";
+
+        const themeSel = $('themeSelectUI');
+        if (themeSel) {
+            themeSel.options[0].text = t.themeKurs || "🎨 Kurskollektivet Theme";
+            themeSel.options[1].text = t.themeDark || "🌙 Dark Theme";
+            themeSel.options[2].text = t.themeLight || "☀️ Light Theme";
+        }
+
+        updatePairSelectUI();
+        updateWindowModeUI();
+        if (rawData) {
+            processCardsForActivePair(); 
+        }
+      }
+
+      function changeUiLanguage(newLang) { applyUiLanguage(newLang); }
+
+      function getClientTodayStr() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+
+      function openWebAppModal() { $('webAppModal').style.display = 'flex'; }
+      function closeWebAppModal() { $('webAppModal').style.display = 'none'; const t = i18n[currentUiLang] || i18n.en; $('btnCopyWebApp').innerText = "📋 " + (t.copyLink || "Copy Link"); }
+
+      function openStudiedModal() {
+        if (studiedTodayPool.length === 0) return;
+        const listEl = $('studiedCardsList');
+        listEl.innerHTML = studiedTodayPool.map(c => `<div style="padding: 8px 0; border-bottom:1px solid var(--border);"><strong>${escapeHTML(c.front)}</strong><br><span style="color:var(--text-muted);">${escapeHTML(c.back)}</span></div>`).join('');
+        $('studiedCardsModal').style.display = 'flex';
+      }
+
+      function copyWebAppLink() {
+        const input = $('webAppUrlInput');
+        input.select(); input.setSelectionRange(0, 99999); 
+        if (navigator.clipboard) { navigator.clipboard.writeText(input.value).then(() => { const t = i18n[currentUiLang] || i18n.en; $('btnCopyWebApp').innerText = "✅ " + (t.copied || "Copied!"); }).catch(err => { document.execCommand("copy"); const t = i18n[currentUiLang] || i18n.en; $('btnCopyWebApp').innerText = "✅ " + (t.copied || "Copied!"); }); } else { document.execCommand("copy"); const t = i18n[currentUiLang] || i18n.en; $('btnCopyWebApp').innerText = "✅ " + (t.copied || "Copied!"); }
+      }
+
+      function getNativeLangName(code) {
+          const lang = ALL_LANGUAGES.find(l => l.code === code);
+          return lang ? lang.name : code.toUpperCase();
+      }
+
+      function updatePairSelectUI() {
+        const selA = $('langASelect');
+        const selB = $('langBSelect');
+        if (!selA || !selB || !selectedPair) return;
+        
+        selA.replaceChildren();
+        selB.replaceChildren();
+        
+        ALL_LANGUAGES.forEach(lang => {
+            let optA = document.createElement('option');
+            optA.value = lang.code; optA.innerText = lang.name;
+            let optB = document.createElement('option');
+            optB.value = lang.code; optB.innerText = lang.name;
+            
+            selA.appendChild(optA);
+            selB.appendChild(optB);
+        });
+        
+        selA.value = selectedPair.codeA;
+        selB.value = selectedPair.codeB;
+        
+        selA.onchange = () => {
+            selectedPair.codeA = selA.value;
+            const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "default";
+            localStorage.setItem('srs_langA_' + savedDeckId, selA.value);
+            processCardsForActivePair();
+        };
+        selB.onchange = () => {
+            selectedPair.codeB = selB.value;
+            const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "default";
+            localStorage.setItem('srs_langB_' + savedDeckId, selB.value);
+            processCardsForActivePair();
+        };
+      }
+
+      function openTranslateModal() {
+        $('transSourceInput').value = ''; $('transResultInput').value = ''; $('transResultsArea').style.display = 'none'; $('spellcheckArea').style.display = 'none';
+        const dirSelect = $('transDirSelect'); dirSelect.replaceChildren();
+        if (selectedPair) {
+          const nameA = getNativeLangName(selectedPair.codeA);
+          const nameB = getNativeLangName(selectedPair.codeB);
+          
+          const optForward = document.createElement('option'); optForward.value = 'forward'; optForward.innerText = `${nameA} ➔ ${nameB}`;
+          const optReverse = document.createElement('option'); optReverse.value = 'reverse'; optReverse.innerText = `${nameB} ➔ ${nameA}`;
+          dirSelect.appendChild(optForward); dirSelect.appendChild(optReverse);
+        }
+        validateTranslateInputs();
+        $('translateModal').style.display = 'flex';
+        setTimeout(() => { $('transSourceInput').focus(); }, 100);
+      }
+
+      function closeTranslateModal() { $('translateModal').style.display = 'none'; }
+
+      function runAiTranslation() {
+        const text = $('transSourceInput').value.trim();
+        if (!text) return;
+        if (countWords(text) > 20) { validateTranslateInputs(); return; }
+        const dirValue = $('transDirSelect').value;
+        const codeA = selectedPair ? selectedPair.codeA : 'no';
+        const codeB = selectedPair ? selectedPair.codeB : 'en';
+        const sourceCode = (dirValue === 'forward') ? codeA : codeB;
+        const targetCode = (dirValue === 'forward') ? codeB : codeA;
+
+        $('transResultInput').value = "Fetching translations...";
+        $('transResultsArea').style.display = 'none';
+        $('spellcheckArea').style.display = 'none';
+        
+        // 1. Concurrent Call: Spellcheck
+        google.script.run.withSuccessHandler(res => {
+            if (res && res.success && res.corrected && res.corrected !== 'OK') {
+                $('spellcheckArea').style.display = 'block';
+                $('spellcheckSuggestion').innerText = res.corrected;
+                $('spellcheckSuggestion').onclick = (e) => {
+                    e.preventDefault();
+                    $('transSourceInput').value = res.corrected;
+                    runAiTranslation(); // Re-run translation with corrected text
+                };
+            }
+        }).checkSpelling(text, sourceCode);
+        
+        // 2. Main Call: Translation
+        google.script.run
+          .withSuccessHandler(res => {
+            if (res.success) {
+              $('transResultsArea').style.display = 'flex';
+              
+              if (res.google && !res.google.includes("unavailable")) {
+                $('optGoogleTrans').style.display = 'flex'; 
+                $('optGoogleTransText').innerText = res.google; 
+                $('optGoogleTrans').setAttribute('data-val', res.google); 
+                $('transResultInput').value = res.google;
+              } else { $('optGoogleTrans').style.display = 'none'; }
+              
+              if (res.deepl && res.deepl.trim().length > 0 && !res.deepl.startsWith("DeepL Error")) {
+                $('optDeeplTrans').style.display = 'flex'; 
+                $('optDeeplTransText').innerText = res.deepl; 
+                $('optDeeplTrans').setAttribute('data-val', res.deepl);
+              } else { $('optDeeplTrans').style.display = 'none'; }
+
+              if (res.gemini && res.gemini.trim().length > 0 && !res.gemini.startsWith("Gemini Error")) {
+                $('optGeminiTrans').style.display = 'flex'; 
+                $('optGeminiTransText').innerText = res.gemini; 
+                $('optGeminiTrans').setAttribute('data-val', res.gemini);
+                
+                if (!res.gemini.startsWith("Gemini Error") && (!res.google || res.google.includes("unavailable"))) { 
+                   $('transResultInput').value = res.gemini; 
+                }
+              } else { $('optGeminiTrans').style.display = 'none'; }
+
+              validateTranslateInputs();
+            } else { 
+              showCustomAlert("Translation error: " + res.error); 
+              $('transResultInput').value = ""; 
+              validateTranslateInputs(); 
+            }
+          })
+          .withFailureHandler(e => { 
+            showCustomAlert("Translation failed: " + e); 
+            $('transResultInput').value = ""; 
+            validateTranslateInputs(); 
+          })
+          .translateText(text, sourceCode, targetCode);
+      }
+
+      function selectTranslationOption(val) {
+        if (!val) return;
+        $('transResultInput').value = val.trim(); validateTranslateInputs(); $('transResultInput').focus();
+      }
+
+      function saveTranslatedCard() {
+        const lookupText = $('transSourceInput').value.trim();
+        const translationText = $('transResultInput').value.trim();
+        const t = i18n[currentUiLang] || i18n.en;
+        
+        if (!lookupText || !translationText || translationText === "Fetching translations...") { 
+          showCustomAlert("Please look up a translation first."); 
+          return; 
+        }
+        if (countWords(lookupText) > 20 || countWords(translationText) > 20) { 
+          validateTranslateInputs(); 
+          return; 
+        }
+
+        const dirValue = $('transDirSelect').value;
+        let cardLangA, cardLangB;
+        if (dirValue === 'forward') { 
+          cardLangA = lookupText; 
+          cardLangB = translationText; 
+        } else { 
+          cardLangA = translationText; 
+          cardLangB = lookupText; 
+        }
+
+        const cleanA = cleanString(cardLangA);
+        const duplicateCard = allCards.find(c => cleanString(c.front) === cleanA);
+        if (duplicateCard) {
+            showCustomAlert(`⚠️ Duplicate detected!\n\nThis word already exists in your deck as:\n\n${duplicateCard.front} ➔ ${duplicateCard.back}`);
+            return;
+        }
+
+        const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
+
+        $('btnSaveTransCard').disabled = true;
+        $('btnSaveTransCard').innerText = "Saving...";
+        google.script.run
+          .withSuccessHandler(res => {
+            $('btnSaveTransCard').disabled = false; $('btnSaveTransCard').innerText = t.addCardToDeck || "➕ Add to Deck";
+            if (res.success) { showCustomAlert("🎉 Card added directly to your spreadsheet deck!"); closeTranslateModal(); fetchData(); } else { showCustomAlert("Error adding card: " + res.error); }
+          })
+          .withFailureHandler(e => { $('btnSaveTransCard').disabled = false; showCustomAlert("Error saving card: " + e); })
+          .addNewCardToSheet(cardLangA, cardLangB, savedDeckId);
+      }
+
+      function openEditModal() {
+        if (!currentCard) return;
+        $('editFrontInput').value = currentCard.front; $('editBackInput').value = currentCard.back;
+        validateEditInputs(); $('editCardModal').style.display = 'flex';
+      }
+
+      function closeEditModal() { $('editCardModal').style.display = 'none'; }
+
+      function saveCardEdit() {
+        if (!currentCard) return;
+        const newFront = $('editFrontInput').value.trim(); const newBack = $('editBackInput').value.trim();
+        if (!newFront || !newBack) { showCustomAlert("Both front and back fields must contain text."); return; }
+        if (countWords(newFront) > 20 || countWords(newBack) > 20) { validateEditInputs(); return; }
+
+        currentCard.front = newFront; currentCard.back = newBack;
+        targetPrompt = isForward ? currentCard.front : currentCard.back; targetAnswer = isForward ? currentCard.back : currentCard.front;
+        const dispAnswerLang = getDisplayLangCode(answerLangCode);
+
+        if (currentMode === 'flip') { $('promptMain').innerText = targetPrompt; $('flipAnswerText').innerText = targetAnswer; } 
+        else if (currentMode === 'word_tiles') { setupWordTiles(); } 
+        else if (currentMode === 'faded_hints') { setupFadedHints(dispAnswerLang); } 
+        else { $('promptMain').innerText = targetPrompt; }
+
+        closeEditModal();
+        const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
+        google.script.run
+          .withSuccessHandler(() => { console.log("Card updated in spreadsheet!"); })
+          .withFailureHandler(e => showCustomAlert("Error saving to spreadsheet: " + e))
+          .updateCardInSheet(currentCard.rowIndex, currentCard.colIdxA, currentCard.colIdxB, newFront, newBack, savedDeckId);
+      }
+
+      function archiveMasteredCards() {
+        const btn = $('btnArchive'); if(!btn) return;
+        const oldText = btn.innerText; btn.innerText = "⏳ Archiving..."; btn.disabled = true;
+        const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
+        google.script.run
+          .withSuccessHandler(res => {
+            btn.innerText = oldText; btn.disabled = false;
+            if (res.success) { showCustomAlert(res.message); if (res.count > 0) fetchData(); } else { showCustomAlert("Error: " + res.message); }
+          })
+          .withFailureHandler(e => { showCustomAlert("Error: " + e); btn.innerText = oldText; btn.disabled = false; })
+          .archiveMasteredCards(savedDeckId, activeUserKey);
+      }
+
+      function extractSpreadsheetId(urlOrId) {
+        if (!urlOrId) return "";
+        const match = urlOrId.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        if (match && match[1]) { return match[1]; }
+        return urlOrId.trim();
+      }
+
+      function promptSwitchDeck() {
+        const t = i18n[currentUiLang] || i18n.en;
+        showCustomPrompt(t.deckPrompt, "", (input) => {
+          if (input !== null) {
+            const cleanInput = input.trim();
+            if (cleanInput === "") { localStorage.removeItem('srs_selected_deck_id'); fetchData(); } 
+            else {
+              const extractedId = extractSpreadsheetId(cleanInput);
+              if (extractedId) { localStorage.setItem('srs_selected_deck_id', extractedId); fetchData(); }
+            }
+          }
+        });
+      }
+
+      function getOrdinal(n) { const s = ["th", "st", "nd", "rd"]; const v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+      function formatDateKey(d) { const year = d.getFullYear(); const month = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0'); return `${year}-${month}-${day}`; }
+
+      // Advanced Heuristic Auto-Detection for Rows 2+
+      function detectLangFromRows(colIdx, rawRows) {
+          if (!rawRows || rawRows.length === 0) return (colIdx === 0 ? 'no' : 'en');
+          
+          let sampleText = "";
+          for(let i=0; i<Math.min(20, rawRows.length); i++) {
+              if(rawRows[i] && rawRows[i][colIdx]) {
+                  sampleText += " " + rawRows[i][colIdx].toString().toLowerCase() + " ";
+              }
+          }
+          
+          const langSignatures = {
+              en: { chars: [], words: [" the ", " be ", " to ", " of ", " and ", " in ", " that ", " have ", " it ", " is "] },
+              no: { chars: ["æ", "ø", "å"], words: [" og ", " det ", " er ", " til ", " en ", " av ", " for ", " med ", " at ", " ikke ", " som ", " på ", " vi "] },
+              it: { chars: ["à", "è", "é", "ì", "í", "ò", "ù"], words: [" il ", " di ", " la ", " un ", " in ", " che ", " non ", " sono ", " con ", " una ", " per "] },
+              es: { chars: ["ñ", "¿", "¡", "á", "é", "í", "ó", "ú"], words: [" el ", " de ", " que ", " en ", " un ", " ser ", " se ", " no ", " por ", " con ", " la ", " para "] },
+              fr: { chars: ["œ", "ç", "à", "â", "é", "è", "ê", "ë", "î", "ï", "ô", "ù", "û", "ü"], words: [" le ", " de ", " un ", " est ", " et ", " il ", " les ", " en ", " que ", " la ", " pour "] },
+              de: { chars: ["ä", "ö", "ü", "ß"], words: [" der ", " die ", " und ", " in ", " den ", " von ", " zu ", " das ", " mit ", " sich ", " auf ", " für "] }
+          };
+
+          let scores = { en: 0, no: 0, it: 0, es: 0, fr: 0, de: 0 };
+          for (const [lang, sig] of Object.entries(langSignatures)) {
+              sig.chars.forEach(char => {
+                  let matches = sampleText.split(char).length - 1;
+                  scores[lang] += matches * 5; 
+              });
+              sig.words.forEach(word => {
+                  let matches = sampleText.split(word).length - 1;
+                  scores[lang] += matches * 2; 
+              });
+          }
+          
+          let bestLang = (colIdx === 0 ? 'no' : 'en');
+          let maxScore = 0;
+          for (const [lang, score] of Object.entries(scores)) {
+              if (score > maxScore) {
+                  maxScore = score;
+                  bestLang = lang;
+              }
+          }
+          return bestLang;
+      }
+
+      function initLanguages() {
+        const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "default";
+        let savedA = localStorage.getItem('srs_langA_' + savedDeckId);
+        let savedB = localStorage.getItem('srs_langB_' + savedDeckId);
+        
+        let codeA = savedA || detectLangFromRows(0, rawData.rawRows);
+        let codeB = savedB || detectLangFromRows(1, rawData.rawRows);
+        
+        selectedPair = { idxA: 0, idxB: 1, codeA: codeA, codeB: codeB };
+        updatePairSelectUI();
+      }
+
+      function isEnglish(code) { return !code || code.toLowerCase().trim() === 'en'; }
+
+      function cleanString(str) {
+        if (!str) return '';
+        return str.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/g, "").replace(/\s+/g, " ").trim();
+      }
+
+      function levenshteinDistance(a, b) {
+        const matrix = [];
+        for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+        for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+        for (let i = 1; i <= b.length; i++) {
+          for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) { matrix[i][j] = matrix[i - 1][j - 1]; } 
+            else { matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1); }
+          }
+        }
+        return matrix[b.length][a.length];
+      }
+
+      function updateWindowModeUI() {
+        const btnPop = $('popoutToggleBtn'); const btnWeb = $('btnWebApp');
+        const isWebApp = (window.IS_WEB_APP === true);
+        if (isWebApp) {
+          if (btnPop) btnPop.style.display = 'none'; if (btnWeb) btnWeb.style.display = 'none';
+        } else {
+          const t = i18n[currentUiLang] || i18n.en;
+          if (btnPop) {
+            if (window.innerWidth > 400) { btnPop.innerText = t.dockSidebar; btnPop.title = t.dockTitle; } 
+            else { btnPop.innerText = t.popOut; btnPop.title = t.popoutTitle; }
+          }
+        }
+      }
+
+      function handleWindowToggle() {
+        if (window.innerWidth > 400) {
+          google.script.run.withSuccessHandler(() => { if (google.script.host && google.script.host.close) { google.script.host.close(); } }).showFlashcardSidebar();
+        } else {
+          google.script.run.showFlashcardDialog();
+        }
+      }
+
+      document.addEventListener('keydown', function(e) {
+        const quizView = $('viewQuiz');
+        if (!quizView || quizView.style.display === 'none') return;
+        const activeEl = document.activeElement;
+        const isTypingInput = activeEl && activeEl.tagName === 'INPUT';
+        
+        if (isTypingInput && (e.key === 'Enter' || e.key === ' ')) return; 
+
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          const revealBtn = $('revealBtn'); const nextBtn = $('nextBtn');
+          if (currentMode === 'flip' && revealBtn && revealBtn.style.display !== 'none') { revealFlip(); } 
+          else if (nextBtn && nextBtn.style.display !== 'none') { 
+            if (Date.now() - lastFeedbackTime < 600) return; 
+            renderNextCard(); 
+          }
+        }
+
+        if (currentMode === 'flip') {
+          const flipAnswerArea = $('flipAnswerArea');
+          if (flipAnswerArea && flipAnswerArea.style.display !== 'none') {
+            if (e.key === '1') { e.preventDefault(); submitAnswer(false, 'again'); }
+            if (e.key === '2') { e.preventDefault(); submitAnswer(true, 'hard'); }
+            if (e.key === '3') { e.preventDefault(); submitAnswer(true, 'good'); }
+            if (e.key === '4') { e.preventDefault(); submitAnswer(true, 'easy'); }
+          }
+        } else if (currentMode === 'mcq' || currentMode === 'cloze_mcq') {
+          if (['1', '2', '3', '4'].includes(e.key)) {
+            e.preventDefault();
+            const idx = parseInt(e.key, 10) - 1;
+            const mcqBtn = $(`mcq${idx}`);
+            if (mcqBtn && !mcqBtn.disabled) checkMCQ(idx);
+          }
+        } else if (currentMode === 'tf') {
+          if (e.key.toLowerCase() === 't' || e.key === '1') {
+            e.preventDefault();
+            const trueBtn = $('tfTrueBtn');
+            if (trueBtn && !trueBtn.disabled) checkTF(true);
+          } else if (e.key.toLowerCase() === 'f' || e.key === '2') {
+            e.preventDefault();
+            const falseBtn = $('tfFalseBtn');
+            if (falseBtn && !falseBtn.disabled) checkTF(false);
+          }
+        }
+      });
+
+      window.onload = function() {
+        const savedTheme = localStorage.getItem('srs_app_theme') || 'kurskollektivet';
+        changeAppTheme(savedTheme);
+        
+        updateWindowModeUI(); window.onresize = updateWindowModeUI;
+        try {
+          if (typeof window.URL_SYNC_KEY !== 'undefined') localStorage.setItem('srs_anon_user_key', window.URL_SYNC_KEY.trim());
+          if (typeof window.URL_DECK_ID !== 'undefined') localStorage.setItem('srs_selected_deck_id', window.URL_DECK_ID.trim());
+          if (typeof window.URL_SYNC_NAME !== 'undefined') localStorage.setItem('srs_anon_display_name', window.URL_SYNC_NAME.trim());
+          const urlParams = new URLSearchParams(window.location.search);
+          const syncKey = urlParams.get('sync');
+          if (syncKey && syncKey.trim().length > 0 && syncKey !== 'undefined') { localStorage.setItem('srs_anon_user_key', syncKey.trim()); }
+          const deckId = urlParams.get('deck');
+          if (deckId && deckId.trim().length > 0 && deckId !== 'undefined') { localStorage.setItem('srs_selected_deck_id', deckId.trim()); }
+          const nameParam = urlParams.get('name');
+          if (nameParam && nameParam.trim().length > 0 && nameParam !== 'undefined') { localStorage.setItem('srs_anon_display_name', nameParam.trim()); }
+        } catch(e) {}
+        const defaultLang = detectDefaultUiLanguage(); applyUiLanguage(defaultLang);
+        setupNameCheckListener(); initPreflightFlow();
+      };
+
+      function initPreflightFlow() {
+        $('loading-ui').style.display = 'block'; $('main-ui').style.display = 'none'; $('name-check-ui').style.display = 'none';
+        const customName = localStorage.getItem('srs_anon_display_name') || "";
+        const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
+
+        google.script.run
+          .withSuccessHandler(function(response) {
+            if (!response.displayNameExists && (!customName || customName === 'undefined')) {
+              $('loading-ui').style.display = 'none'; $('name-check-ui').style.display = 'block'; return;
+            }
+            initApp(response);
+          })
+          .withFailureHandler(function(error) {
+            console.error("Initialization Failed:", error);
+            showCustomAlert("Error loading flashcard data. Ensure you have access to the Google Spreadsheet."); 
+          })
+          .getFlashcardData(customName, savedDeckId, getClientTodayStr());
+      }
+
+      function fetchData() {
+        const customName = localStorage.getItem('srs_anon_display_name') || "";
+        const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
+
+        google.script.run
+          .withSuccessHandler(initApp)
+          .withFailureHandler(() => { showCustomAlert("Error loading flashcard data. Ensure you have access to the Google Spreadsheet."); })
+          .getFlashcardData(customName, savedDeckId, getClientTodayStr());
+      }
+
+      function initApp(data) {
+        $('loading-ui').style.display = 'none'; $('main-ui').style.display = 'block';
+        const t = i18n[currentUiLang] || i18n.en;
+
+        rawData = data;
+        activeUserKey = data.activeUserKey;
+        activeDisplayName = (data.displayName && data.displayName !== "undefined") ? data.displayName : "Learner";
+        currentWebAppUrl = data.webAppUrl || "Not available";
+        $('webAppUrlInput').value = currentWebAppUrl;
+        
+        if (activeUserKey === "unauthenticated_user") {
+           $('userEmailDisplay').innerText = t.notLoggedIn || "Not Logged In";
+        } else {
+           $('userEmailDisplay').innerText = activeUserKey;
+        }
+
+        $('dashDeckName').innerText = data.ssName || "Spreadsheet Deck";
+        initLanguages();
+        processCardsForActivePair();
+      }
+
+      function getStageFromInterval(ivl, isNew) {
+        if (isNew || ivl < 1) return 1; 
+        if (ivl <= 3) return 2; 
+        if (ivl <= 7) return 3; 
+        if (ivl <= 14) return 4;
+        if (ivl <= 30) return 5; 
+        if (ivl <= 60) return 6; 
+        if (ivl <= 90) return 7; 
+        if (ivl <= 180) return 8;
+        if (ivl <= 359) return 9; 
+        return 10;
+      }
+
+      function processCardsForActivePair() {
+        allCards = []; duePool = []; newPool = []; leechPool = []; studiedTodayPool = [];
+        let stageCounts = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0 };
+        nextDueTimestamp = Infinity;
+
+        if (!selectedPair || !rawData || !rawData.rawRows) { renderDashboard(stageCounts); return; }
+        const todayStr = rawData.todayStr;
+        const nowMs = Date.now();
+
+        rawData.rawRows.forEach((row, rowIndex) => {
+          let front = row[selectedPair.idxA] ? row[selectedPair.idxA].toString().trim() : "";
+          let back = row[selectedPair.idxB] ? row[selectedPair.idxB].toString().trim() : "";
+          if (!front || !back) return;
+
+          let cardId = cleanString(front) + ":::" + cleanString(back);
+          let cardState = rawData.savedProgress ? rawData.savedProgress[cardId] : null;
+
+          let isNew = !cardState;
+          let interval = cardState ? (parseFloat(cardState.interval) || 1) : 1;
+          let ef = cardState ? (parseFloat(cardState.ef) || 2.5) : 2.5; 
+          let nextReviewStr = cardState ? (cardState.nextReview || todayStr) : todayStr;
+          let failCount = cardState ? (parseFloat(cardState.failCount) || 0) : 0;
+          let isLeech = cardState ? (cardState.isLeech || failCount >= 3) : false;
+          
+          let nextReviewDate = new Date(nextReviewStr.replace(' ', 'T'));
+          let isDue = (!isNew && nextReviewDate.getTime() <= nowMs);
+
+          let card = {
+            id: cardId, front: front, back: back, interval: interval, nextReview: nextReviewStr, ef: ef,
+            langA: selectedPair.codeA, langB: selectedPair.codeB, isNew: isNew, failCount: failCount,
+            isLeech: isLeech, rowIndex: rowIndex + 2, colIdxA: selectedPair.idxA, colIdxB: selectedPair.idxB
+          };
+
+          allCards.push(card);
+          const stage = getStageFromInterval(interval, isNew);
+          stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+
+          if (isLeech) leechPool.push(card);
+          
+          if (isNew) {
+            newPool.push(card);
+          } else if (isDue) {
+            duePool.push(card);
+          } else {
+            nextDueTimestamp = Math.min(nextDueTimestamp, nextReviewDate.getTime());
+          }
+          
+          if (cardState && cardState.lastReviewed === todayStr) studiedTodayPool.push(card);
+        });
+
+        const dueIds = new Set(duePool.map(c => c.id));
+        const newIds = new Set(newPool.map(c => c.id));
+        nonDuePool = shuffleArray(allCards.filter(c => !dueIds.has(c.id) && !newIds.has(c.id)));
+
+        renderDashboard(stageCounts);
+      }
+
+      function startCountdown(targetMs) {
+        const btn = $('startReviewBtn');
+        btn.disabled = true; 
+        
+        const updateTimer = () => {
+          const t = i18n[currentUiLang] || i18n.en;
+          const diff = targetMs - Date.now();
+          if (diff <= 0) {
+            clearInterval(dueCountdownInterval);
+            btn.innerText = `🚀 ${t.dueReadyRefresh || "Due Cards Ready! (Click to Refresh)"}`;
+            btn.disabled = false;
+            btn.onclick = () => showDashboard(); 
+            return;
+          }
+          
+          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          const hrs = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const secs = Math.floor((diff % (1000 * 60)) / 1000);
+          
+          let timeStr = "";
+          if (days > 0) timeStr += `${days}${t.unitD || 'd'} `;
+          if (hrs > 0 || days > 0) timeStr += `${hrs}${t.unitH || 'h'} `;
+          timeStr += `${mins}${t.unitM || 'm'} ${secs}${t.unitS || 's'}`;
+          
+          btn.innerText = `⏳ ${t.nextReviewIn || "Next review in"} ${timeStr}`;
+        };
+        
+        updateTimer(); 
+        dueCountdownInterval = setInterval(updateTimer, 1000);
+      }
+
+      function changeBadgeTheme(theme) {
+          localStorage.setItem('srs_badge_theme', theme);
+          renderGamificationBadges();
+      }
+
+      function renderDashboard(stageCounts) {
+        $('viewQuiz').style.display = 'none'; $('viewSummary').style.display = 'none'; $('viewDashboard').style.display = 'flex';
+        const t = i18n[currentUiLang] || i18n.en;
+
+        const studiedToday = rawData.studiedToday || { newCount: 0, oldCount: 0 };
+        const newC = studiedToday.newCount || 0; const oldC = studiedToday.oldCount || 0;
+        $('dashStudiedTotal').innerText = newC + oldC; $('dashStudiedNew').innerText = newC; $('dashStudiedOld').innerText = oldC;
+
+        const dueC = duePool.length; const newCardC = newPool.length; const leechC = leechPool.length;
+
+        const startBtn = $('startReviewBtn'); const startNewBtn = $('startNewBtn');
+        const startLeechBtn = $('startLeechBtn'); const studyAllBtn = $('dashStudyAllBtn');
+        $('btnViewStudied').disabled = studiedTodayPool.length === 0;
+
+        if (dueCountdownInterval) clearInterval(dueCountdownInterval);
+        startBtn.onclick = () => startQuiz('due');
+
+        if (allCards.length === 0) {
+          startBtn.innerText = "⚠️ No Cards Found"; startBtn.disabled = true; startNewBtn.innerText = t.studyNew;
+          startNewBtn.disabled = true; startLeechBtn.disabled = true; studyAllBtn.disabled = true;
+        } else {
+          if (dueC === 0) { 
+            if (nextDueTimestamp !== Infinity) {
+              startCountdown(nextDueTimestamp);
+            } else {
+              startBtn.innerText = t.allCaughtUp; 
+              startBtn.disabled = true; 
+            }
+          } else { 
+            startBtn.innerText = `${t.studyDue} (${dueC})`; 
+            startBtn.disabled = false; 
+          }
+          if (newCardC === 0) { startNewBtn.innerText = t.noNewCards; startNewBtn.disabled = true; } else { startNewBtn.innerText = `${t.studyNew} (${newCardC})`; startNewBtn.disabled = false; }
+          if (leechC === 0) { startLeechBtn.innerText = t.noLeechCards; startLeechBtn.disabled = true; } else { startLeechBtn.innerText = `${t.studyLeeches} (${leechC})`; startLeechBtn.disabled = false; }
+          studyAllBtn.innerText = t.studyAll; studyAllBtn.disabled = false;
+        }
+
+        renderHeatmap();
+        
+        const grid = $('dashBoxGrid'); grid.replaceChildren();
+        for (let i = 1; i <= 10; i++) {
+          const count = stageCounts[i] || 0;
+          const labelText = t['stage' + i] || stageLabels[i];
+          const item = document.createElement('div');
+          item.className = 'box-item';
+          item.innerHTML = `<span class="box-label">${labelText}</span><span class="box-val">${count} / ${allCards.length}</span>`;
+          grid.appendChild(item);
+        }
+        
+        renderLeaderboard();
+        renderGamificationBadges();
+      }
+
+      function renderGamificationBadges() {
+        const t = i18n[currentUiLang] || i18n.en;
+        const theme = localStorage.getItem('srs_badge_theme') || 'flora';
+        const activeBadges = theme === 'fauna' ? badgesFauna : badgesFlora;
+        
+        const themeSelect = $('themeSelect');
+        if (themeSelect && themeSelect.value !== theme) {
+            themeSelect.value = theme;
+        }
+
+        const history = rawData.studyHistory || {}; 
+        const activeDates = Object.keys(history).filter(d => history[d] > 0).sort();
+        
+        const badgeCounts = {};
+        activeBadges.forEach(b => badgeCounts[b.id] = 0);
+
+        if (activeDates.length > 0) {
+            const firstDateStr = activeDates[0];
+            const firstDateObj = new Date(firstDateStr + "T00:00:00Z"); 
+            const weekMap = {}; const monthMap = {}; const yearMap = {};
+
+            activeDates.forEach(dateStr => {
+                const d = new Date(dateStr + "T00:00:00Z");
+                const dUtc = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+                const dayNum = dUtc.getUTCDay() || 7;
+                dUtc.setUTCDate(dUtc.getUTCDate() + 4 - dayNum);
+                const yearStart = new Date(Date.UTC(dUtc.getUTCFullYear(), 0, 1));
+                
+                const weekKey = dUtc.getUTCFullYear() + "-W" + Math.ceil((((dUtc - yearStart) / 86400000) + 1) / 7);
+                weekMap[weekKey] = (weekMap[weekKey] || 0) + 1;
+                const monthKey = d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, '0');
+                monthMap[monthKey] = (monthMap[monthKey] || 0) + 1;
+                const diffTime = Math.abs(d - firstDateObj);
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                const yearKey = "Y" + (Math.floor(diffDays / 365) + 1);
+                yearMap[yearKey] = (yearMap[yearKey] || 0) + 1;
+            });
+
+            Object.values(weekMap).forEach(days => activeBadges.filter(b => b.type === 'week').forEach(b => { if (days >= b.req) badgeCounts[b.id]++; }));
+            Object.values(monthMap).forEach(days => activeBadges.filter(b => b.type === 'month').forEach(b => { if (days >= b.req) badgeCounts[b.id]++; }));
+            Object.values(yearMap).forEach(days => activeBadges.filter(b => b.type === 'year').forEach(b => { if (days >= b.req) badgeCounts[b.id]++; }));
+        }
+
+        // Check global history first. If it doesn't exist yet, gracefully fall back to the old theme key so returning users don't get spammed.
+        let previouslyEarned = JSON.parse(localStorage.getItem('srs_earned_badges_counts_global') || null);
+        if (!previouslyEarned) {
+            previouslyEarned = JSON.parse(localStorage.getItem('srs_earned_badges_counts_' + theme) || '{}');
+        }
+
+        const currentlyEarnedCounts = {};
+        const newlyEarned = [];
+
+        const badgeContainer = $('badgeScrollContainer');
+        badgeContainer.innerHTML = '';
+        
+        activeBadges.forEach(b => {
+            const count = badgeCounts[b.id] || 0;
+            currentlyEarnedCounts[b.id] = count;
+            
+            const prevCount = previouslyEarned[b.id] || 0;
+            if (count > prevCount) {
+                newlyEarned.push({ badge: b, count: count, prevCount: prevCount });
+            }
+
+            const owned = count > 0;
+            let suffix = b.type === 'week' ? t.daysWk : (b.type === 'month' ? t.daysMo : t.daysYr);
+            let bName = `${b.req} ${suffix}`;
+            badgeContainer.innerHTML += `
+                <div class="badge-col ${owned ? 'owned' : ''}">
+                    <div class="badge-emoji" title="${bName}">${b.emoji}</div>
+                    <div class="badge-name">${bName}</div>
+                    <div class="badge-count" style="background-color: ${b.color};">${count}</div>
+                </div>
+            `;
+        });
+
+        localStorage.setItem('srs_earned_badges_counts_global', JSON.stringify(currentlyEarnedCounts));
+        
+        if (newlyEarned.length > 0) {
+            const topEarned = newlyEarned[newlyEarned.length - 1];
+            const isFirstTime = topEarned.prevCount === 0;
+            
+            $('rewardModalIcon').innerText = topEarned.badge.emoji;
+            let suffix = topEarned.badge.type === 'week' ? (t.daysWk || "Days/Wk") : (topEarned.badge.type === 'month' ? (t.daysMo || "Days/Mo") : (t.daysYr || "Days/Yr"));
+            $('rewardModalName').innerText = `${topEarned.badge.req} ${suffix}`;
+            
+            const rewardTitle = $('rewardModalTitle');
+            if (rewardTitle) {
+                rewardTitle.innerText = isFirstTime ? (t.newRewardUnlocked || "🎉 New Reward!") : (t.rewardUnlocked || "🎉 Reward!");
+            }
+            
+            $('rewardModal').style.display = 'flex';
+        }
+      }
+
+      function renderLeaderboard() {
+        const t = i18n[currentUiLang] || i18n.en;
+        const period = $('lbPeriodSelect').value;
+        let list = [];
+        if (period === 'week') { list = rawData.leaderboardWeekly || []; } else if (period === 'month') { list = rawData.leaderboardMonthly || []; } else { list = rawData.leaderboard || []; }
+
+        const lbGrid = $('leaderboardGrid'); lbGrid.replaceChildren();
+        if (list && list.length > 0) {
+          list.forEach((user, idx) => {
+            let medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '👤';
+            const item = document.createElement('div'); item.className = 'box-item';
+            const nameSpan = document.createElement('span'); nameSpan.className = 'box-label'; nameSpan.textContent = `${medal} ${user.username}`;
+            const scoreSpan = document.createElement('span'); scoreSpan.className = 'box-val'; scoreSpan.textContent = `${user.score} ${t.reviews}`;
+            item.appendChild(nameSpan); item.appendChild(scoreSpan); lbGrid.appendChild(item);
+          });
+        } else {
+          const emptyDiv = document.createElement('div'); emptyDiv.style.cssText = "font-size:12px; color:var(--text-muted); text-align:center; padding:8px;"; emptyDiv.textContent = t.noActivity; lbGrid.appendChild(emptyDiv);
+        }
+      }
+
+      function renderHeatmap() {
+        const grid = $('heatmapGrid'); const statsBar = $('hmStatsBar'); const rangeVal = $('hmRangeSelect').value;
+        const scrollContainer = $('hmScrollContainer'); const monthHeader = $('hmMonthHeader'); const hmWrapper = $('hmWrapper');
+        const t = i18n[currentUiLang] || i18n.en;
+        if (!grid || !rawData) return; grid.replaceChildren();
+        const history = rawData.studyHistory || {}; const today = new Date();
+        let activeDaysCount = 0; let totalReviewsInRange = 0;
+
+        if (monthHeader) { monthHeader.style.display = 'none'; monthHeader.replaceChildren(); }
+
+        if (rangeVal === '7') {
+          if(hmWrapper) { hmWrapper.style.width = '100%'; hmWrapper.style.margin = '0'; }
+          scrollContainer.style.overflowX = 'hidden';
+          grid.style.display = 'flex'; grid.style.justifyContent = 'space-between'; grid.style.gap = '6px';
+          grid.style.gridTemplateColumns = 'none'; grid.style.gridTemplateRows = 'none'; grid.style.gridAutoColumns = 'none'; grid.style.gridAutoFlow = 'none'; grid.style.width = '100%';
+          const currentDayOfWeek = today.getDay(); const distToMon = (currentDayOfWeek + 6) % 7;
+          const monday = new Date(today); monday.setDate(today.getDate() - distToMon);
+
+          for (let i = 0; i < 7; i++) {
+            const d = new Date(monday); d.setDate(monday.getDate() + i);
+            const dateStr = formatDateKey(d); const count = history[dateStr] || 0;
+            let dayName = d.toLocaleDateString(currentUiLang, { weekday: 'short' }); dayName = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+            const dayNum = d.getDate(); const ordinal = getOrdinal(dayNum);
+            if (count > 0) { activeDaysCount++; totalReviewsInRange += count; }
+            let levelClass = 'hm-lvl-0';
+            if (count >= 50) levelClass = 'hm-lvl-4'; else if (count >= 25) levelClass = 'hm-lvl-3'; else if (count >= 10) levelClass = 'hm-lvl-2'; else if (count >= 1) levelClass = 'hm-lvl-1';
+            const isToday = (dateStr === formatDateKey(today));
+            const card = document.createElement('div');
+            card.style.flex = '1'; card.style.display = 'flex'; card.style.flexDirection = 'column'; card.style.alignItems = 'center'; card.style.gap = '3px';
+            if (isToday) { card.style.backgroundColor = 'var(--bg-success-light)'; card.style.borderRadius = '8px'; card.style.padding = '4px 2px'; }
+            card.innerHTML = `<span style="font-size: 10px; color: var(--text-muted); font-weight: 600;">${dayName}</span><span style="font-size: 9px; color: var(--text-muted); font-weight: 500;">${ordinal}</span><div class="hm-cell ${levelClass}" style="width: 100%; max-width: 32px; height: 26px; border-radius: 6px;" title="${dateStr} (${ordinal}): ${count} ${t.cards}"></div><span style="font-size: 10px; color: var(--text-main); font-weight: 700;">${count > 0 ? count : '-'}</span>`;
+            grid.appendChild(card);
+          }
+          statsBar.innerHTML = `${t.thisWeek}: ${t.active} <strong>${activeDaysCount}</strong> ${t.outOf} <strong>7</strong> ${t.days} &bull; <strong>${totalReviewsInRange}</strong> ${t.reviews}`;
+        }
+        else if (rangeVal === '30') {
+          if(hmWrapper) { hmWrapper.style.width = '100%'; hmWrapper.style.margin = '0'; }
+          scrollContainer.style.overflowX = 'hidden';
+          const year = today.getFullYear(); const month = today.getMonth();
+          let monthName = today.toLocaleDateString(currentUiLang, { month: 'long' }); monthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+          const firstDay = new Date(year, month, 1); const daysInMonth = new Date(year, month + 1, 0).getDate();
+          const startDayOfWeek = (firstDay.getDay() + 6) % 7;
+          grid.style.display = 'grid'; grid.style.gridTemplateColumns = 'repeat(7, 1fr)'; grid.style.gridAutoFlow = 'row';
+          grid.style.gridTemplateRows = 'none'; grid.style.gridAutoColumns = 'none'; grid.style.gap = '4px'; grid.style.width = '100%';
+          const weekDays = t.weekDaysInitials || ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+          weekDays.forEach(wd => { const h = document.createElement('div'); h.style.textAlign = 'center'; h.style.fontSize = '10px'; h.style.fontWeight = '700'; h.style.color = 'var(--text-muted)'; h.style.paddingBottom = '2px'; h.innerText = wd; grid.appendChild(h); });
+          for (let i = 0; i < startDayOfWeek; i++) { const emptyCell = document.createElement('div'); emptyCell.style.height = '28px'; grid.appendChild(emptyCell); }
+          for (let day = 1; day <= daysInMonth; day++) {
+            const d = new Date(year, month, day); const dateStr = formatDateKey(d); const count = history[dateStr] || 0; const ordinal = getOrdinal(day);
+            if (count > 0) { activeDaysCount++; totalReviewsInRange += count; }
+            let levelClass = 'hm-lvl-0';
+            if (count >= 50) levelClass = 'hm-lvl-4'; else if (count >= 25) levelClass = 'hm-lvl-3'; else if (count >= 10) levelClass = 'hm-lvl-2'; else if (count >= 1) levelClass = 'hm-lvl-1';
+            const isToday = (dateStr === formatDateKey(today));
+            const cell = document.createElement('div');
+            cell.className = `hm-cell ${levelClass}`; cell.style.height = '28px'; cell.style.borderRadius = '5px'; cell.style.display = 'flex'; cell.style.flexDirection = 'column'; cell.style.alignItems = 'center'; cell.style.justifyContent = 'center'; cell.style.cursor = 'pointer';
+            if (isToday) { cell.style.border = '2px solid var(--success)'; }
+            cell.title = `${monthName} ${ordinal}: ${count} ${t.cards}`;
+            cell.innerHTML = `<span style="font-size: 10px; font-weight: 700; color: ${count > 24 ? '#ffffff' : 'var(--text-main)'};">${day}</span>${count > 0 ? `<span style="font-size: 8px; font-weight: 600; color: ${count > 24 ? 'var(--bg-success-light)' : 'var(--success-text)'}; line-height: 8px;">${count}</span>` : ''}`;
+            grid.appendChild(cell);
+          }
+          statsBar.innerHTML = `${monthName}: ${t.active} <strong>${activeDaysCount}</strong> ${t.outOf} <strong>${daysInMonth}</strong> ${t.days} &bull; <strong>${totalReviewsInRange}</strong> ${t.reviews}`;
+        }
+        else {
+          if(hmWrapper) { hmWrapper.style.width = 'max-content'; hmWrapper.style.margin = '0 auto'; }
+          scrollContainer.style.overflowX = 'auto'; const rangeDays = 365;
+          if (monthHeader) { monthHeader.style.display = 'block'; monthHeader.style.position = 'relative'; monthHeader.style.height = '14px'; monthHeader.style.width = '100%'; monthHeader.style.marginBottom = '3px'; monthHeader.replaceChildren(); }
+          grid.style.display = 'grid'; grid.style.gridAutoFlow = 'column'; grid.style.justifyContent = 'start'; grid.style.width = 'max-content'; grid.style.gridTemplateColumns = 'none';
+          let cellSize = 10; let cellGap = 2;
+          grid.style.gridTemplateRows = `repeat(7, ${cellSize}px)`; grid.style.gridAutoColumns = `${cellSize}px`; grid.style.gap = `${cellGap}px`;
+          const dateArray = [];
+          for (let i = rangeDays - 1; i >= 0; i--) {
+            const d = new Date(today); d.setDate(d.getDate() - i); const dateStr = formatDateKey(d);
+            dateArray.push({ dateObj: d, dateStr: dateStr, count: history[dateStr] || 0, month: d.getMonth() });
+          }
+          let prevMonth = -1; let lastLabelCol = -5;
+          dateArray.forEach((item, idx) => {
+            if (item.count > 0) { activeDaysCount++; totalReviewsInRange += item.count; }
+            const colIndex = Math.floor(idx / 7);
+            if (item.month !== prevMonth) {
+              if (monthHeader && (colIndex - lastLabelCol >= 3)) {
+                let monthLabel = item.dateObj.toLocaleDateString(currentUiLang, { month: 'short' }); monthLabel = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+                const lblSpan = document.createElement('span'); lblSpan.style.position = 'absolute'; lblSpan.style.left = `${colIndex * (cellSize + cellGap)}px`; lblSpan.style.fontSize = '9px'; lblSpan.style.fontWeight = '600'; lblSpan.style.color = 'var(--text-muted)'; lblSpan.style.whiteSpace = 'nowrap'; lblSpan.innerText = monthLabel; monthHeader.appendChild(lblSpan);
+                lastLabelCol = colIndex;
+              }
+            }
+            const isOddMonth = (item.month % 2 !== 0);
+            let levelClass = isOddMonth ? 'hm-lvl-0-odd' : 'hm-lvl-0';
+            if (item.count >= 50) levelClass = 'hm-lvl-4'; else if (item.count >= 25) levelClass = 'hm-lvl-3'; else if (item.count >= 10) levelClass = 'hm-lvl-2'; else if (item.count >= 1) levelClass = 'hm-lvl-1';
+            const cell = document.createElement('div');
+            cell.className = `hm-cell ${levelClass}`; cell.style.width = `${cellSize}px`; cell.style.height = `${cellSize}px`; cell.style.borderRadius = '2px';
+            if (prevMonth !== -1 && item.month !== prevMonth) { cell.style.borderLeft = '2px solid var(--border)'; }
+            prevMonth = item.month;
+            let monthLabelTip = item.dateObj.toLocaleDateString(currentUiLang, { month: 'short' }); monthLabelTip = monthLabelTip.charAt(0).toUpperCase() + monthLabelTip.slice(1);
+            const ordinal = getOrdinal(item.dateObj.getDate());
+            cell.title = `${monthLabelTip} ${ordinal}: ${item.count} ${t.cards}`;
+            grid.appendChild(cell);
+          });
+          statsBar.innerHTML = `${t.active} <strong>${activeDaysCount}</strong> ${t.outOf} <strong>${rangeDays}</strong> ${t.days} &bull; <strong>${totalReviewsInRange}</strong> ${t.reviews}`;
+          setTimeout(() => { if (scrollContainer) { scrollContainer.scrollLeft = scrollContainer.scrollWidth; } }, 50);
+        }
+      }
+
+      function showDashboard() {
+        const btn1 = $('returnDashSummaryBtn'); if (btn1) btn1.innerText = "⏳ Loading...";
+        const btn2 = $('returnDashBtn'); if (btn2) btn2.innerText = "⏳ Loading...";
+        fetchData();
+      }
+
+      function startQuiz(mode) {
+        if (allCards.length === 0) return;
+        activeQuizMode = mode;
+        processCardsForActivePair();
+
+        if (mode === 'all') { 
+          nonDuePool = shuffleArray([...allCards]); duePool = []; newPool = []; 
+        } 
+        else if (mode === 'leeches') { 
+          leechPool = shuffleArray(leechPool); 
+        } 
+        else if (mode === 'new') { 
+          newPool.sort((a, b) => b.rowIndex - a.rowIndex);
+          let bottom30 = newPool.slice(0, 30);
+          let restOfDeck = newPool.slice(30);
+          bottom30 = shuffleArray(bottom30);
+          restOfDeck = shuffleArray(restOfDeck);
+          
+          let interleaved = [];
+          while (bottom30.length > 0 || restOfDeck.length > 0) {
+              for (let i = 0; i < 5 && bottom30.length > 0; i++) interleaved.push(bottom30.shift());
+              for (let i = 0; i < 5 && restOfDeck.length > 0; i++) interleaved.push(restOfDeck.shift());
+          }
+          newPool = interleaved;
+
+          duePool = []; 
+          nonDuePool = []; 
+        }
+
+        startNextSegment();
+      }
+
+      function startNextSegment() {
+        pendingBatchResults = [];
+        processCardsForActivePair();
+
+        $('viewDashboard').style.display = 'none'; $('viewSummary').style.display = 'none'; $('viewQuiz').style.display = 'block';
+        segmentStats = { correct: 0, wrong: 0, newCards: 0, reviewCards: 0, dueClearedNotice: false };
+        const hadDueCardsAtStart = duePool.length > 0;
+        segmentQueue = [];
+        
+        let targetBatchSize = 10;
+        
+        if (activeQuizMode === 'due') {
+            while (segmentQueue.length < targetBatchSize && duePool.length > 0) {
+                segmentQueue.push({ card: duePool.shift(), mode: null });
+            }
+        } else if (activeQuizMode === 'new') {
+            let selectedNew = [];
+            while (selectedNew.length < 5 && newPool.length > 0) {
+                selectedNew.push(newPool.shift());
+            }
+            let step1 = [];
+            let step2 = [];
+            selectedNew.forEach(c => {
+                step1.push({ card: c, mode: 'flip' });
+                step2.push({ card: c, mode: Math.random() < 0.5 ? 'tf' : 'mcq' });
+            });
+            step1 = shuffleArray(step1);
+            step2 = shuffleArray(step2);
+
+            let finalQueue = [];
+            for(let i=0; i < Math.min(3, step1.length); i++){
+                finalQueue.push(step1.shift());
+            }
+            let remaining = [...step1, ...step2];
+            while(remaining.length > 0) {
+                let validIndices = [];
+                for (let i = 0; i < remaining.length; i++) {
+                    let candidate = remaining[i];
+                    if (candidate.mode === 'flip') {
+                        validIndices.push(i);
+                    } else {
+                        if (finalQueue.find(q => q.card.id === candidate.card.id && q.mode === 'flip')) {
+                            validIndices.push(i);
+                        }
+                    }
+                }
+                let pickIdx = validIndices[Math.floor(Math.random() * validIndices.length)];
+                finalQueue.push(remaining.splice(pickIdx, 1)[0]);
+            }
+            segmentQueue = finalQueue;
+        } else if (activeQuizMode === 'leeches') {
+            while (segmentQueue.length < targetBatchSize && leechPool.length > 0) {
+                segmentQueue.push({ card: leechPool.shift(), mode: null });
+            }
+        } else if (activeQuizMode === 'all') {
+            while (segmentQueue.length < targetBatchSize && nonDuePool.length > 0) {
+                segmentQueue.push({ card: nonDuePool.shift(), mode: null });
+            }
+        }
+
+        if (hadDueCardsAtStart && duePool.length === 0 && activeQuizMode === 'due') { segmentStats.dueClearedNotice = true; }
+        renderNextCard();
+      }
+
+      function handleAutoPlay(phase) {
+        if (!$('autoPlayChk').checked) return;
+        if (hasAutoPlayed) return;
+        const targetSide = (!isEnglish(answerLangCode)) ? 'answer' : 'prompt';
+
+        if (phase === 'start') {
+          if (currentMode === 'audio_dictation') { setTimeout(playPromptAudio, 200); hasAutoPlayed = true; } 
+          else if ((currentMode === 'cloze_typing' || currentMode === 'cloze_mcq') && clozeClueType === 'audio') { setTimeout(playPromptAudio, 200); hasAutoPlayed = true; } 
+          else if (targetSide === 'prompt') { setTimeout(playPromptAudio, 200); hasAutoPlayed = true; }
+        } else if (phase === 'end') {
+          setTimeout(playTargetAudio, 200); hasAutoPlayed = true;
+        }
+      }
+
+      function renderNextCard() {
+        if (!segmentQueue || segmentQueue.length === 0) { showSegmentSummary(); return; }
+        hasAutoPlayed = false;
+        isRetyping = false;
+        $('typeInput').style.borderColor = "var(--border)";
+        
+        const t = i18n[currentUiLang] || i18n.en;
+        $('typeSubmitBtn').innerText = t.submit;
+        const btnQuiz = $('returnDashBtn'); if (btnQuiz) btnQuiz.innerText = t.returnDash;
+
+        const queueItem = segmentQueue[0];
+        currentCard = queueItem.card;
+        const forcedMode = queueItem.mode;
+
+        $('feedbackBox').style.display = 'none'; $('overrideBtn').style.display = 'none';
+        $('nextBtn').style.display = 'none'; $('clueBox').style.display = 'none';
+        $('promptAudioBtn').style.display = 'inline-flex';
+        $('cantListenBtn').style.display = 'none';
+        hideAllModes();
+
+        if (currentCard.isNew || currentCard.interval <= 3) {
+          isForward = true;
+        } else if (currentCard.interval >= 60) {
+          isForward = false;
+        } else {
+          isForward = Math.random() < 0.5;
+        }
+
+        targetPrompt = isForward ? currentCard.front : currentCard.back; targetAnswer = isForward ? currentCard.back : currentCard.front;
+        promptLangCode = isForward ? currentCard.langA : currentCard.langB; answerLangCode = isForward ? currentCard.langB : currentCard.langA;
+
+        const dispPromptLang = getDisplayLangCode(promptLangCode); const dispAnswerLang = getDisplayLangCode(answerLangCode);
+
+        $('dirBadge').innerText = `${dispPromptLang} ➔ ${dispAnswerLang}`;
+        
+        if (currentCard.interval < 1) {
+            let hrs = Math.round(currentCard.interval * 24);
+            $('boxBadge').innerText = `Int: ${hrs}h`;
+        } else {
+            $('boxBadge').innerText = `Int: ${Math.floor(currentCard.interval)}d`;
+        }
+        
+        $('promptSub').innerText = `${t.prompt} (${dispPromptLang})`;
+
+        const answerWordCount = countWords(targetAnswer); const promptWordCount = countWords(targetPrompt);
+        let availableModes = [];
+        const intervalDays = currentCard.interval;
+
+        if (forcedMode) {
+          currentMode = forcedMode;
+        } else if (currentCard.isNew) {
+          availableModes = ['flip'];
+        } else if (intervalDays < 1) {
+          availableModes = ['tf'];
+          if (allCards.length >= 4) availableModes.push('mcq');
+          if (answerWordCount >= 2) availableModes.push('word_tiles');
+        } else if (intervalDays <= 3) {
+          availableModes = ['flip'];
+          if (allCards.length >= 4) availableModes.push('mcq');
+          if (answerWordCount >= 2) availableModes.push('word_tiles');
+        } else if (intervalDays <= 14) {
+          availableModes = ['flip']; 
+          if (allCards.length >= 4) availableModes.push('mcq');
+          if (answerWordCount >= 2) availableModes.push('word_tiles');
+
+          if (answerLangCode === selectedPair.codeA) {
+              availableModes.push('faded_hints', 'audio_dictation');
+              if (answerWordCount < 8) availableModes.push('typing');
+          }
+          if (promptWordCount >= 3 && promptLangCode === selectedPair.codeA) {
+              availableModes.push('cloze_typing');
+              if (allCards.length >= 2) availableModes.push('cloze_mcq');
+          }
+        } else {
+          availableModes = ['flip'];
+          if (allCards.length >= 4) availableModes.push('mcq'); 
+          if (answerLangCode === selectedPair.codeA) {
+              availableModes.push('faded_hints', 'audio_dictation');
+              if (answerWordCount < 8) availableModes.push('typing');
+          }
+          if (promptWordCount >= 3 && promptLangCode === selectedPair.codeA) {
+              availableModes.push('cloze_typing');
+          }
+        }
+        
+        if (availableModes.length === 0) availableModes = ['flip'];
+
+        if (!forcedMode) {
+          currentMode = availableModes[Math.floor(Math.random() * availableModes.length)];
+        }
+        
+        $('typeBadge').innerText = currentMode.replace('_', ' ').toUpperCase();
+
+        let audioDispPromptLang = dispPromptLang; let audioDispAnswerLang = dispAnswerLang;
+        if (currentMode === 'audio_dictation') {
+          const targetText = currentCard.front; const targetLang = currentCard.langA;
+          const otherText = currentCard.back; const otherLang = currentCard.langB;
+          const canReverse = intervalDays >= 60;
+          const isReverseDictation = canReverse && Math.random() < 0.5;
+
+          if (isReverseDictation) {
+            targetPrompt = otherText; targetAnswer = targetText; promptLangCode = otherLang; answerLangCode = targetLang;
+          } else {
+            targetPrompt = targetText; targetAnswer = targetText; promptLangCode = targetLang; answerLangCode = targetLang;
+          }
+          audioDispPromptLang = getDisplayLangCode(promptLangCode); audioDispAnswerLang = getDisplayLangCode(answerLangCode);
+          $('dirBadge').innerText = isReverseDictation ? `${audioDispPromptLang} ➔ ${audioDispAnswerLang}` : `🎧 ${audioDispPromptLang}`;
+          $('promptSub').innerText = `${t.prompt} (${audioDispPromptLang})`;
+        }
+
+        if (currentMode === 'cloze_typing' || currentMode === 'cloze_mcq') { setupClozeMode(dispPromptLang, dispAnswerLang); } 
+        else if (currentMode === 'word_tiles') { setupWordTiles(); } 
+        else if (currentMode === 'faded_hints') { setupFadedHints(dispAnswerLang); } 
+        else if (currentMode === 'audio_dictation') { setupAudioDictation(audioDispAnswerLang); } 
+        else {
+          $('promptMain').innerText = targetPrompt;
+          if (currentMode === 'flip') {
+            $('modeFlip').style.display = 'flex'; $('flipAnswerArea').style.display = 'none'; $('revealBtn').style.display = 'block';
+            $('answerSub').innerText = `${t.answer} (${dispAnswerLang})`; $('flipAnswerText').innerText = targetAnswer;
+          } else if (currentMode === 'typing') {
+            $('modeTyping').style.display = 'flex'; $('typeInput').value = ''; $('typeInput').placeholder = `${t.typeInLang} ${dispAnswerLang}...`;
+            $('typeInput').disabled = false; $('typeSubmitBtn').disabled = false;
+            setTimeout(() => { $('typeInput').focus(); }, 100);
+          } else if (currentMode === 'mcq') { setupMCQ(); } 
+          else if (currentMode === 'tf') { setupTF(); }
+        }
+        
+        handleAutoPlay('start');
+        $('statsText').innerText = `${segmentQueue.length} ${t.remainingInBatch}`;
+      }
+
+      function setupAudioDictation(dispAnswerLang) {
+        const t = i18n[currentUiLang] || i18n.en;
+        $('promptSub').innerText = t.audioModeBadge; $('promptMain').innerText = "🔊 Listening...";
+        const clueBox = $('clueBox'); clueBox.style.display = 'block'; clueBox.innerText = t.audioModePrompt;
+        $('modeTyping').style.display = 'flex'; $('typeInput').value = ''; $('typeInput').placeholder = `${t.typeInLang} ${dispAnswerLang}...`;
+        $('typeInput').disabled = false; $('typeSubmitBtn').disabled = false;
+        $('cantListenBtn').style.display = 'inline-flex';
+        setTimeout(() => { $('typeInput').focus(); }, 100);
+      }
+      
+      function handleCantListen() {
+        $('cantListenBtn').style.display = 'none';
+        $('promptAudioBtn').style.display = 'none';
+        const t = i18n[currentUiLang] || i18n.en;
+        
+        if (currentMode === 'audio_dictation') {
+          const translation = (targetAnswer === currentCard.front) ? currentCard.back : currentCard.front;
+          const transLangCode = (targetAnswer === currentCard.front) ? currentCard.langB : currentCard.langA;
+          
+          $('promptMain').innerText = translation;
+          $('promptSub').innerText = `${(t.translation || "Translation").toUpperCase()} (${getDisplayLangCode(transLangCode)})`;
+          $('clueBox').innerText = `💡 ${t.translation || "Translation"}`;
+          
+        } else if (currentMode === 'cloze_typing' || currentMode === 'cloze_mcq') {
+          clozeClueType = 'translation';
+          const dispAnswerLang = getDisplayLangCode(answerLangCode);
+          $('clueBox').innerText = `💡 ${t.meaning} (${dispAnswerLang}): "${targetAnswer}"`;
+        }
+      }
+
+      function setupFadedHints(dispAnswerLang) {
+        const t = i18n[currentUiLang] || i18n.en;
+        $('promptMain').innerText = targetPrompt;
+        let faded = "";
+        for (let i = 0; i < targetAnswer.length; i++) {
+          const char = targetAnswer[i];
+          if (char === " ") { 
+            faded += " \u00A0\u00A0 "; 
+          } else if (/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/.test(char)) { 
+            faded += char; 
+          } else { 
+            faded += (i % 3 === 0) ? char : "_ "; 
+          }
+        }
+        const clueBox = $('clueBox'); clueBox.style.display = 'block'; clueBox.innerText = `💡 Pattern: ${faded}`;
+        $('modeTyping').style.display = 'flex'; $('typeInput').value = ''; $('typeInput').placeholder = `${t.typeInLang} ${dispAnswerLang}...`;
+        $('typeInput').disabled = false; $('typeSubmitBtn').disabled = false;
+        setTimeout(() => { $('typeInput').focus(); }, 100);
+      }
+
+      function setupWordTiles() {
+        $('modeTiles').style.display = 'flex'; $('promptMain').innerText = targetPrompt;
+        targetTileWords = targetAnswer.trim().split(/\s+/).filter(Boolean);
+        let distractorWords = [];
+        allCards.forEach(c => {
+          if (c.id !== currentCard.id) {
+            const words = (isForward ? c.back : c.front).split(/\s+/);
+            words.forEach(w => { if (cleanString(w).length >= 2) distractorWords.push(w); });
+          }
+        });
+        distractorWords = shuffleArray([...new Set(distractorWords)]).slice(0, 2);
+        let pool = shuffleArray([...targetTileWords, ...distractorWords]);
+        currentTileSelected = []; renderTileState(pool);
+      }
+
+      function renderTileState(poolWords) {
+        const ansBox = $('tilesAnswerBox'); const poolBox = $('tilesPoolBox');
+        ansBox.replaceChildren(); poolBox.replaceChildren();
+        currentTileSelected.forEach((word, idx) => {
+          // Removed inline styles so it defaults to the standard grey .tile-btn appearance
+          const btn = document.createElement('button'); btn.className = 'tile-btn'; btn.textContent = word;
+          btn.onclick = () => { currentTileSelected.splice(idx, 1); poolWords.push(word); renderTileState(poolWords); };
+          ansBox.appendChild(btn);
+        });
+        poolWords.forEach((word, idx) => {
+          const btn = document.createElement('button'); btn.className = 'tile-btn'; btn.textContent = word;
+          btn.onclick = () => { poolWords.splice(idx, 1); currentTileSelected.push(word); renderTileState(poolWords); };
+          poolBox.appendChild(btn);
+        });
+      }
+
+      function resetTiles() { setupWordTiles(); }
+
+      function checkTiles() {
+        const t = i18n[currentUiLang] || i18n.en;
+        const userAssembled = cleanString(currentTileSelected.join(" ")); const expectedClean = cleanString(targetAnswer);
+        const isCorrect = (userAssembled === expectedClean);
+        showFeedback(isCorrect, isCorrect ? `🎉 ${t.correct}\n✨ ${targetAnswer}` : `❌ ${t.incorrectAnswer}\n👉 ${targetAnswer}`);
+        handleAutoPlay('end'); submitAnswer(isCorrect);
+        setTimeout(() => { const nextBtn = $('nextBtn'); if (nextBtn) nextBtn.focus(); }, 100);
+      }
+
+      function setupClozeMode(dispPromptLang, dispAnswerLang) {
+        const t = i18n[currentUiLang] || i18n.en;
+        const words = targetPrompt.trim().split(/\s+/);
+        let eligibleIndices = [];
+        words.forEach((w, idx) => { if (cleanString(w).length >= 2) eligibleIndices.push(idx); });
+        if (eligibleIndices.length === 0) eligibleIndices = words.map((_, idx) => idx);
+        const targetIdx = eligibleIndices[Math.floor(Math.random() * eligibleIndices.length)];
+        clozeTargetWordRaw = words[targetIdx]; clozeTargetWordClean = cleanString(clozeTargetWordRaw);
+        let clozeWords = [...words]; clozeWords[targetIdx] = "[ _______ ]";
+        const blankedSentence = clozeWords.join(" ");
+        $('promptMain').innerText = blankedSentence;
+        clozeClueType = Math.random() < 0.5 ? 'translation' : 'audio';
+        const clueBox = $('clueBox'); clueBox.style.display = 'block';
+
+        if (clozeClueType === 'translation') {
+          clueBox.innerText = `💡 ${t.meaning} (${dispAnswerLang}): "${targetAnswer}"`; $('promptAudioBtn').style.display = 'none';
+        } else {
+          clueBox.innerText = t.listenAudioClue; $('promptAudioBtn').style.display = 'inline-flex';
+          $('cantListenBtn').style.display = 'inline-flex';
+        }
+
+        if (currentMode === 'cloze_typing') {
+          $('modeTyping').style.display = 'flex'; $('typeInput').value = ''; $('typeInput').placeholder = `${t.typeMissingInLang} ${dispPromptLang}...`;
+          $('typeInput').disabled = false; $('typeSubmitBtn').disabled = false;
+          setTimeout(() => { $('typeInput').focus(); }, 100);
+        } else if (currentMode === 'cloze_mcq') { setupClozeMCQ(); }
+      }
+
+      function setupClozeMCQ() {
+        $('modeMCQ').style.display = 'flex';
+        let wordPool = [];
+        allCards.forEach(c => {
+          const promptWords = (isForward ? c.front : c.back).split(/\s+/);
+          promptWords.forEach(w => {
+            const cw = cleanString(w);
+            if (cw.length >= 2 && cw !== clozeTargetWordClean) { wordPool.push(w.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/g, "")); }
+          });
+        });
+        wordPool = shuffleArray([...new Set(wordPool)]).slice(0, 3);
+        while (wordPool.length < 3) { wordPool.push(["det", "som", "med", "ikke", "eller"][wordPool.length]); }
+        let options = shuffleArray([...wordPool, clozeTargetWordRaw.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/g, "")]);
+        mcqCorrectIndex = options.indexOf(clozeTargetWordRaw.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/g, ""));
+        for (let i = 0; i < 4; i++) {
+          const btn = $(`mcq${i}`); btn.innerText = `${['A','B','C','D'][i]}. ${options[i]}`; btn.disabled = false; btn.style.backgroundColor = 'var(--bg-card)';
+        }
+      }
+
+      function showSegmentSummary() {
+        $('viewQuiz').style.display = 'none'; $('viewSummary').style.display = 'flex';
+        const t = i18n[currentUiLang] || i18n.en;
+        const btn1 = $('returnDashSummaryBtn'); if (btn1) btn1.innerText = t.returnDash;
+        
+        let remainingInPool = 0;
+        if (activeQuizMode === 'due') remainingInPool = duePool.length;
+        if (activeQuizMode === 'new') remainingInPool = newPool.length;
+        if (activeQuizMode === 'leeches') remainingInPool = leechPool.length;
+        if (activeQuizMode === 'all') remainingInPool = nonDuePool.length;
+
+        const continueBtn = $('continueBatchBtn');
+        if (remainingInPool === 0) {
+            continueBtn.style.display = 'none';
+        } else {
+            continueBtn.style.display = 'block';
+            if (activeQuizMode === 'new') {
+                continueBtn.innerText = t.continueNext10 || "▶ Continue (Next 10 Cards)";
+            } else {
+                continueBtn.innerText = t.continueBatch || "▶ Continue";
+            }
+        }
+
+        const banner = $('summaryBanner');
+        if (segmentStats.dueClearedNotice || (activeQuizMode === 'due' && remainingInPool === 0)) {
+          banner.innerText = t.allCaughtUpSummary; banner.style.backgroundColor = "var(--bg-success-light)"; banner.style.color = "var(--success-text)"; banner.style.borderColor = "var(--border-success-light)";
+        } else {
+          banner.innerText = t.segComplete; banner.style.backgroundColor = "var(--bg-primary-light)"; banner.style.color = "var(--primary)"; banner.style.borderColor = "var(--border-primary-light)";
+        }
+
+        const totalAnswered = segmentStats.correct + segmentStats.wrong;
+        const accuracy = totalAnswered > 0 ? Math.round((segmentStats.correct / totalAnswered) * 100) : 0;
+        $('sumAccuracy').innerText = `${accuracy}%`; $('sumCorrect').innerText = segmentStats.correct; $('sumWrong').innerText = segmentStats.wrong;
+        $('sumNew').innerText = segmentStats.newCards; $('sumReview').innerText = segmentStats.reviewCards;
+      }
+
+      function hideAllModes() { $('modeFlip').style.display = 'none'; $('modeTyping').style.display = 'none'; $('modeMCQ').style.display = 'none'; $('modeTF').style.display = 'none'; $('modeTiles').style.display = 'none'; }
+
+      function getSpeechLangTag(code) {
+        if (!code) return 'en-US'; const c = code.toLowerCase().trim();
+        if (c === 'no' || c === 'nb' || c === 'nn') return 'no';
+        if (c === 'en') return 'en'; if (c === 'it') return 'it'; if (c === 'es') return 'es'; if (c === 'fr') return 'fr'; if (c === 'de') return 'de';
+        return c;
+      }
+
+      function getDisplayLangCode(code) {
+        if (!code) return 'EN'; const c = code.toLowerCase().trim();
+        if (c === 'no' || c === 'nb' || c === 'nn') return 'NO'; if (c === 'it') return 'IT'; return c.toUpperCase();
+      }
+
+      function playBackendAudio(text, langCode, btnId) {
+        if (!text) return; const targetLangTag = getSpeechLangTag(langCode);
+        google.script.run
+          .withSuccessHandler(res => {
+            if (res && res.success) { const audio = new Audio(res.data); audio.play(); } else { showAudioError(btnId); }
+          })
+          .withFailureHandler(e => showAudioError(btnId))
+          .getAudioBase64(text, targetLangTag);
+      }
+
+      function showAudioError(btnId) {
+        if (!btnId) return; const btn = $(btnId); if (!btn) return;
+        const oldHtml = btn.innerHTML; btn.innerHTML = "🚫 Audio Unavailable"; btn.style.color = "var(--danger-text)"; btn.style.backgroundColor = "var(--bg-danger-light)";
+        setTimeout(() => { btn.innerHTML = oldHtml; btn.style.color = ""; btn.style.backgroundColor = ""; }, 2000);
+      }
+
+      function playPromptAudio() { playBackendAudio(targetPrompt, promptLangCode, 'promptAudioBtn'); }
+      function playAnswerAudio() { playBackendAudio(targetAnswer, answerLangCode, 'ansAudioBtn'); }
+      function playTargetAudio() {
+        if (!isEnglish(answerLangCode)) { playAnswerAudio(); } else if (!isEnglish(promptLangCode)) { playPromptAudio(); } else { playAnswerAudio(); }
+      }
+      function playProposedTFTranslationAudio() { playBackendAudio(tfProposedText, answerLangCode, 'tfAudioBtn'); }
+      function revealFlip() { $('revealBtn').style.display = 'none'; $('flipAnswerArea').style.display = 'flex'; handleAutoPlay('end'); }
+
+      function checkTyping() {
+        const userInput = $('typeInput').value; 
+        const t = i18n[currentUiLang] || i18n.en;
+
+        if (isRetyping) {
+          let pass = false;
+          if (currentMode === 'cloze_typing') {
+             pass = (cleanString(userInput) === clozeTargetWordClean);
+          } else {
+             pass = (cleanString(userInput) === cleanString(targetAnswer));
+          }
+          
+          if (pass) {
+             isRetyping = false;
+             $('typeInput').disabled = true; 
+             $('typeSubmitBtn').disabled = true;
+             $('typeInput').style.borderColor = "var(--success)";
+             $('typeSubmitBtn').innerText = t.submit || "Submit Answer";
+             $('nextBtn').style.display = 'block';
+             setTimeout(() => { const nextBtn = $('nextBtn'); if (nextBtn) nextBtn.focus(); }, 100);
+          } else {
+             $('typeInput').value = '';
+             $('typeInput').style.borderColor = "var(--danger)";
+             setTimeout(() => { $('typeInput').style.borderColor = "var(--border)"; }, 500);
+          }
+          return;
+        }
+
+        if ($('typeInput').disabled) return;
+        $('typeInput').disabled = true; $('typeSubmitBtn').disabled = true;
+        
+        if (currentMode === 'audio_dictation') { $('promptSub').innerText = `${t.prompt} (${getDisplayLangCode(promptLangCode)})`; $('promptMain').innerText = targetPrompt; }
+
+        let isTypo = false;
+        let isCorrect = false;
+
+        if (currentMode === 'cloze_typing') {
+          const cleanUser = cleanString(userInput); 
+          const dist = levenshteinDistance(cleanUser, clozeTargetWordClean); 
+          isCorrect = (dist <= 1);
+          if (dist === 1) isTypo = true; 
+
+          $('promptMain').innerText = targetPrompt;
+          let feedbackMsg = isCorrect ? `🎉 ${t.correct}\n✨ ${targetPrompt}` : `❌ ${t.incorrectMissing} "${clozeTargetWordRaw}".\n\n📌 ${t.fullSentence}: ${targetPrompt}\n💡 ${t.translation}: ${targetAnswer}`;
+          
+          showFeedback(isCorrect, feedbackMsg, !isCorrect); 
+          handleAutoPlay('end'); 
+          submitAnswer(isCorrect, null, isTypo); 
+        } else {
+          const expected = targetAnswer; 
+          const cleanUser = cleanString(userInput); 
+          const cleanExpected = cleanString(expected);
+          const dist = levenshteinDistance(cleanUser, cleanExpected); 
+          isCorrect = (dist <= 2);
+          if (dist > 0 && dist <= 2) isTypo = true; 
+
+          let feedbackMsg = "";
+          if (dist === 0) { feedbackMsg = `🎉 ${t.correct}\n✨ ${expected}`; } else if (dist <= 2) { feedbackMsg = `🎉 ${t.correctAcceptedTypo}\n✨ ${expected}`; } else { feedbackMsg = `❌ ${t.incorrectAnswer}\n👉 ${expected}`; }
+          
+          showFeedback(isCorrect, feedbackMsg, !isCorrect); 
+          handleAutoPlay('end'); 
+          submitAnswer(isCorrect, null, isTypo); 
+        }
+
+        if (!isCorrect) {
+          isRetyping = true;
+          $('typeInput').disabled = false; 
+          $('typeSubmitBtn').disabled = false;
+          $('typeInput').value = '';
+          $('typeInput').placeholder = t.copyCorrect || "Copy the correct answer...";
+          $('typeSubmitBtn').innerText = t.retypeContinue || "Retype to Continue";
+          setTimeout(() => { $('typeInput').focus(); }, 100);
+        } else {
+          setTimeout(() => { const nextBtn = $('nextBtn'); if (nextBtn) nextBtn.focus(); }, 100);
+        }
+      }
+
+      function setupMCQ() {
+        $('modeMCQ').style.display = 'flex';
+        let distractors = allCards.filter(c => c.id !== currentCard.id).map(c => isForward ? c.back : c.front);
+        distractors = shuffleArray([...new Set(distractors)]).slice(0, 3);
+        let options = shuffleArray([...distractors, targetAnswer]); mcqCorrectIndex = options.indexOf(targetAnswer);
+        for (let i = 0; i < 4; i++) { const btn = $(`mcq${i}`); btn.innerText = `${['A','B','C','D'][i]}. ${options[i]}`; btn.disabled = false; btn.style.backgroundColor = 'var(--bg-card)'; }
+      }
+
+      function checkMCQ(selectedIndex) {
+        for (let i = 0; i < 4; i++) { $(`mcq${i}`).disabled = true; }
+        const t = i18n[currentUiLang] || i18n.en;
+        if (currentMode === 'cloze_mcq') {
+          const isCorrect = selectedIndex === mcqCorrectIndex;
+          if (isCorrect) { $(`mcq${selectedIndex}`).style.backgroundColor = 'var(--bg-success-light)'; } else { $(`mcq${selectedIndex}`).style.backgroundColor = 'var(--bg-danger-light)'; $(`mcq${mcqCorrectIndex}`).style.backgroundColor = 'var(--bg-success-light)'; }
+          $('promptMain').innerText = targetPrompt;
+          let feedbackMsg = isCorrect ? `🎉 ${t.correct}\n✨ ${targetPrompt}` : `❌ ${t.incorrectMissing} "${clozeTargetWordRaw}".\n\n📌 ${t.fullSentence}: ${targetPrompt}\n💡 ${t.translation}: ${targetAnswer}`;
+          showFeedback(isCorrect, feedbackMsg); handleAutoPlay('end'); submitAnswer(isCorrect);
+        } else {
+          const isCorrect = selectedIndex === mcqCorrectIndex;
+          if (isCorrect) { $(`mcq${selectedIndex}`).style.backgroundColor = 'var(--bg-success-light)'; } else { $(`mcq${selectedIndex}`).style.backgroundColor = 'var(--bg-danger-light)'; $(`mcq${mcqCorrectIndex}`).style.backgroundColor = 'var(--bg-success-light)'; }
+          showFeedback(isCorrect, isCorrect ? `🎉 ${t.correct}` : `❌ ${t.incorrectAnswer} ${['A','B','C','D'][mcqCorrectIndex]}. 👉 ${targetAnswer}`);
+          handleAutoPlay('end'); submitAnswer(isCorrect);
+        }
+        setTimeout(() => { const nextBtn = $('nextBtn'); if (nextBtn) nextBtn.focus(); }, 100);
+      }
+
+      function setupTF() {
+        $('modeTF').style.display = 'flex'; const t = i18n[currentUiLang] || i18n.en; $('tfSubheader').innerText = t.tfHeader; $('tfFalseBtn').disabled = false; $('tfTrueBtn').disabled = false;
+        tfIsActuallyCorrect = Math.random() < 0.5;
+        if (tfIsActuallyCorrect) { tfProposedText = targetAnswer; } else { let wrongCards = allCards.filter(c => c.id !== currentCard.id); let randomWrong = wrongCards[Math.floor(Math.random() * wrongCards.length)]; tfProposedText = isForward ? randomWrong.back : randomWrong.front; }
+        const dispAnswerLang = getDisplayLangCode(answerLangCode);
+        $('tfProposed').style.color = 'var(--primary)'; $('tfProposed').innerText = tfProposedText; $('tfAudioBtn').innerText = `🔊 ${t.listen} (${dispAnswerLang})`;
+      }
+
+      function checkTF(userGuessedTrue) {
+        $('tfFalseBtn').disabled = true; $('tfTrueBtn').disabled = true; const isCorrect = (userGuessedTrue === tfIsActuallyCorrect); const t = i18n[currentUiLang] || i18n.en;
+        const dispAnswerLang = getDisplayLangCode(answerLangCode); $('tfSubheader').innerText = `${t.tfActualHeader} (${dispAnswerLang}):`;
+        $('tfProposed').style.color = 'var(--success)'; $('tfProposed').innerText = targetAnswer;
+        const feedbackMsg = isCorrect ? `🎉 ${t.correct}` : `❌ ${t.incorrectAnswer} 👉 ${targetAnswer}`;
+        showFeedback(isCorrect, feedbackMsg); handleAutoPlay('end'); submitAnswer(isCorrect);
+        setTimeout(() => { const nextBtn = $('nextBtn'); if (nextBtn) nextBtn.focus(); }, 100);
+      }
+
+      function showFeedback(isCorrect, message, hideNextBtn) {
+        const fb = $('feedbackBox'); fb.style.display = 'block'; fb.innerText = message; fb.className = `feedback ${isCorrect ? 'feedback-success' : 'feedback-error'}`;
+        if (!hideNextBtn) {
+            $('nextBtn').style.display = 'block';
+        }
+        const overrideBtn = $('overrideBtn'); if (!isCorrect) { overrideBtn.style.display = 'block'; } else { overrideBtn.style.display = 'none'; }
+        lastFeedbackTime = Date.now();
+      }
+
+      function submitAnswer(isCorrect, confidence, isTypo) {
+        if (!currentCard) return;
+        const cardId = currentCard.id; 
+        
+        let conf = confidence;
+        if (!conf) {
+          if (!isCorrect) {
+            conf = 'again';
+          } else {
+            if (currentCard.interval > 14) {
+              conf = 'easy'; 
+            } else {
+              conf = 'good'; 
+            }
+          }
+        }
+        
+        lastGradedCard = { id: cardId, interval: currentCard.interval, targetAnswer: targetAnswer, ef: currentCard.ef };
+        const shiftedItem = segmentQueue.shift();
+        const wasNewCard = shiftedItem && shiftedItem.card ? shiftedItem.card.isNew : false;
+        
+        if (!rawData.savedProgress) rawData.savedProgress = {};
+        
+        let q = 4;
+        if (!isCorrect || conf === 'again') q = 1;
+        else if (conf === 'hard') q = 3;
+        else if (conf === 'good') q = 4;
+        else if (conf === 'easy') q = 5;
+
+        let currentInterval = currentCard.interval || 1;
+        let currentEF = currentCard.ef || 2.5;
+
+        let newEF = currentEF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+        if (newEF < 1.3) newEF = 1.3;
+
+        let newInterval = 1;
+
+        if (q < 3) {
+          newInterval = (15 / 1440); 
+        } else {
+          if (wasNewCard) {
+            if (q === 3) newInterval = (15 / 1440);
+            else if (q === 4) newInterval = 0.25; 
+            else if (q === 5) newInterval = 1;    
+          } else if (currentInterval < 1) { 
+            if (q === 5) newInterval = (currentInterval >= 0.5) ? 3 : 1;
+            else if (q === 3) newInterval = currentInterval;
+            else {
+              if (currentInterval <= 0.26) newInterval = 0.5; 
+              else if (currentInterval <= 0.51) newInterval = 1; 
+              else newInterval = 1;
+            }
+          } else {
+            if (q === 3) newInterval = currentInterval * 1.2;
+            else if (q === 4) newInterval = currentInterval * currentEF;
+            else if (q === 5) newInterval = currentInterval * currentEF * 1.3;
+          }
+        }
+
+        if (newInterval > 3) newInterval += (Math.random() * 0.1 - 0.05) * newInterval;
+
+        currentCard.interval = newInterval;
+        currentCard.ef = newEF;
+        currentCard.failCount = (currentCard.failCount || 0) + (q < 3 ? 1 : 0);
+
+        let msToAdd = newInterval * 24 * 60 * 60 * 1000;
+        let nextDateObj = new Date(Date.now() + msToAdd);
+
+        rawData.savedProgress[cardId] = {
+          interval: newInterval,
+          nextReview: nextDateObj.toISOString(),
+          failCount: currentCard.failCount,
+          isLeech: false,
+          lastReviewed: getClientTodayStr(),
+          ef: newEF
+        };
+        
+        if (isCorrect) {
+          segmentStats.correct++;
+        } else {
+          segmentStats.wrong++;
+        }
+
+        const studiedToday = (rawData && rawData.studiedToday) ? rawData.studiedToday : { newCount: 0, oldCount: 0 };
+
+        if (wasNewCard) {
+          segmentStats.newCards++; studiedToday.newCount = (studiedToday.newCount || 0) + 1; 
+          if(shiftedItem && shiftedItem.card) shiftedItem.card.isNew = false;
+        } else {
+          segmentStats.reviewCards++; studiedToday.oldCount = (studiedToday.oldCount || 0) + 1;
+        }
+
+        const currentResult = { cardId: cardId, isCorrect: isCorrect, confidence: conf, wasNew: wasNewCard, isTypo: isTypo || false };
+        pendingBatchResults.push(currentResult); 
+
+        // SAVE TO SPREADSHEET IMMEDIATELY
+        const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
+        google.script.run
+          .withFailureHandler(e => console.warn("Sync error:", e))
+          .saveSegmentResults([currentResult], activeUserKey, activeDisplayName, savedDeckId, getClientTodayStr());
+
+        if (currentMode === 'flip') { renderNextCard(); }
+      }
+
+      function handleOverride() {
+        if (!lastGradedCard) return;
+        segmentStats.wrong = Math.max(0, segmentStats.wrong - 1); segmentStats.correct++;
+        const t = i18n[currentUiLang] || i18n.en;
+
+        if (currentCard) {
+            currentCard.interval = Math.round((lastGradedCard.interval || 1) * (lastGradedCard.ef || 2.5));
+            if (currentCard.interval < 1) currentCard.interval = 1;
+        }
+
+        if (pendingBatchResults.length > 0) {
+          const lastItem = pendingBatchResults[pendingBatchResults.length - 1];
+          if (lastItem && lastItem.cardId === lastGradedCard.id) {
+            lastItem.isCorrect = true; lastItem.confidence = 'good';
+            
+            let msToAdd = currentCard.interval * 24 * 60 * 60 * 1000;
+            let nextDateObj = new Date(Date.now() + msToAdd);
+            if (rawData.savedProgress[lastGradedCard.id]) {
+                rawData.savedProgress[lastGradedCard.id].interval = currentCard.interval;
+                rawData.savedProgress[lastGradedCard.id].nextReview = nextDateObj.toISOString();
+            }
+
+            // Sync the correction immediately
+            const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
+            google.script.run
+              .withFailureHandler(e => console.warn("Sync error:", e))
+              .saveSegmentResults([lastItem], activeUserKey, activeDisplayName, savedDeckId, getClientTodayStr());
+          }
+        }
+
+        const fb = $('feedbackBox'); fb.innerText = `${t.overriddenSuccess}\n${t.answer}: ${lastGradedCard.targetAnswer}`; fb.className = 'feedback feedback-success';
+        $('overrideBtn').style.display = 'none';
+        
+        if (isRetyping) {
+            isRetyping = false;
+            $('typeInput').disabled = true;
+            $('typeSubmitBtn').disabled = true;
+            $('typeInput').style.borderColor = "var(--success)";
+            $('typeSubmitBtn').innerText = t.submit || "Submit Answer";
+            $('nextBtn').style.display = 'block';
+            setTimeout(() => { const nextBtn = $('nextBtn'); if (nextBtn) nextBtn.focus(); }, 100);
+        }
+      }
+
+      function shuffleArray(array) {
+        let arr = [...array]; for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr;
+      }
+      
+      function archiveCurrentCard() {
+        if (!currentCard) return;
+        
+        const btn = $('btnArchiveCard');
+        const oldText = btn.innerText;
+        btn.innerText = "⏳...";
+        btn.disabled = true;
+        
+        const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
+        
+        google.script.run
+          .withSuccessHandler(res => {
+            if (res.success) {
+              // Strip this card out of all active session pools
+              allCards = allCards.filter(c => c.id !== currentCard.id);
+              duePool = duePool.filter(c => c.id !== currentCard.id);
+              newPool = newPool.filter(c => c.id !== currentCard.id);
+              leechPool = leechPool.filter(c => c.id !== currentCard.id);
+              nonDuePool = nonDuePool.filter(c => c.id !== currentCard.id);
+              
+              // Remove it from the current queue and move to the next card
+              segmentQueue.shift();
+              renderNextCard(); 
+              
+              btn.innerText = oldText;
+              btn.disabled = false;
+            } else {
+              showCustomAlert("Error archiving card: " + res.error);
+              btn.innerText = oldText;
+              btn.disabled = false;
+            }
+          })
+          .withFailureHandler(e => {
+            showCustomAlert("Connection Error: " + e);
+            btn.innerText = oldText;
+            btn.disabled = false;
+          })
+          .archiveSingleCard(currentCard.rowIndex, savedDeckId);
+      }
+  </script>
+</body>
+</html>

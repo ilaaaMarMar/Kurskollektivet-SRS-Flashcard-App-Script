@@ -1,0 +1,920 @@
+/**
+* ============================================================================
+* SERVER-SIDE GOOGLE APPS SCRIPT (SM-2, INTERVAL FUZZING, HOURLY REVIEWS)
+* Handles Google Sheets interactions, data processing, and API routing.
+* ============================================================================
+*/
+
+var TEMPLATE_ID = "1s04BKwYk-s0WVSmsJOfCxCz4X-fqdZzR0O65ANymu9E";
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('📚 SRS Flashcards')
+    .addItem('Launch Sidebar View', 'showFlashcardSidebar')
+    .addItem('Launch Pop-Out Window', 'showFlashcardDialog')
+    .addToUi();
+}
+
+function escapeJS(str) {
+  if (!str) return "";
+  return str.toString()
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/'/g, "\\'")
+    .replace(/</g, '\\x3c')
+    .replace(/>/g, '\\x3e');
+}
+
+function doGet(e) {
+  var html = HtmlService.createHtmlOutputFromFile('Sidebar')
+    .setTitle('📚 SRS Flashcards')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
+
+  html.append('<script>window.IS_WEB_APP = true;</script>');
+  if (e && e.parameter) {
+    if (e.parameter.deck) html.append('<script>window.URL_DECK_ID = "' + escapeJS(e.parameter.deck) + '";</script>');
+    if (e.parameter.name) html.append('<script>window.URL_SYNC_NAME = "' + escapeJS(e.parameter.name) + '";</script>');
+  }
+  return html;
+}
+
+function showFlashcardSidebar() {
+  var html = HtmlService.createHtmlOutputFromFile('Sidebar')
+    .setTitle('📚 SRS Flashcards');
+  html.append('<script>window.IS_WEB_APP = false;</script>');
+  SpreadsheetApp.getUi().showSidebar(html);
+}
+
+function showFlashcardDialog() {
+  var html = HtmlService.createHtmlOutputFromFile('Sidebar')
+    .setWidth(600)
+    .setHeight(720);
+  html.append('<script>window.IS_WEB_APP = false;</script>');
+  SpreadsheetApp.getUi().showModelessDialog(html, '📚 SRS Flashcards');
+}
+
+function resolveSpreadsheet(customDeckId) {
+  if (customDeckId && customDeckId.toString().trim().length > 0) {
+    try {
+      return SpreadsheetApp.openById(customDeckId.toString().trim());
+    } catch (e) {
+      return SpreadsheetApp.openById(TEMPLATE_ID);
+    }
+  }
+  try {
+    return SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(TEMPLATE_ID);
+  } catch (e) {
+    return SpreadsheetApp.openById(TEMPLATE_ID);
+  }
+}
+
+function preventInjection(text) {
+  var str = text ? text.toString() : '';
+  if (/^[=+\-@]/.test(str)) return "'" + str;
+  return str;
+}
+
+function parseDateToString(val) {
+  if (!val) return "";
+  if (val instanceof Date) {
+    var timeZone = SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getSpreadsheetTimeZone() : "GMT";
+    return Utilities.formatDate(val, timeZone, "yyyy-MM-dd");
+  }
+  return val.toString().trim();
+}
+
+function getWeekKey() {
+  var today = new Date();
+  var timeZone = SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getSpreadsheetTimeZone() : "GMT";
+  var year = Utilities.formatDate(today, timeZone, "yyyy");
+  var d = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+  var dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return year + "_W" + String(weekNo).padStart(2, '0');
+}
+
+function getMonthKey() {
+  var today = new Date();
+  var timeZone = SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getSpreadsheetTimeZone() : "GMT";
+  return Utilities.formatDate(today, timeZone, "yyyy_MM");
+}
+
+function cleanString(str) {
+  if (!str) return '';
+  return str
+    .toString()
+    .toLowerCase()
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sanitizeText(str, maxLen) {
+  if (!str) return '';
+  var clean = str.toString().trim();
+  return clean.substring(0, maxLen || 500);
+}
+
+function countWords(str) {
+  if (!str) return 0;
+  return str.toString().trim().split(/\s+/).filter(Boolean).length;
+}
+
+function generateFunName() {
+  var adjectives = ["Curious", "Brave", "Clever", "Swift", "Happy", "Eager", "Wise", "Keen", "Bright", "Calm", "Noble", "Nimble", "Gentle", "Jolly", "Mighty", "Cosmic", "Lively"];
+  var animals = ["Panda", "Owl", "Falcon", "Tiger", "Fox", "Viking", "Bear", "Dolphin", "Otter", "Wolf", "Lynx", "Eagle", "Moose", "Penguin", "Koala", "Raven", "Puffin"];
+  var adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+  var anim = animals[Math.floor(Math.random() * animals.length)];
+  var num = Math.floor(10 + Math.random() * 90);
+  return adj + anim + num;
+}
+
+function getActiveUserId() {
+  try {
+    // Fetches the email of the logged-in Google User
+    var email = Session.getActiveUser().getEmail();
+    if (email && email.length > 0) return email;
+    
+    // Fallback if accessed via sidebar instead of web app
+    var effectiveEmail = Session.getEffectiveUser().getEmail();
+    if (effectiveEmail && effectiveEmail.length > 0) return effectiveEmail;
+    
+  } catch (e) {
+    console.error("Auth Error: " + e.message);
+  }
+  return "unauthenticated_user";
+}
+
+function getTodayString() {
+  var timeZone = SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getSpreadsheetTimeZone() : "GMT";
+  return Utilities.formatDate(new Date(), timeZone, "yyyy-MM-dd");
+}
+
+/**
+* Applies a scaling random variance to the interval to prevent review clumping.
+*/
+function applyFuzz(intervalInDays) {
+  var fuzzRange = 0;
+
+  // Sub-day fuzzing (adds minutes/hours of variance)
+  if (intervalInDays <= 0.26) fuzzRange = 0.02;      // +/- ~30 mins for 6h
+  else if (intervalInDays <= 0.51) fuzzRange = 0.04; // +/- ~1 hr for 12h
+  else if (intervalInDays <= 1) fuzzRange = 0.08;   // +/- ~2 hrs for 1d
+
+  // Standard day fuzzing
+  else if (intervalInDays <= 4) fuzzRange = 0.5;    // +/- 12 hours
+  else if (intervalInDays <= 7) fuzzRange = 1;      // +/- 1 day
+  else if (intervalInDays <= 14) fuzzRange = 2;     // +/- 2 days
+  else fuzzRange = intervalInDays * 0.1;            // +/- 10% for mature cards
+
+  var fuzz = (Math.random() * (fuzzRange * 2)) - fuzzRange;
+  return Math.max(0.01, intervalInDays + fuzz); // Ensure it never drops to 0
+}
+
+function getFlashcardData(clientDisplayName, customDeckId, clientTodayStr) {
+  var activeUserKey = getActiveUserId();
+  var docProps = PropertiesService.getDocumentProperties();
+  var todayStr = clientTodayStr || getTodayString();
+  var timeZone = SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getSpreadsheetTimeZone() : "GMT";
+
+  var storedName = docProps.getProperty('SRS_NAME_' + activeUserKey);
+  var activeDisplayName = "";
+  var displayNameExists = false;
+
+  if (storedName && storedName !== "undefined" && storedName !== "null") {
+    activeDisplayName = storedName;
+    displayNameExists = true;
+  } else {
+    try {
+      var email = Session.getActiveUser().getEmail();
+      if (email && email.length > 0) activeDisplayName = email.split('@')[0];
+    } catch (e) { }
+    if (!activeDisplayName || activeDisplayName === "undefined") {
+      activeDisplayName = (clientDisplayName && clientDisplayName !== "undefined") ? sanitizeText(clientDisplayName, 20) : generateFunName();
+    }
+    docProps.setProperty('SRS_NAME_' + activeUserKey, activeDisplayName);
+    displayNameExists = true;
+  }
+
+  var ss = resolveSpreadsheet(customDeckId);
+  var ssName = ss.getName();
+  var activeDeckId = ss.getId();
+  var baseUrl = "https://script.google.com/macros/s/AKfycbypzH1uT_9sCzAQgw0MZ_MVuGC1NGHIWnAL0ajixNXiEx4ND2UyKASaNLKiWGElpGtM/exec";
+  var webAppUrl = baseUrl + "?deck=" + encodeURIComponent(activeDeckId) + "&name=" + encodeURIComponent(activeDisplayName);
+  var sheet = ss.getSheets()[0];
+  var allValues = sheet.getDataRange().getValues();
+
+  var weekKey = getWeekKey();
+  var monthKey = getMonthKey();
+  var leaderboards = getLeaderboards(ss, weekKey, monthKey);
+
+  var savedProgressRaw = {};
+  var progressSheet = ss.getSheetByName('SRS_Progress');
+  if (progressSheet) {
+    var pData = progressSheet.getDataRange().getValues();
+    for (var i = 1; i < pData.length; i++) {
+      if (pData[i][0] === activeUserKey) {
+        var cId = pData[i][1];
+        savedProgressRaw[cId] = {
+          interval: pData[i][2] !== undefined ? parseFloat(pData[i][2]) : 1,
+          nextReview: pData[i][3] instanceof Date ? Utilities.formatDate(pData[i][3], timeZone, "yyyy-MM-dd HH:mm:ss") : (pData[i][3] ? pData[i][3].toString().trim() : todayStr),
+          failCount: pData[i][4] !== undefined ? parseFloat(pData[i][4]) : 0, 
+          isLeech: pData[i][5] === 1,
+          lastReviewed: pData[i][6] ? parseDateToString(pData[i][6]) : "",
+          ef: pData[i][7] !== undefined ? parseFloat(pData[i][7]) : 2.5
+        };
+      }
+    }
+  }
+
+  var studyHistory = {};
+  var studiedLog = { date: todayStr, newCount: 0, oldCount: 0 };
+  var historySheet = ss.getSheetByName('SRS_History');
+  if (historySheet) {
+    var histData = historySheet.getDataRange().getValues();
+    for (var j = 1; j < histData.length; j++) {
+      if (histData[j][0] === activeUserKey) {
+        var hDateStr = parseDateToString(histData[j][1]);
+        var hNew = parseInt(histData[j][2], 10) || 0;
+        var hOld = parseInt(histData[j][3], 10) || 0;
+        var hTotal = parseInt(histData[j][4], 10) || 0;
+
+        studyHistory[hDateStr] = hTotal;
+        if (hDateStr === todayStr) studiedLog = { date: todayStr, newCount: hNew, oldCount: hOld };
+      }
+    }
+  }
+
+  if (allValues.length < 2 || allValues[0].length < 2) {
+    return {
+      headers: [], rawRows: [], savedProgress: {},
+      studiedToday: { newCount: 0, oldCount: 0 },
+      activeUserKey: activeUserKey, displayName: activeDisplayName, displayNameExists: displayNameExists,
+      todayStr: todayStr, leaderboard: leaderboards.allTime,
+      leaderboardWeekly: leaderboards.weekly, leaderboardMonthly: leaderboards.monthly,
+      studyHistory: studyHistory, ssName: ssName, activeDeckId: activeDeckId,
+      webAppUrl: webAppUrl
+    };
+  }
+
+  var headers = allValues[0].map(function (h) { return h.toString().trim(); });
+  var rawData = allValues.slice(1);
+  var savedProgress = {};
+  var validCardIds = {};
+
+  rawData.forEach(function (row) {
+    var front = row[0] ? row[0].toString().trim() : "";
+    for (var c = 1; c < row.length; c++) {
+      var back = row[c] ? row[c].toString().trim() : "";
+      if (front && back) validCardIds[cleanString(front) + ":::" + cleanString(back)] = true;
+    }
+  });
+
+  for (var cardKey in savedProgressRaw) {
+    if (!validCardIds[cardKey]) continue;
+    var entry = savedProgressRaw[cardKey];
+    if (entry) {
+      savedProgress[cardKey] = {
+        interval: entry.interval || 1,
+        nextReview: entry.nextReview || todayStr,
+        failCount: entry.failCount || 0,
+        isLeech: entry.isLeech || false,
+        lastReviewed: entry.lastReviewed || "",
+        ef: entry.ef || 2.5
+      };
+    }
+  }
+
+  return {
+    headers: headers, rawRows: rawData, savedProgress: savedProgress,
+    studiedToday: { newCount: studiedLog.newCount || 0, oldCount: studiedLog.oldCount || 0 },
+    activeUserKey: activeUserKey, displayName: activeDisplayName, displayNameExists: displayNameExists,
+    todayStr: todayStr, leaderboard: leaderboards.allTime,
+    leaderboardWeekly: leaderboards.weekly, leaderboardMonthly: leaderboards.monthly,
+    studyHistory: studyHistory, ssName: ssName, activeDeckId: activeDeckId,
+    webAppUrl: webAppUrl
+  };
+}
+
+function saveDisplayName(activeUserKey, newDisplayName) {
+  if (!newDisplayName || newDisplayName === "undefined") return { success: false, message: "Name cannot be empty." };
+  var docProps = PropertiesService.getDocumentProperties();
+  var uKey = getActiveUserId();
+  var cleanName = sanitizeText(newDisplayName, 20).trim();
+  if (!cleanName || cleanName === "undefined") return { success: false, message: "Invalid name." };
+
+  var allProps = docProps.getProperties();
+  for (var key in allProps) {
+    if (key.startsWith('SRS_NAME_')) {
+      if (allProps[key].toLowerCase() === cleanName.toLowerCase() && key !== 'SRS_NAME_' + uKey) {
+        return { success: false, message: "⚠️ That name is already taken by another user." };
+      }
+    }
+  }
+
+  docProps.setProperty('SRS_NAME_' + uKey, cleanName);
+  return { success: true, name: cleanName };
+}
+
+function translateText(text, sourceLang, targetLang) {
+  try {
+    var cleanPrompt = text ? text.toString().trim() : '';
+    if (!cleanPrompt) return { success: false, error: "Empty text prompt" };
+    if (countWords(cleanPrompt) > 20) return { success: false, error: "Source text exceeds the limit of 20 words." };
+
+    var googleTrans = "";
+    try { googleTrans = LanguageApp.translate(cleanPrompt, sourceLang || '', targetLang || 'en'); }
+    catch (e) { googleTrans = "Google Translation unavailable."; }
+
+    var geminiTrans = "";
+    try {
+      var apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+      if (!apiKey) {
+        geminiTrans = "Gemini Error: Script Property 'GEMINI_API_KEY' is missing or empty.";
+      } else {
+        // Fallback Stack: Cascades to the next model if one times out or errors
+        var models = [
+          "gemini-3.6-flash",
+          "gemini-3.5-flash",
+          "gemini-3.1-flash-lite",
+          "gemini-2.5-flash"
+        ];
+        
+        var promptStr = "Translate the following text directly from " + (sourceLang || "auto") + " to " + (targetLang || "en") + ". Output ONLY the raw translated string without quote marks or conversational filler: " + cleanPrompt;
+        var payload = { "contents": [{ "parts": [{ "text": promptStr }] }] };
+        var options = { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true };
+        
+        var success = false;
+        var lastError = "";
+
+        for (var i = 0; i < models.length; i++) {
+          var url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[i] + ":generateContent?key=" + apiKey.trim();
+          var response = UrlFetchApp.fetch(url, options);
+          var responseCode = response.getResponseCode();
+          var json = JSON.parse(response.getContentText());
+
+          if (responseCode === 200 && json && json.candidates && json.candidates[0] && json.candidates[0].content) {
+            geminiTrans = json.candidates[0].content.parts[0].text.trim();
+            success = true;
+            break; // Stop looping once a model succeeds
+          } else if (responseCode === 429 || responseCode >= 500) {
+            // Rate limit (15 RPM) or server error - save error but try the next model
+            lastError = json && json.error ? json.error.message : "HTTP " + responseCode;
+            continue; 
+          } else {
+            // Other errors (400 Bad Request, invalid key, 404 Not Found) - No point in retrying
+            geminiTrans = "Gemini Error (" + responseCode + "): " + (json && json.error ? json.error.message : "Unknown");
+            success = true; // Mark as "handled" to avoid the fallback error message
+            break;
+          }
+        }
+        
+        if (!success) {
+           geminiTrans = "Gemini Error (All models failed): " + lastError;
+        }
+      }
+    } catch (e) { geminiTrans = "Gemini Exception: " + e.toString(); }
+
+    var deeplTrans = "";
+    try {
+      var deeplKey = PropertiesService.getScriptProperties().getProperty('DEEPL_API_KEY');
+      if (!deeplKey) {
+        deeplTrans = "DeepL Error: Script Property 'DEEPL_API_KEY' is missing or empty.";
+      } else {
+        var deeplUrl = "https://api-free.deepl.com/v2/translate";
+        
+        var srcDeepL = sourceLang ? sourceLang.toUpperCase() : null;
+        if (srcDeepL === 'NO') srcDeepL = 'NB';
+        var tgtDeepL = targetLang ? targetLang.toUpperCase() : 'EN';
+        if (tgtDeepL === 'NO') tgtDeepL = 'NB';
+
+        var deeplPayload = {
+          "text": [cleanPrompt],
+          "target_lang": tgtDeepL
+        };
+        if (srcDeepL && srcDeepL !== 'AUTO') {
+          deeplPayload["source_lang"] = srcDeepL;
+        }
+        
+        var deeplOptions = {
+          "method": "post",
+          "contentType": "application/json",
+          "headers": { "Authorization": "DeepL-Auth-Key " + deeplKey.trim() },
+          "payload": JSON.stringify(deeplPayload),
+          "muteHttpExceptions": true
+        };
+        
+        var deeplRes = UrlFetchApp.fetch(deeplUrl, deeplOptions);
+        var dResponseCode = deeplRes.getResponseCode();
+        var dText = deeplRes.getContentText();
+        
+        try {
+          if (!dText) throw new Error("Empty response");
+          var dJson = JSON.parse(dText);
+          if (dResponseCode === 200 && dJson.translations && dJson.translations[0]) {
+            deeplTrans = dJson.translations[0].text.trim();
+          } else if (dJson.message) {
+            deeplTrans = "DeepL Error (" + dResponseCode + "): " + dJson.message;
+          } else {
+            deeplTrans = "DeepL Error: HTTP " + dResponseCode;
+          }
+        } catch (jsonErr) {
+          deeplTrans = "DeepL Error (" + dResponseCode + "): Invalid JSON payload.";
+        }
+      }
+    } catch (e) { deeplTrans = "DeepL Exception: " + e.toString(); }
+
+    return { success: true, google: googleTrans, gemini: geminiTrans, deepl: deeplTrans };
+  } catch (e) { return { success: false, error: e.toString() }; }
+}
+
+function addNewCardToSheet(frontText, backText, customDeckId) {
+  var lock = LockService.getDocumentLock();
+  try {
+    lock.waitLock(10000);
+    var ss = resolveSpreadsheet(customDeckId);
+    var sheet = ss.getSheets()[0];
+    var f = preventInjection(frontText ? frontText.toString().trim() : '');
+    var b = preventInjection(backText ? backText.toString().trim() : '');
+
+    if (!f || !b) return { success: false, error: "Both front and back required." };
+    if (countWords(f) > 20 || countWords(b) > 20) return { success: false, error: "Text exceeds maximum 20 words limit." };
+
+    sheet.appendRow([f, b]);
+    return { success: true, rowIndex: sheet.getLastRow(), front: f, back: b };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updateCardInSheet(rowIndex, colIdxA, colIdxB, newFront, newBack, customDeckId) {
+  var lock = LockService.getDocumentLock();
+  try {
+    lock.waitLock(10000);
+    var ss = resolveSpreadsheet(customDeckId);
+    var sheet = ss.getSheets()[0];
+    var r = parseInt(rowIndex, 10);
+    var cA = parseInt(colIdxA, 10);
+    var cB = parseInt(colIdxB, 10);
+
+    if (isNaN(r) || r < 2 || isNaN(cA) || isNaN(cB)) return { success: false, error: "Invalid index" };
+
+    var cleanF = preventInjection(newFront ? newFront.toString().trim() : '');
+    var cleanB = preventInjection(newBack ? newBack.toString().trim() : '');
+    if (countWords(cleanF) > 20 || countWords(cleanB) > 20) return { success: false, error: "Text exceeds maximum 20 words limit." };
+
+    sheet.getRange(r, cA + 1).setValue(cleanF);
+    sheet.getRange(r, cB + 1).setValue(cleanB);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getOrCreateLeaderboardSheet(ss) {
+  var sheet = ss.getSheetByName('SRS_Leaderboard');
+  if (!sheet) {
+    sheet = ss.insertSheet('SRS_Leaderboard');
+    sheet.appendRow(['UserKey', 'PeriodType', 'PeriodKey', 'DisplayName', 'Score']);
+  }
+  return sheet;
+}
+
+function formatLeaderboardRows(data, periodType, periodKey) {
+  var list = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (row[1] === periodType && (row[2] || '') === (periodKey || '')) {
+      var score = parseInt(row[4], 10) || 0;
+      if (score > 0) list.push({ username: sanitizeText(row[3], 20), score: score });
+    }
+  }
+  list.sort(function (a, b) { return b.score - a.score; });
+  return list.slice(0, 10);
+}
+
+function getLeaderboards(ss, weekKey, monthKey) {
+  var sheet = getOrCreateLeaderboardSheet(ss);
+  var data = sheet.getDataRange().getValues();
+  return {
+    allTime: formatLeaderboardRows(data, 'ALL', ''),
+    weekly: formatLeaderboardRows(data, 'WEEK', weekKey),
+    monthly: formatLeaderboardRows(data, 'MONTH', monthKey)
+  };
+}
+
+function saveProgressToSheet(activeDeckId, uKey, progressMap) {
+  var lock = LockService.getDocumentLock();
+  try {
+    lock.waitLock(15000);
+    var ss = SpreadsheetApp.openById(activeDeckId);
+    var sheet = ss.getSheetByName('SRS_Progress');
+
+    if (!sheet) {
+      sheet = ss.insertSheet('SRS_Progress');
+      sheet.appendRow(['UserKey', 'CardId', 'Interval', 'NextReview', 'FailCount', 'IsLeech', 'LastReviewed', 'EF']);
+    }
+
+    var data = sheet.getDataRange().getValues();
+    var headers = data[0] || ['UserKey', 'CardId', 'Interval', 'NextReview', 'FailCount', 'IsLeech', 'LastReviewed', 'EF'];
+    var newData = [headers];
+
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] !== uKey) newData.push(data[i]);
+    }
+
+    for (var cardId in progressMap) {
+      var p = progressMap[cardId];
+      newData.push([uKey, cardId, p.interval, "'" + p.nextReview, p.failCount, p.isLeech ? 1 : 0, p.lastReviewed ? "'" + p.lastReviewed : "", p.ef]);
+    }
+
+    sheet.clearContents();
+    sheet.getRange(1, 1, newData.length, 8).setValues(newData);
+  } catch (e) {
+    console.error("Failed to save progress: " + e.message);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function saveHistoryToSheet(activeDeckId, uKey, todayStr, newCardDelta, oldCardDelta) {
+  var lock = LockService.getDocumentLock();
+  try {
+    lock.waitLock(15000);
+    var ss = SpreadsheetApp.openById(activeDeckId);
+    var sheet = ss.getSheetByName('SRS_History');
+
+    if (!sheet) {
+      sheet = ss.insertSheet('SRS_History');
+      sheet.appendRow(['UserKey', 'Date', 'NewCount', 'OldCount', 'TotalReviews']);
+    }
+
+    var data = sheet.getDataRange().getValues();
+    var rowIndex = -1;
+
+    for (var i = 1; i < data.length; i++) {
+      var cellDateStr = parseDateToString(data[i][1]);
+      if (data[i][0] === uKey && cellDateStr === todayStr) {
+        rowIndex = i + 1;
+        break;
+      }
+    }
+
+    var totalDelta = newCardDelta + oldCardDelta;
+    if (rowIndex > -1) {
+      var currentNew = parseInt(data[rowIndex - 1][2] || 0, 10);
+      var currentOld = parseInt(data[rowIndex - 1][3] || 0, 10);
+      var currentTotal = parseInt(data[rowIndex - 1][4] || 0, 10);
+      sheet.getRange(rowIndex, 3, 1, 3).setValues([[currentNew + newCardDelta, currentOld + oldCardDelta, currentTotal + totalDelta]]);
+    } else {
+      sheet.appendRow([uKey, "'" + todayStr, newCardDelta, oldCardDelta, totalDelta]);
+    }
+  } catch (e) {
+    console.error("Failed to save history: " + e.message);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updateLeaderboardInSheet(activeDeckId, uKey, dName, reviewsCount, weekKey, monthKey) {
+  var lock = LockService.getDocumentLock();
+  try {
+    lock.waitLock(15000);
+    var ss = SpreadsheetApp.openById(activeDeckId);
+    var sheet = getOrCreateLeaderboardSheet(ss);
+    var data = sheet.getDataRange().getValues();
+
+    var periods = [{ type: 'ALL', key: '' }, { type: 'WEEK', key: weekKey }, { type: 'MONTH', key: monthKey }];
+    var rowIndexMap = {};
+    for (var i = 1; i < data.length; i++) {
+      rowIndexMap[data[i][0] + '|' + data[i][1] + '|' + data[i][2]] = i;
+    }
+
+    var newRows = [];
+    periods.forEach(function (p) {
+      var mapKey = uKey + '|' + p.type + '|' + p.key;
+      if (rowIndexMap.hasOwnProperty(mapKey)) {
+        var idx = rowIndexMap[mapKey];
+        var currentScore = parseInt(data[idx][4], 10) || 0;
+        data[idx][3] = dName;
+        data[idx][4] = currentScore + reviewsCount;
+      } else {
+        newRows.push([uKey, p.type, p.key, dName, reviewsCount]);
+      }
+    });
+
+    if (data.length > 1) sheet.getRange(2, 1, data.length - 1, 5).setValues(data.slice(1));
+    if (newRows.length > 0) sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 5).setValues(newRows);
+  } catch (e) {
+    console.error("Failed to update leaderboard: " + e.message);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function saveSegmentResults(batchArray, activeUserKey, displayName, customDeckId, clientTodayStr) {
+  if (!batchArray || batchArray.length === 0) return { success: true };
+
+  var ss = resolveSpreadsheet(customDeckId);
+  var activeDeckId = ss.getId();
+  var todayStr = clientTodayStr || getTodayString();
+  var uKey = getActiveUserId();
+  var weekKey = getWeekKey();
+  var monthKey = getMonthKey();
+  var timeZone = SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getSpreadsheetTimeZone() : "GMT";
+
+  var docProps = PropertiesService.getDocumentProperties();
+  var storedName = docProps.getProperty('SRS_NAME_' + uKey);
+  var dName = (storedName && storedName !== "undefined") ? storedName : (sanitizeText(displayName, 20) || "Learner");
+
+  var savedProgress = {};
+  var progressSheet = ss.getSheetByName('SRS_Progress');
+  if (progressSheet) {
+    var pData = progressSheet.getDataRange().getValues();
+    for (var i = 1; i < pData.length; i++) {
+      if (pData[i][0] === uKey) {
+        var cId = pData[i][1];
+        savedProgress[cId] = {
+          interval: pData[i][2] !== undefined ? parseFloat(pData[i][2]) : 1,
+          nextReview: pData[i][3] instanceof Date ? Utilities.formatDate(pData[i][3], timeZone, "yyyy-MM-dd HH:mm:ss") : (pData[i][3] ? pData[i][3].toString().trim() : todayStr),
+          failCount: pData[i][4] !== undefined ? parseFloat(pData[i][4]) : 0, 
+          isLeech: pData[i][5] === 1,
+          lastReviewed: pData[i][6] ? parseDateToString(pData[i][6]) : "",
+          ef: pData[i][7] !== undefined ? parseFloat(pData[i][7]) : 2.5
+        };
+      }
+    }
+  }
+
+  var reviewsCount = 0;
+  var newDelta = 0;
+  var oldDelta = 0;
+  var nowMs = new Date().getTime();
+
+  batchArray.forEach(function (item) {
+    reviewsCount++;
+    var cardId = item.cardId;
+    var isCorrect = item.isCorrect;
+    var confidence = item.confidence || (isCorrect ? 'good' : 'again');
+    var wasNew = item.wasNew;
+
+    var cardState = savedProgress[cardId] || { interval: 1, failCount: 0, isLeech: false, ef: 2.5 };
+    var currentInterval = parseFloat(cardState.interval) || 1;
+    var currentEF = parseFloat(cardState.ef) || 2.5;
+    var failCount = parseFloat(cardState.failCount) || 0; 
+
+    // Map confidence to SM-2 Quality score (0-5)
+    var q = 4;
+    if (!isCorrect || confidence === 'again') q = 1;
+    else if (confidence === 'hard') q = 3;
+    else if (confidence === 'good') q = 4;
+    else if (confidence === 'easy') q = 5;
+
+    var newInterval = 1;
+
+    if (q < 3) {
+      failCount++;
+      newInterval = (1 / 24); 
+    } else {
+      if (item.isTypo) failCount += 0.5;
+
+      if (wasNew) {
+        if (q === 3) newInterval = (1 / 24);  
+        else if (q === 4) newInterval = 0.25; 
+        else if (q === 5) newInterval = 1;    
+      } else if (currentInterval < 1) {
+        if (q === 5) {
+          newInterval = (currentInterval >= 0.5) ? 3 : 1;
+        } else if (q === 3) {
+          newInterval = currentInterval;
+        } else {
+          if (currentInterval <= 0.26) {
+            newInterval = 0.5; 
+          } else if (currentInterval <= 0.51) {
+            newInterval = 1;   
+          } else {
+            newInterval = 1;
+          }
+        }
+      } else {
+        var nowTimeMs = new Date().getTime();
+        var nextReviewMs = new Date(cardState.nextReview.replace(' ', 'T')).getTime();
+        var daysEarly = (nextReviewMs - nowTimeMs) / (1000 * 60 * 60 * 24);
+
+        if (daysEarly > 0.5 && currentInterval >= 1) {
+          var elapsedDays = Math.max(0, currentInterval - daysEarly);
+          
+          if (elapsedDays < 0.5) {
+            newInterval = currentInterval;
+          } else {
+            newInterval = currentInterval + (elapsedDays * (currentEF - 1));
+          }
+        } else {
+          newInterval = currentInterval * currentEF;
+        }
+      }
+    }
+
+    var newEF = currentEF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+    if (newEF < 1.3) newEF = 1.3;
+
+    var fuzzedInterval = applyFuzz(newInterval);
+
+    var isLeech = failCount >= 3;
+
+    var msToAdd = fuzzedInterval * 24 * 60 * 60 * 1000;
+    var nextDateObj = new Date(nowMs + msToAdd);
+
+    var nextDateStr = Utilities.formatDate(nextDateObj, timeZone, "yyyy-MM-dd HH:mm:ss");
+
+    savedProgress[cardId] = {
+      interval: newInterval, 
+      nextReview: nextDateStr,
+      failCount: failCount,
+      isLeech: isLeech,
+      lastReviewed: todayStr,
+      ef: newEF
+    };
+
+    if (wasNew) newDelta++;
+    else oldDelta++;
+  });
+
+  saveProgressToSheet(activeDeckId, uKey, savedProgress);
+  saveHistoryToSheet(activeDeckId, uKey, todayStr, newDelta, oldDelta);
+  updateLeaderboardInSheet(activeDeckId, uKey, dName, reviewsCount, weekKey, monthKey);
+
+  return { success: true };
+}
+
+function archiveMasteredCards(customDeckId, activeUserKey) {
+  var lock = LockService.getDocumentLock();
+  try {
+    lock.waitLock(15000);
+    var ss = resolveSpreadsheet(customDeckId);
+    var mainSheet = ss.getSheets()[0];
+    var progSheet = ss.getSheetByName('SRS_Progress');
+    var archiveSheet = ss.getSheetByName('Mastered_Cards');
+
+    if (!progSheet) return { success: false, message: "No progress found." };
+    if (!archiveSheet) {
+      archiveSheet = ss.insertSheet('Mastered_Cards');
+      archiveSheet.appendRow(mainSheet.getRange(1, 1, 1, mainSheet.getLastColumn()).getValues()[0]);
+    }
+
+    var progData = progSheet.getDataRange().getValues();
+    var mainData = mainSheet.getDataRange().getValues();
+    var masteredIds = new Set();
+
+    for (var i = 1; i < progData.length; i++) {
+      if (progData[i][0] === activeUserKey && parseFloat(progData[i][2]) >= 360) {
+        masteredIds.add(progData[i][1]);
+      }
+    }
+
+    if (masteredIds.size === 0) return { success: true, count: 0, message: "No fully mastered (Interval 360+ days) cards to archive." };
+
+    var rowsToDelete = [];
+    var rowsToArchive = [];
+
+    for (var r = mainData.length - 1; r >= 1; r--) {
+      var front = mainData[r][0] ? mainData[r][0].toString().trim() : "";
+      var back = mainData[r][1] ? mainData[r][1].toString().trim() : "";
+      var cardId = cleanString(front) + ":::" + cleanString(back);
+
+      if (masteredIds.has(cardId)) {
+        rowsToArchive.push(mainData[r]);
+        rowsToDelete.push(r + 1);
+      }
+    }
+
+    if (rowsToArchive.length > 0) {
+      archiveSheet.getRange(archiveSheet.getLastRow() + 1, 1, rowsToArchive.length, rowsToArchive[0].length).setValues(rowsToArchive);
+      rowsToDelete.forEach(function (rowNum) { mainSheet.deleteRow(rowNum); });
+    }
+
+    return { success: true, count: rowsToArchive.length, message: "Archived " + rowsToArchive.length + " mastered cards." };
+  } catch (e) {
+    return { success: false, message: "System busy. Please try again later." };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getAudioBase64(text, lang) {
+  try {
+    var url = "https://translate.google.com/translate_tts?ie=UTF-8&q=" + encodeURIComponent(text) + "&tl=" + lang + "&client=tw-ob";
+    var response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (response.getResponseCode() === 200) {
+      var blob = response.getBlob();
+      return { success: true, data: "data:audio/mp3;base64," + Utilities.base64Encode(blob.getBytes()) };
+    }
+    return { success: false, error: "HTTP " + response.getResponseCode() };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+function migrateBoxesToIntervals() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(TEMPLATE_ID);
+  var sheet = ss.getSheetByName('SRS_Progress');
+  if (!sheet) return "No SRS_Progress sheet found.";
+
+  var data = sheet.getDataRange().getValues();
+  var legacyIntervals = { 1: 1, 2: 3, 3: 7, 4: 14, 5: 30, 6: 60, 7: 90, 8: 180, 9: 270, 10: 360 };
+
+  var header = data[0];
+  header[2] = 'Interval';
+  if (header.length < 8) header[7] = 'EF';
+
+  for (var i = 1; i < data.length; i++) {
+    var oldBox = parseFloat(data[i][2]) || 1;
+    if (oldBox >= 1 && oldBox <= 10 && Number.isInteger(oldBox)) {
+      data[i][2] = legacyIntervals[oldBox] || 1;
+    }
+    if (data[i][7] === undefined || data[i][7] === "") {
+      data[i][7] = 2.5;
+    }
+  }
+
+  sheet.clearContents();
+  sheet.getRange(1, 1, data.length, 8).setValues(data);
+  return "Migration Complete!";
+}
+
+function checkSpelling(text, lang) {
+  try {
+    var cleanPrompt = text ? text.toString().trim() : '';
+    if (!cleanPrompt || countWords(cleanPrompt) > 20) return { success: false };
+
+    var apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+    if (!apiKey) return { success: false };
+
+    var models = [
+      "gemini-3.6-flash",
+      "gemini-3.5-flash",
+      "gemini-3.1-flash-lite",
+      "gemini-2.5-flash"
+    ];
+    
+    // Strict prompt to ensure we only get 'OK' or the corrected text back
+    var promptStr = "You are a strict spellchecker for the language code '" + lang + "'. If the following text contains typos, output ONLY the corrected text without any quotes or explanations. If it is perfectly spelled, output exactly the word 'OK'. Text: " + cleanPrompt;
+    var payload = { "contents": [{ "parts": [{ "text": promptStr }] }], "generationConfig": { "temperature": 0.1 } };
+    var options = { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true };
+    
+    for (var i = 0; i < models.length; i++) {
+      var url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[i] + ":generateContent?key=" + apiKey.trim();
+      var response = UrlFetchApp.fetch(url, options);
+      var responseCode = response.getResponseCode();
+      var json = JSON.parse(response.getContentText());
+
+      if (responseCode === 200 && json && json.candidates && json.candidates[0]) {
+        var result = json.candidates[0].content.parts[0].text.trim();
+        // Ignore case changes or perfect spelling
+        if (result === 'OK' || result.toLowerCase() === cleanPrompt.toLowerCase()) {
+           return { success: true, corrected: 'OK' };
+        }
+        return { success: true, corrected: result };
+      }
+    }
+    return { success: false };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+function archiveSingleCard(rowIndex, customDeckId) {
+  var lock = LockService.getDocumentLock();
+  try {
+    lock.waitLock(10000);
+    var ss = resolveSpreadsheet(customDeckId);
+    var mainSheet = ss.getSheets()[0];
+    var archiveSheet = ss.getSheetByName('Mastered_Cards');
+    
+    // Create Mastered_Cards sheet if it doesn't exist
+    if (!archiveSheet) {
+      archiveSheet = ss.insertSheet('Mastered_Cards');
+      archiveSheet.appendRow(mainSheet.getRange(1, 1, 1, mainSheet.getLastColumn()).getValues()[0]);
+    }
+    
+    var r = parseInt(rowIndex, 10);
+    if (isNaN(r) || r < 2) return { success: false, error: "Invalid row index." };
+    
+    // Copy to archive, then delete from main
+    var rowData = mainSheet.getRange(r, 1, 1, mainSheet.getLastColumn()).getValues();
+    archiveSheet.appendRow(rowData[0]);
+    mainSheet.deleteRow(r);
+    
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  } finally {
+    lock.releaseLock();
+  }
+}
