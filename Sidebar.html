@@ -2561,10 +2561,25 @@
           banner.innerText = t.segComplete; banner.style.backgroundColor = "var(--bg-primary-light)"; banner.style.color = "var(--primary)"; banner.style.borderColor = "var(--border-primary-light)";
         }
 
-        const totalAnswered = segmentStats.correct + segmentStats.wrong;
-        const accuracy = totalAnswered > 0 ? Math.round((segmentStats.correct / totalAnswered) * 100) : 0;
-        $('sumAccuracy').innerText = `${accuracy}%`; $('sumCorrect').innerText = segmentStats.correct; $('sumWrong').innerText = segmentStats.wrong;
-        $('sumNew').innerText = segmentStats.newCards; $('sumReview').innerText = segmentStats.reviewCards;
+        let correctCount = segmentStats.correct;
+        let wrongCount = segmentStats.wrong;
+        let newCardsCount = segmentStats.newCards;
+        let reviewCardsCount = segmentStats.reviewCards;
+
+        if (correctCount === 0 && wrongCount === 0 && pendingBatchResults && pendingBatchResults.length > 0) {
+          correctCount = pendingBatchResults.filter(r => r.isCorrect).length;
+          wrongCount = pendingBatchResults.filter(r => !r.isCorrect).length;
+          newCardsCount = pendingBatchResults.filter(r => r.wasNew).length;
+          reviewCardsCount = pendingBatchResults.filter(r => !r.wasNew).length;
+        }
+
+        const totalAnswered = correctCount + wrongCount;
+        const accuracy = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
+        $('sumAccuracy').innerText = `${accuracy}%`;
+        $('sumCorrect').innerText = correctCount;
+        $('sumWrong').innerText = wrongCount;
+        $('sumNew').innerText = newCardsCount;
+        $('sumReview').innerText = reviewCardsCount;
       }
 
       function hideAllModes() { $('modeFlip').style.display = 'none'; $('modeTyping').style.display = 'none'; $('modeMCQ').style.display = 'none'; $('modeTF').style.display = 'none'; $('modeTiles').style.display = 'none'; }
