@@ -1,0 +1,825 @@
+      // Quiz state machines and answer grading. Each mode updates shared state
+      // and appends a validated result for the persistence partial to flush.
+      function handleAutoPlay(phase) {
+        if (!$('autoPlayChk').checked) return;
+        if (hasAutoPlayed) return;
+        const targetSide = (!isEnglish(answerLangCode)) ? 'answer' : 'prompt';
+
+        if (phase === 'start') {
+          if (currentMode === 'audio_dictation') { setTimeout(playPromptAudio, 200); hasAutoPlayed = true; } 
+          else if ((currentMode === 'cloze_typing' || currentMode === 'cloze_mcq') && clozeClueType === 'audio') { setTimeout(playPromptAudio, 200); hasAutoPlayed = true; } 
+          else if (targetSide === 'prompt') { setTimeout(playPromptAudio, 200); hasAutoPlayed = true; }
+        } else if (phase === 'end') {
+          setTimeout(playTargetAudio, 200); hasAutoPlayed = true;
+        }
+      }
+
+      function renderNextCard() {
+        if (!segmentQueue || segmentQueue.length === 0) { showSegmentSummary(); return; }
+        hasAutoPlayed = false;
+        isRetyping = false;
+        $('typeInput').style.borderColor = "var(--border)";
+        
+        const t = i18n[currentUiLang] || i18n.en;
+        $('typeSubmitBtn').innerText = t.submit;
+        const btnQuiz = $('returnDashBtn'); if (btnQuiz) btnQuiz.innerText = t.returnDash;
+
+        const queueItem = segmentQueue[0];
+        currentCard = queueItem.card;
+        const forcedMode = queueItem.mode;
+
+        $('feedbackBox').style.display = 'none'; $('overrideBtn').style.display = 'none';
+        $('nextBtn').style.display = 'none'; $('clueBox').style.display = 'none';
+        $('promptAudioBtn').style.display = 'inline-flex';
+        $('cantListenBtn').style.display = 'none';
+        hideAllModes();
+
+        if (currentCard.isNew || currentCard.interval <= 3) {
+          isForward = true;
+        } else if (currentCard.interval >= 60) {
+          isForward = false;
+        } else {
+          isForward = Math.random() < 0.5;
+        }
+
+        targetPrompt = isForward ? currentCard.front : currentCard.back; targetAnswer = isForward ? currentCard.back : currentCard.front;
+        promptLangCode = isForward ? currentCard.langA : currentCard.langB; answerLangCode = isForward ? currentCard.langB : currentCard.langA;
+
+        const dispPromptLang = getDisplayLangCode(promptLangCode); const dispAnswerLang = getDisplayLangCode(answerLangCode);
+
+        $('dirBadge').innerText = `${dispPromptLang} ➔ ${dispAnswerLang}`;
+        
+        if (currentCard.interval < 1) {
+            let hrs = Math.round(currentCard.interval * 24);
+            $('boxBadge').innerText = `Int: ${hrs}h`;
+        } else {
+            $('boxBadge').innerText = `Int: ${Math.floor(currentCard.interval)}d`;
+        }
+        
+        $('promptSub').innerText = `${t.prompt} (${dispPromptLang})`;
+
+        const answerWordCount = countWords(targetAnswer); const promptWordCount = countWords(targetPrompt);
+        let availableModes = [];
+        const intervalDays = currentCard.interval;
+        const pickModeWithScaffoldingBias = (modes, ivlDays) => {
+          if (!modes || modes.length === 0) return 'typing';
+
+          const productionModes = new Set(['typing', 'cloze_typing']);
+          const bridgeModes = new Set(['faded_hints', 'audio_dictation', 'cloze_mcq']);
+          const weighted = [];
+
+          modes.forEach(mode => {
+            let weight = 1;
+            // Scaffolding progression: recognition -> bridge -> production.
+            if (ivlDays < 3) {
+              if (productionModes.has(mode)) weight = 1;
+              else if (bridgeModes.has(mode)) weight = 2;
+              else weight = 7;
+            } else if (ivlDays < 14) {
+              if (productionModes.has(mode)) weight = 2;
+              else if (bridgeModes.has(mode)) weight = 7;
+              else weight = 3;
+            } else {
+              if (productionModes.has(mode)) weight = 7;
+              else if (bridgeModes.has(mode)) weight = 3;
+              else weight = 1;
+            }
+            for (let i = 0; i < weight; i++) weighted.push(mode);
+          });
+
+          return weighted[Math.floor(Math.random() * weighted.length)] || modes[0];
+        };
+
+        if (forcedMode) {
+          currentMode = forcedMode;
+        } else if (currentCard.isNew) {
+          availableModes = ['flip'];
+        } else if (intervalDays < 1) {
+          availableModes = ['tf'];
+          if (allCards.length >= 4) availableModes.push('mcq');
+          if (answerWordCount >= 2) availableModes.push('word_tiles');
+        } else if (intervalDays <= 3) {
+          availableModes = ['flip'];
+          if (allCards.length >= 4) availableModes.push('mcq');
+          if (answerWordCount >= 2) availableModes.push('word_tiles');
+        } else if (intervalDays <= 14) {
+          availableModes = ['flip']; 
+          if (allCards.length >= 4) availableModes.push('mcq');
+          if (answerWordCount >= 2) availableModes.push('word_tiles');
+
+          if (answerLangCode === selectedPair.codeA) {
+              availableModes.push('faded_hints', 'audio_dictation');
+              if (answerWordCount < 8) availableModes.push('typing');
+          }
+          if (promptWordCount >= 3 && promptLangCode === selectedPair.codeA) {
+              availableModes.push('cloze_typing');
+              if (allCards.length >= 2) availableModes.push('cloze_mcq');
+          }
+        } else {
+          availableModes = ['flip'];
+          if (allCards.length >= 4) availableModes.push('mcq'); 
+          if (answerLangCode === selectedPair.codeA) {
+              availableModes.push('faded_hints', 'audio_dictation');
+              if (answerWordCount < 8) availableModes.push('typing');
+          }
+          if (promptWordCount >= 3 && promptLangCode === selectedPair.codeA) {
+              availableModes.push('cloze_typing');
+          }
+        }
+        
+        if (activeQuizMode !== 'new') {
+          availableModes = availableModes.filter(m => m !== 'flip');
+        }
+        if (availableModes.length === 0) availableModes = ['typing'];
+
+        if (!forcedMode) {
+          currentMode = pickModeWithScaffoldingBias(availableModes, intervalDays);
+        }
+        
+        $('typeBadge').innerText = currentMode.replace('_', ' ').toUpperCase();
+
+        let audioDispPromptLang = dispPromptLang; let audioDispAnswerLang = dispAnswerLang;
+        if (currentMode === 'audio_dictation') {
+          const targetText = currentCard.front; const targetLang = currentCard.langA;
+          const otherText = currentCard.back; const otherLang = currentCard.langB;
+          const canReverse = intervalDays >= 60;
+          const isReverseDictation = canReverse && Math.random() < 0.5;
+
+          if (isReverseDictation) {
+            targetPrompt = otherText; targetAnswer = targetText; promptLangCode = otherLang; answerLangCode = targetLang;
+          } else {
+            targetPrompt = targetText; targetAnswer = targetText; promptLangCode = targetLang; answerLangCode = targetLang;
+          }
+          audioDispPromptLang = getDisplayLangCode(promptLangCode); audioDispAnswerLang = getDisplayLangCode(answerLangCode);
+          $('dirBadge').innerText = isReverseDictation ? `${audioDispPromptLang} ➔ ${audioDispAnswerLang}` : `🎧 ${audioDispPromptLang}`;
+          $('promptSub').innerText = `${t.prompt} (${audioDispPromptLang})`;
+        }
+
+        if (currentMode === 'cloze_typing' || currentMode === 'cloze_mcq') { setupClozeMode(dispPromptLang, dispAnswerLang); } 
+        else if (currentMode === 'word_tiles') { setupWordTiles(); } 
+        else if (currentMode === 'faded_hints') { setupFadedHints(dispAnswerLang); } 
+        else if (currentMode === 'audio_dictation') { setupAudioDictation(audioDispAnswerLang); } 
+        else {
+          $('promptMain').innerText = targetPrompt;
+          if (currentMode === 'flip') {
+            $('modeFlip').style.display = 'flex'; $('flipAnswerArea').style.display = 'none'; $('revealBtn').style.display = 'block';
+            $('answerSub').innerText = `${t.answer} (${dispAnswerLang})`; $('flipAnswerText').innerText = targetAnswer;
+          } else if (currentMode === 'typing') {
+            $('modeTyping').style.display = 'flex'; $('typeInput').value = ''; $('typeInput').placeholder = `${t.typeInLang} ${dispAnswerLang}...`;
+            $('typeInput').disabled = false; $('typeSubmitBtn').disabled = false;
+            setTimeout(() => { $('typeInput').focus(); }, 100);
+          } else if (currentMode === 'mcq') { setupMCQ(); } 
+          else if (currentMode === 'tf') { setupTF(); }
+        }
+        
+        handleAutoPlay('start');
+        $('statsText').innerText = `${segmentQueue.length} ${t.remainingInBatch}`;
+      }
+
+      function setupAudioDictation(dispAnswerLang) {
+        const t = i18n[currentUiLang] || i18n.en;
+        $('promptSub').innerText = t.audioModeBadge; $('promptMain').innerText = "🔊 Listening...";
+        const clueBox = $('clueBox'); clueBox.style.display = 'block'; clueBox.innerText = t.audioModePrompt;
+        $('modeTyping').style.display = 'flex'; $('typeInput').value = ''; $('typeInput').placeholder = `${t.typeInLang} ${dispAnswerLang}...`;
+        $('typeInput').disabled = false; $('typeSubmitBtn').disabled = false;
+        $('cantListenBtn').style.display = 'inline-flex';
+        setTimeout(() => { $('typeInput').focus(); }, 100);
+      }
+      
+      function handleCantListen() {
+        $('cantListenBtn').style.display = 'none';
+        $('promptAudioBtn').style.display = 'none';
+        const t = i18n[currentUiLang] || i18n.en;
+        
+        if (currentMode === 'audio_dictation') {
+          const translation = (targetAnswer === currentCard.front) ? currentCard.back : currentCard.front;
+          const transLangCode = (targetAnswer === currentCard.front) ? currentCard.langB : currentCard.langA;
+          
+          $('promptMain').innerText = translation;
+          $('promptSub').innerText = `${(t.translation || "Translation").toUpperCase()} (${getDisplayLangCode(transLangCode)})`;
+          $('clueBox').innerText = `💡 ${t.translation || "Translation"}`;
+          
+        } else if (currentMode === 'cloze_typing' || currentMode === 'cloze_mcq') {
+          clozeClueType = 'translation';
+          const dispAnswerLang = getDisplayLangCode(answerLangCode);
+          $('clueBox').innerText = `💡 ${t.meaning} (${dispAnswerLang}): "${targetAnswer}"`;
+        }
+      }
+
+      function setupFadedHints(dispAnswerLang) {
+        const t = i18n[currentUiLang] || i18n.en;
+        $('promptMain').innerText = targetPrompt;
+        let faded = "";
+        for (let i = 0; i < targetAnswer.length; i++) {
+          const char = targetAnswer[i];
+          if (char === " ") { 
+            faded += " \u00A0\u00A0 "; 
+          } else if (/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/.test(char)) { 
+            faded += char; 
+          } else { 
+            faded += (i % 3 === 0) ? char : "_ "; 
+          }
+        }
+        const clueBox = $('clueBox'); clueBox.style.display = 'block'; clueBox.innerText = `💡 Pattern: ${faded}`;
+        $('modeTyping').style.display = 'flex'; $('typeInput').value = ''; $('typeInput').placeholder = `${t.typeInLang} ${dispAnswerLang}...`;
+        $('typeInput').disabled = false; $('typeSubmitBtn').disabled = false;
+        setTimeout(() => { $('typeInput').focus(); }, 100);
+      }
+
+      function setupWordTiles() {
+        $('modeTiles').style.display = 'flex'; $('promptMain').innerText = targetPrompt;
+        targetTileWords = targetAnswer.trim().split(/\s+/).filter(Boolean);
+        let distractorWords = [];
+        allCards.forEach(c => {
+          if (c.id !== currentCard.id) {
+            const words = (isForward ? c.back : c.front).split(/\s+/);
+            words.forEach(w => { if (cleanString(w).length >= 2) distractorWords.push(w); });
+          }
+        });
+        distractorWords = shuffleArray([...new Set(distractorWords)]).slice(0, 2);
+        let pool = shuffleArray([...targetTileWords, ...distractorWords]);
+        currentTileSelected = []; renderTileState(pool);
+      }
+
+      function renderTileState(poolWords) {
+        const ansBox = $('tilesAnswerBox'); const poolBox = $('tilesPoolBox');
+        ansBox.replaceChildren(); poolBox.replaceChildren();
+        currentTileSelected.forEach((word, idx) => {
+          // Removed inline styles so it defaults to the standard grey .tile-btn appearance
+          const btn = document.createElement('button'); btn.className = 'tile-btn'; btn.textContent = word;
+          btn.onclick = () => { currentTileSelected.splice(idx, 1); poolWords.push(word); renderTileState(poolWords); };
+          ansBox.appendChild(btn);
+        });
+        poolWords.forEach((word, idx) => {
+          const btn = document.createElement('button'); btn.className = 'tile-btn'; btn.textContent = word;
+          btn.onclick = () => { poolWords.splice(idx, 1); currentTileSelected.push(word); renderTileState(poolWords); };
+          poolBox.appendChild(btn);
+        });
+      }
+
+      function resetTiles() { setupWordTiles(); }
+
+      function checkTiles() {
+        const t = i18n[currentUiLang] || i18n.en;
+        const userAssembled = cleanString(currentTileSelected.join(" ")); const expectedClean = cleanString(targetAnswer);
+        const isCorrect = (userAssembled === expectedClean);
+        showFeedback(isCorrect, isCorrect ? `🎉 ${t.correct}\n✨ ${targetAnswer}` : `❌ ${t.incorrectAnswer}\n👉 ${targetAnswer}`);
+        handleAutoPlay('end'); submitAnswer(isCorrect);
+        setTimeout(() => { const nextBtn = $('nextBtn'); if (nextBtn) nextBtn.focus(); }, 100);
+      }
+
+      function setupClozeMode(dispPromptLang, dispAnswerLang) {
+        const t = i18n[currentUiLang] || i18n.en;
+        const words = targetPrompt.trim().split(/\s+/);
+        let eligibleIndices = [];
+        words.forEach((w, idx) => { if (cleanString(w).length >= 2) eligibleIndices.push(idx); });
+        if (eligibleIndices.length === 0) eligibleIndices = words.map((_, idx) => idx);
+        const targetIdx = eligibleIndices[Math.floor(Math.random() * eligibleIndices.length)];
+        clozeTargetWordRaw = words[targetIdx]; clozeTargetWordClean = cleanString(clozeTargetWordRaw);
+        let clozeWords = [...words]; clozeWords[targetIdx] = "[ _______ ]";
+        const blankedSentence = clozeWords.join(" ");
+        $('promptMain').innerText = blankedSentence;
+        clozeClueType = Math.random() < 0.5 ? 'translation' : 'audio';
+        const clueBox = $('clueBox'); clueBox.style.display = 'block';
+
+        if (clozeClueType === 'translation') {
+          clueBox.innerText = `💡 ${t.meaning} (${dispAnswerLang}): "${targetAnswer}"`; $('promptAudioBtn').style.display = 'none';
+        } else {
+          clueBox.innerText = t.listenAudioClue; $('promptAudioBtn').style.display = 'inline-flex';
+          $('cantListenBtn').style.display = 'inline-flex';
+        }
+
+        if (currentMode === 'cloze_typing') {
+          $('modeTyping').style.display = 'flex'; $('typeInput').value = ''; $('typeInput').placeholder = `${t.typeMissingInLang} ${dispPromptLang}...`;
+          $('typeInput').disabled = false; $('typeSubmitBtn').disabled = false;
+          setTimeout(() => { $('typeInput').focus(); }, 100);
+        } else if (currentMode === 'cloze_mcq') { setupClozeMCQ(); }
+      }
+
+      function setupClozeMCQ() {
+        $('modeMCQ').style.display = 'flex';
+        let wordPool = [];
+        const fallbackWords = ["det", "som", "med", "ikke", "eller"];
+        allCards.forEach(c => {
+          const promptWords = (isForward ? c.front : c.back).split(/\s+/);
+          promptWords.forEach(w => {
+            const cw = cleanString(w);
+            if (cw.length >= 2 && cw !== clozeTargetWordClean) { wordPool.push(w.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/g, "")); }
+          });
+        });
+        wordPool = shuffleArray([...new Set(wordPool)]).slice(0, 3);
+
+        if (wordPool.length < 3) {
+          const needed = 3 - wordPool.length;
+          const fallbackPool = fallbackWords.filter(w => w !== clozeTargetWordClean && !wordPool.includes(w));
+          wordPool = wordPool.concat(fallbackPool.slice(0, needed));
+        }
+
+        while (wordPool.length < 3) {
+          wordPool.push("ord");
+        }
+
+        const cleanTargetWord = clozeTargetWordRaw.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/g, "");
+        let options = shuffleArray([...wordPool, cleanTargetWord]);
+        mcqCorrectIndex = options.indexOf(cleanTargetWord);
+        for (let i = 0; i < 4; i++) {
+          const btn = $(`mcq${i}`); btn.innerText = `${['A','B','C','D'][i]}. ${options[i]}`; btn.disabled = false; btn.style.backgroundColor = 'var(--bg-card)';
+        }
+      }
+
+      function showSegmentSummary() {
+        flushPendingBatchResults('segment_summary');
+        $('viewQuiz').style.display = 'none'; $('viewSummary').style.display = 'flex';
+        const t = i18n[currentUiLang] || i18n.en;
+        const btn1 = $('returnDashSummaryBtn'); if (btn1) btn1.innerText = t.returnDash;
+        
+        let remainingInPool = 0;
+        if (activeQuizMode === 'due') remainingInPool = duePool.length;
+        if (activeQuizMode === 'new') remainingInPool = newPool.length;
+        if (activeQuizMode === 'leeches') remainingInPool = leechPool.length;
+        if (activeQuizMode === 'all') remainingInPool = nonDuePool.length;
+
+        const continueBtn = $('continueBatchBtn');
+        if (remainingInPool === 0) {
+            continueBtn.style.display = 'none';
+        } else {
+            continueBtn.style.display = 'block';
+            if (activeQuizMode === 'new') {
+                continueBtn.innerText = t.continueNext10 || "▶ Continue (Next 10 Cards)";
+            } else {
+                continueBtn.innerText = t.continueBatch || "▶ Continue";
+            }
+        }
+
+        const banner = $('summaryBanner');
+        if (segmentStats.dueClearedNotice || (activeQuizMode === 'due' && remainingInPool === 0)) {
+          banner.innerText = t.allCaughtUpSummary; banner.style.backgroundColor = "var(--bg-success-light)"; banner.style.color = "var(--success-text)"; banner.style.borderColor = "var(--border-success-light)";
+        } else {
+          banner.innerText = t.segComplete; banner.style.backgroundColor = "var(--bg-primary-light)"; banner.style.color = "var(--primary)"; banner.style.borderColor = "var(--border-primary-light)";
+        }
+
+        let correctCount = segmentStats.correct;
+        let wrongCount = segmentStats.wrong;
+        let newCardsCount = segmentStats.newCards;
+        let reviewCardsCount = segmentStats.reviewCards;
+
+        if (correctCount === 0 && wrongCount === 0 && pendingBatchResults && pendingBatchResults.length > 0) {
+          correctCount = pendingBatchResults.filter(r => r.isCorrect).length;
+          wrongCount = pendingBatchResults.filter(r => !r.isCorrect).length;
+          newCardsCount = pendingBatchResults.filter(r => r.wasNew).length;
+          reviewCardsCount = pendingBatchResults.filter(r => !r.wasNew).length;
+        }
+
+        if (pendingBatchResults && pendingBatchResults.length > 0) {
+          correctCount = pendingBatchResults.filter(r => r.isCorrect).length;
+          wrongCount = pendingBatchResults.filter(r => !r.isCorrect).length;
+          newCardsCount = pendingBatchResults.filter(r => r.wasNew).length;
+          reviewCardsCount = pendingBatchResults.filter(r => !r.wasNew).length;
+        }
+
+        const totalAnswered = correctCount + wrongCount;
+        const accuracy = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
+        $('sumAccuracy').innerText = `${accuracy}%`;
+        $('sumCorrect').innerText = correctCount;
+        $('sumWrong').innerText = wrongCount;
+        $('sumNew').innerText = newCardsCount;
+        $('sumReview').innerText = reviewCardsCount;
+      }
+
+      function hideAllModes() { $('modeFlip').style.display = 'none'; $('modeTyping').style.display = 'none'; $('modeMCQ').style.display = 'none'; $('modeTF').style.display = 'none'; $('modeTiles').style.display = 'none'; }
+
+      function parseReviewDateMs(nextReviewStr, fallbackMs) {
+        if (!nextReviewStr) return fallbackMs;
+        const raw = String(nextReviewStr).trim();
+        if (!raw) return fallbackMs;
+
+        const hasTimezone = /(?:Z|[+\-]\d{2}:?\d{2})$/.test(raw);
+        const normalized = raw.includes(' ') ? raw.replace(' ', 'T') : raw;
+        const isoLike = hasTimezone ? normalized : (normalized + 'Z');
+        const parsedMs = Date.parse(isoLike);
+        return Number.isFinite(parsedMs) ? parsedMs : fallbackMs;
+      }
+
+      function getSpeechLangTag(code) {
+        if (!code) return 'en-US'; const c = code.toLowerCase().trim();
+        if (c === 'no' || c === 'nb' || c === 'nn') return 'no';
+        if (c === 'en') return 'en'; if (c === 'it') return 'it'; if (c === 'es') return 'es'; if (c === 'fr') return 'fr'; if (c === 'de') return 'de';
+        return c;
+      }
+
+      function getDisplayLangCode(code) {
+        if (!code) return 'EN'; const c = code.toLowerCase().trim();
+        if (c === 'no' || c === 'nb' || c === 'nn') return 'NO'; if (c === 'it') return 'IT'; return c.toUpperCase();
+      }
+
+      function playBackendAudio(text, langCode, btnId) {
+        if (!text) return; const targetLangTag = getSpeechLangTag(langCode);
+        google.script.run
+          .withSuccessHandler(res => {
+            if (res && res.success) { const audio = new Audio(res.data); audio.play(); } else { showAudioError(btnId); }
+          })
+          .withFailureHandler(e => showAudioError(btnId))
+          .getAudioBase64(text, targetLangTag);
+      }
+
+      function showAudioError(btnId) {
+        if (!btnId) return; const btn = $(btnId); if (!btn) return;
+        const oldHtml = btn.innerHTML; btn.innerHTML = "🚫 Audio Unavailable"; btn.style.color = "var(--danger-text)"; btn.style.backgroundColor = "var(--bg-danger-light)";
+        setTimeout(() => { btn.innerHTML = oldHtml; btn.style.color = ""; btn.style.backgroundColor = ""; }, 2000);
+      }
+
+      function playPromptAudio() { playBackendAudio(targetPrompt, promptLangCode, 'promptAudioBtn'); }
+      function playAnswerAudio() { playBackendAudio(targetAnswer, answerLangCode, 'ansAudioBtn'); }
+      function playTargetAudio() {
+        if (!isEnglish(answerLangCode)) { playAnswerAudio(); } else if (!isEnglish(promptLangCode)) { playPromptAudio(); } else { playAnswerAudio(); }
+      }
+      function playProposedTFTranslationAudio() { playBackendAudio(tfProposedText, answerLangCode, 'tfAudioBtn'); }
+      function revealFlip() { $('revealBtn').style.display = 'none'; $('flipAnswerArea').style.display = 'flex'; handleAutoPlay('end'); }
+
+      function checkTyping() {
+        ensureDomCache();
+        const userInput = typeInputEl.value; 
+        const t = i18n[currentUiLang] || i18n.en;
+
+        if (isRetyping) {
+          let pass = false;
+          if (currentMode === 'cloze_typing') {
+             pass = (cleanString(userInput) === clozeTargetWordClean);
+          } else {
+             pass = (cleanString(userInput) === cleanString(targetAnswer));
+          }
+          
+          if (pass) {
+             isRetyping = false;
+             typeInputEl.disabled = true; 
+             typeSubmitBtnEl.disabled = true;
+             typeInputEl.style.borderColor = "var(--success)";
+             typeSubmitBtnEl.innerText = t.submit || "Submit Answer";
+             nextBtnEl.style.display = 'block';
+             setTimeout(() => { if (nextBtnEl) nextBtnEl.focus(); }, 100);
+          } else {
+             typeInputEl.value = '';
+             typeInputEl.style.borderColor = "var(--danger)";
+             setTimeout(() => { typeInputEl.style.borderColor = "var(--border)"; }, 500);
+          }
+          return;
+        }
+
+          if (typeInputEl.disabled) return;
+          typeInputEl.disabled = true; typeSubmitBtnEl.disabled = true;
+        
+        if (currentMode === 'audio_dictation') { $('promptSub').innerText = `${t.prompt} (${getDisplayLangCode(promptLangCode)})`; $('promptMain').innerText = targetPrompt; }
+
+        let isTypo = false;
+        let isCorrect = false;
+
+        if (currentMode === 'cloze_typing') {
+          const cleanUser = cleanString(userInput); 
+          const dist = levenshteinDistance(cleanUser, clozeTargetWordClean); 
+          isCorrect = (dist <= 1);
+          if (dist === 1) isTypo = true; 
+
+          $('promptMain').innerText = targetPrompt;
+          let feedbackMsg = isCorrect ? `🎉 ${t.correct}\n✨ ${targetPrompt}` : `❌ ${t.incorrectMissing} "${clozeTargetWordRaw}".\n\n📌 ${t.fullSentence}: ${targetPrompt}\n💡 ${t.translation}: ${targetAnswer}`;
+          
+          showFeedback(isCorrect, feedbackMsg, !isCorrect); 
+          handleAutoPlay('end'); 
+          submitAnswer(isCorrect, null, isTypo); 
+        } else {
+          const expected = targetAnswer; 
+          const cleanUser = cleanString(userInput); 
+          const cleanExpected = cleanString(expected);
+          const dist = levenshteinDistance(cleanUser, cleanExpected); 
+          isCorrect = (dist <= 2);
+          if (dist > 0 && dist <= 2) isTypo = true; 
+
+          let feedbackMsg = "";
+          if (dist === 0) { feedbackMsg = `🎉 ${t.correct}\n✨ ${expected}`; } else if (dist <= 2) { feedbackMsg = `🎉 ${t.correctAcceptedTypo}\n✨ ${expected}`; } else { feedbackMsg = `❌ ${t.incorrectAnswer}\n👉 ${expected}`; }
+          
+          showFeedback(isCorrect, feedbackMsg, !isCorrect); 
+          handleAutoPlay('end'); 
+          submitAnswer(isCorrect, null, isTypo); 
+        }
+
+        if (!isCorrect) {
+          isRetyping = true;
+          typeInputEl.disabled = false; 
+          typeSubmitBtnEl.disabled = false;
+          typeInputEl.value = '';
+          typeInputEl.placeholder = t.copyCorrect || "Copy the correct answer...";
+          typeSubmitBtnEl.innerText = t.retypeContinue || "Retype to Continue";
+          setTimeout(() => { typeInputEl.focus(); }, 100);
+        } else {
+          setTimeout(() => { if (nextBtnEl) nextBtnEl.focus(); }, 100);
+        }
+      }
+
+      function setupMCQ() {
+        $('modeMCQ').style.display = 'flex';
+        let distractors = allCards.filter(c => c.id !== currentCard.id).map(c => isForward ? c.back : c.front);
+        distractors = shuffleArray([...new Set(distractors)]).slice(0, 3);
+        let options = shuffleArray([...distractors, targetAnswer]); mcqCorrectIndex = options.indexOf(targetAnswer);
+        for (let i = 0; i < 4; i++) { const btn = $(`mcq${i}`); btn.innerText = `${['A','B','C','D'][i]}. ${options[i]}`; btn.disabled = false; btn.style.backgroundColor = 'var(--bg-card)'; }
+      }
+
+      function checkMCQ(selectedIndex) {
+        for (let i = 0; i < 4; i++) { $(`mcq${i}`).disabled = true; }
+        const t = i18n[currentUiLang] || i18n.en;
+        if (currentMode === 'cloze_mcq') {
+          const isCorrect = selectedIndex === mcqCorrectIndex;
+          if (isCorrect) { $(`mcq${selectedIndex}`).style.backgroundColor = 'var(--bg-success-light)'; } else { $(`mcq${selectedIndex}`).style.backgroundColor = 'var(--bg-danger-light)'; $(`mcq${mcqCorrectIndex}`).style.backgroundColor = 'var(--bg-success-light)'; }
+          $('promptMain').innerText = targetPrompt;
+          let feedbackMsg = isCorrect ? `🎉 ${t.correct}\n✨ ${targetPrompt}` : `❌ ${t.incorrectMissing} "${clozeTargetWordRaw}".\n\n📌 ${t.fullSentence}: ${targetPrompt}\n💡 ${t.translation}: ${targetAnswer}`;
+          showFeedback(isCorrect, feedbackMsg); handleAutoPlay('end'); submitAnswer(isCorrect);
+        } else {
+          const isCorrect = selectedIndex === mcqCorrectIndex;
+          if (isCorrect) { $(`mcq${selectedIndex}`).style.backgroundColor = 'var(--bg-success-light)'; } else { $(`mcq${selectedIndex}`).style.backgroundColor = 'var(--bg-danger-light)'; $(`mcq${mcqCorrectIndex}`).style.backgroundColor = 'var(--bg-success-light)'; }
+          showFeedback(isCorrect, isCorrect ? `🎉 ${t.correct}` : `❌ ${t.incorrectAnswer} ${['A','B','C','D'][mcqCorrectIndex]}. 👉 ${targetAnswer}`);
+          handleAutoPlay('end'); submitAnswer(isCorrect);
+        }
+        setTimeout(() => { if (nextBtnEl) nextBtnEl.focus(); }, 100);
+      }
+
+      function setupTF() {
+        $('modeTF').style.display = 'flex'; const t = i18n[currentUiLang] || i18n.en; $('tfSubheader').innerText = t.tfHeader; $('tfFalseBtn').disabled = false; $('tfTrueBtn').disabled = false;
+        tfIsActuallyCorrect = Math.random() < 0.5;
+        if (tfIsActuallyCorrect) { tfProposedText = targetAnswer; } else { let wrongCards = allCards.filter(c => c.id !== currentCard.id); let randomWrong = wrongCards[Math.floor(Math.random() * wrongCards.length)]; tfProposedText = isForward ? randomWrong.back : randomWrong.front; }
+        const dispAnswerLang = getDisplayLangCode(answerLangCode);
+        $('tfProposed').style.color = 'var(--primary)'; $('tfProposed').innerText = tfProposedText; $('tfAudioBtn').innerText = `🔊 ${t.listen} (${dispAnswerLang})`;
+      }
+
+      function checkTF(userGuessedTrue) {
+        $('tfFalseBtn').disabled = true; $('tfTrueBtn').disabled = true; const isCorrect = (userGuessedTrue === tfIsActuallyCorrect); const t = i18n[currentUiLang] || i18n.en;
+        const dispAnswerLang = getDisplayLangCode(answerLangCode); $('tfSubheader').innerText = `${t.tfActualHeader} (${dispAnswerLang}):`;
+        $('tfProposed').style.color = 'var(--success)'; $('tfProposed').innerText = targetAnswer;
+        const feedbackMsg = isCorrect ? `🎉 ${t.correct}` : `❌ ${t.incorrectAnswer} 👉 ${targetAnswer}`;
+        showFeedback(isCorrect, feedbackMsg); handleAutoPlay('end'); submitAnswer(isCorrect);
+        setTimeout(() => { if (nextBtnEl) nextBtnEl.focus(); }, 100);
+      }
+
+      function showFeedback(isCorrect, message, hideNextBtn) {
+        ensureDomCache();
+        const fb = $('feedbackBox'); fb.style.display = 'block'; fb.innerText = message; fb.className = `feedback ${isCorrect ? 'feedback-success' : 'feedback-error'}`;
+        if (!hideNextBtn) {
+          nextBtnEl.style.display = 'block';
+        }
+        if (!isCorrect) { overrideBtnEl.style.display = 'block'; } else { overrideBtnEl.style.display = 'none'; }
+        lastFeedbackTime = Date.now();
+      }
+
+      function submitAnswer(isCorrect, confidence, isTypo) {
+        if (!currentCard) return;
+        const cardId = currentCard.progressId;
+        const currentStage = getStageFromInterval(currentCard.interval, currentCard.isNew);
+        if (!isCorrect) {
+          console.log('Incorrect answer', cardId, 'stage', currentStage, 'interval', currentCard.interval, 'EF', currentCard.ef, 'mode', activeQuizMode, 'typo', isTypo);
+        }
+        
+        let conf = confidence;
+        if (!conf) {
+          if (!isCorrect) {
+            conf = 'again';
+          } else {
+            if (currentCard.interval > 14) {
+              conf = 'easy'; 
+            } else {
+              conf = 'good'; 
+            }
+          }
+        }
+        
+        lastGradedCard = { id: cardId, interval: currentCard.interval, targetAnswer: targetAnswer, ef: currentCard.ef };
+        const shiftedItem = segmentQueue.shift();
+        const wasNewCard = shiftedItem && shiftedItem.card ? shiftedItem.card.isNew : false;
+        
+        if (!rawData.savedProgress) rawData.savedProgress = {};
+        
+        let q = 4;
+        if (!isCorrect || conf === 'again') q = 1;
+        else if (isTypo) q = 3;
+        else if (conf === 'hard') q = 3;
+        else if (conf === 'good') q = 4;
+        else if (conf === 'easy') q = 5;
+
+        let currentInterval = currentCard.interval || 1;
+        let currentEF = currentCard.ef || 2.5;
+        let currentPrevInterval = currentCard.prevInterval || null;
+        let inDifficultMode = activeQuizMode === 'leeches';
+        let localFailCount = currentCard.failCount || 0;
+
+        if (!isCorrect) {
+          localFailCount += 1;
+        } else if (isTypo) {
+          localFailCount += 0.5;
+        }
+
+        let newEF = currentEF;
+        let newInterval = 1;
+
+        if (inDifficultMode && isCorrect) {
+          currentCard.isLeech = false;
+          localFailCount = 0;
+          let baseInterval = currentPrevInterval || currentInterval;
+          let baseStage = getStageFromInterval(baseInterval, currentCard.isNew);
+          let targetStage = Math.max(1, baseStage - 1);
+          newInterval = getIntervalForStage(targetStage);
+          newEF = Math.max(1.3, currentEF - 0.1);
+          currentCard.prevInterval = null;
+        } else {
+          if (q < 3) {
+            newInterval = (15 / 1440);
+          } else {
+            if (wasNewCard) {
+              if (q === 3) newInterval = (15 / 1440);
+              else if (q === 4) newInterval = 0.25;
+              else if (q === 5) newInterval = 1;
+            } else if (currentInterval < 1) {
+              if (q === 5) newInterval = (currentInterval >= 0.5) ? 3 : 1;
+              else if (q === 3) newInterval = currentInterval;
+              else {
+                if (currentInterval <= 0.26) newInterval = 0.5;
+                else if (currentInterval <= 0.51) newInterval = 1;
+                else newInterval = 1;
+              }
+            } else {
+              if (q === 3) newInterval = currentInterval * 1.2;
+              else if (q === 4) newInterval = currentInterval * currentEF;
+              else if (q === 5) newInterval = currentInterval * currentEF * 1.3;
+            }
+          }
+
+          if (!currentCard.isLeech && localFailCount >= 1) {
+            currentCard.prevInterval = currentInterval;
+          }
+
+          if (newInterval > 3) newInterval += (Math.random() * 0.1 - 0.05) * newInterval;
+
+          newEF = currentEF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+          if (newEF < 1.3) newEF = 1.3;
+        }
+
+        const finalInterval = applyClientFuzz(newInterval);
+
+        currentCard.interval = finalInterval;
+        currentCard.ef = newEF;
+        currentCard.failCount = localFailCount;
+        currentCard.isLeech = localFailCount >= 1;
+
+        let msToAdd = finalInterval * 24 * 60 * 60 * 1000;
+        let nextDateObj = new Date(Date.now() + msToAdd);
+        const nextReviewIso = nextDateObj.toISOString();
+
+        rawData.savedProgress[cardId] = {
+          interval: finalInterval,
+          nextReview: nextReviewIso,
+          failCount: localFailCount,
+          isLeech: currentCard.isLeech,
+          lastReviewed: getClientTodayStr(),
+          ef: newEF,
+          prevInterval: currentCard.prevInterval || null
+        };
+        
+        if (isCorrect) {
+          segmentStats.correct++;
+        } else {
+          segmentStats.wrong++;
+        }
+
+        const todayKey = getClientTodayStr();
+        const studiedToday = (rawData && rawData.studiedToday) ? rawData.studiedToday : { newCount: 0, oldCount: 0 };
+
+        if (wasNewCard) {
+          segmentStats.newCards++; studiedToday.newCount = (studiedToday.newCount || 0) + 1; 
+          if(shiftedItem && shiftedItem.card) shiftedItem.card.isNew = false;
+        } else {
+          segmentStats.reviewCards++; studiedToday.oldCount = (studiedToday.oldCount || 0) + 1;
+        }
+
+        rawData.studiedToday = studiedToday;
+  if (!rawData.studyHistory) rawData.studyHistory = {};
+  rawData.studyHistory[todayKey] = (parseInt(rawData.studyHistory[todayKey] || 0, 10) || 0) + 1;
+
+        const currentResult = {
+          clientId: nextPendingResultId++,
+          cardId: cardId,
+          isCorrect: isCorrect,
+          confidence: conf,
+          wasNew: wasNewCard,
+          isTypo: isTypo || false,
+          inDifficultMode: activeQuizMode === 'leeches',
+          newInterval: finalInterval,
+          newEF: newEF,
+          nextReview: nextReviewIso,
+          failCount: localFailCount,
+          isLeech: currentCard.isLeech,
+          lastReviewed: todayKey,
+          prevInterval: currentCard.prevInterval || null
+        };
+        pendingBatchResults.push(currentResult); 
+
+        if (currentMode === 'flip') { renderNextCard(); }
+      }
+
+      function handleOverride() {
+        ensureDomCache();
+        if (!lastGradedCard) return;
+        segmentStats.wrong = Math.max(0, segmentStats.wrong - 1); segmentStats.correct++;
+        const t = i18n[currentUiLang] || i18n.en;
+
+        if (currentCard) {
+            const correctedBaseInterval = Math.max(1, Math.round((lastGradedCard.interval || 1) * (lastGradedCard.ef || 2.5)));
+            currentCard.interval = applyClientFuzz(correctedBaseInterval);
+            currentCard.ef = Math.max(1.3, lastGradedCard.ef || 2.5);
+            currentCard.failCount = Math.max(0, (currentCard.failCount || 0) - 1);
+            currentCard.isLeech = currentCard.failCount >= 1;
+        }
+
+        if (pendingBatchResults.length > 0) {
+          const lastItem = pendingBatchResults[pendingBatchResults.length - 1];
+          if (lastItem && lastItem.cardId === lastGradedCard.id) {
+            lastItem.isCorrect = true; lastItem.confidence = 'good';
+            lastItem.isTypo = false;
+            
+            let msToAdd = currentCard.interval * 24 * 60 * 60 * 1000;
+            let nextDateObj = new Date(Date.now() + msToAdd);
+            const nextReviewIso = nextDateObj.toISOString();
+            if (rawData.savedProgress[lastGradedCard.id]) {
+                rawData.savedProgress[lastGradedCard.id].interval = currentCard.interval;
+                rawData.savedProgress[lastGradedCard.id].nextReview = nextReviewIso;
+                rawData.savedProgress[lastGradedCard.id].failCount = currentCard.failCount;
+                rawData.savedProgress[lastGradedCard.id].isLeech = currentCard.isLeech;
+                rawData.savedProgress[lastGradedCard.id].ef = currentCard.ef;
+                rawData.savedProgress[lastGradedCard.id].lastReviewed = getClientTodayStr();
+            }
+
+            lastItem.newInterval = currentCard.interval;
+            lastItem.newEF = currentCard.ef;
+            lastItem.nextReview = nextReviewIso;
+            lastItem.failCount = currentCard.failCount;
+            lastItem.isLeech = currentCard.isLeech;
+            lastItem.lastReviewed = getClientTodayStr();
+            lastItem.prevInterval = currentCard.prevInterval || null;
+          }
+        }
+
+        const fb = $('feedbackBox'); fb.innerText = `${t.overriddenSuccess}\n${t.answer}: ${lastGradedCard.targetAnswer}`; fb.className = 'feedback feedback-success';
+        overrideBtnEl.style.display = 'none';
+        
+        if (isRetyping) {
+            isRetyping = false;
+          typeInputEl.disabled = true;
+          typeSubmitBtnEl.disabled = true;
+          typeInputEl.style.borderColor = "var(--success)";
+          typeSubmitBtnEl.innerText = t.submit || "Submit Answer";
+          nextBtnEl.style.display = 'block';
+          setTimeout(() => { if (nextBtnEl) nextBtnEl.focus(); }, 100);
+        }
+      }
+
+      function shuffleArray(array) {
+        let arr = [...array]; for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr;
+      }
+      
+      function archiveCurrentCard() {
+        if (!currentCard) return;
+        const archivedCardId = currentCard.id;
+        
+        const btn = $('btnArchiveCard');
+        const oldText = btn.innerText;
+        btn.innerText = "⏳...";
+        btn.disabled = true;
+        
+        const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
+        
+        google.script.run
+          .withSuccessHandler(res => {
+            if (res.success) {
+              // Strip this card out of all active session pools
+              allCards = allCards.filter(c => c.id !== archivedCardId);
+              duePool = duePool.filter(c => c.id !== archivedCardId);
+              newPool = newPool.filter(c => c.id !== archivedCardId);
+              leechPool = leechPool.filter(c => c.id !== archivedCardId);
+              nonDuePool = nonDuePool.filter(c => c.id !== archivedCardId);
+              
+              // Remove it from the current queue and move to the next card
+              const queueIdx = segmentQueue.findIndex(item => item && item.card && item.card.id === archivedCardId);
+              if (queueIdx !== -1) {
+                segmentQueue.splice(queueIdx, 1);
+              }
+              renderNextCard(); 
+              
+              btn.innerText = oldText;
+              btn.disabled = false;
+            } else {
+              showCustomAlert("Error archiving card: " + res.error);
+              btn.innerText = oldText;
+              btn.disabled = false;
+            }
+          })
+          .withFailureHandler(e => {
+            showCustomAlert("Connection Error: " + e);
+            btn.innerText = oldText;
+            btn.disabled = false;
+          })
+          .archiveSingleCard(currentCard.rowIndex, savedDeckId, archivedCardId, currentCard.colIdxA, currentCard.colIdxB);
+      }
