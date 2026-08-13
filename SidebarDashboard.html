@@ -521,9 +521,14 @@
       function showDashboard() {
         const btn1 = $('returnDashSummaryBtn'); if (btn1) btn1.innerText = "⏳ Loading...";
         const btn2 = $('returnDashBtn'); if (btn2) btn2.innerText = "⏳ Loading...";
+        dashboardRefreshPending = true;
+        isFlushInFlight = true;
         flushPendingBatchResults('dashboard_exit').then(() => {
-          if (rawData && rawData.rawRows) processCardsForActivePair();
-          fetchData();
+          fetchData(() => {
+            dashboardRefreshPending = false;
+            isFlushInFlight = false;
+            showCustomAlert("Error refreshing flashcard data. Please try again.");
+          });
         });
       }
       function startQuiz(mode) {

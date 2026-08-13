@@ -33,6 +33,7 @@
       let nextPendingResultId = 1;
       let isFlushInFlight = false;
       let pendingFlushPromise = null;
+      let dashboardRefreshPending = false;
       let hasAutoPlayed = false;
       let isRetyping = false;
       let segmentStats = { correct: 0, wrong: 0, newCards: 0, reviewCards: 0, dueClearedNotice: false };

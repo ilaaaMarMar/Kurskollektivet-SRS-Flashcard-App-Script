@@ -106,7 +106,7 @@ function parseDateToString(val, timeZone) {
   }
   return val.toString().trim();
 }
-var INTERVAL_STAGES = [1 / 24, 1, 3, 7, 14, 30, 60, 90, 180, 360];
+var INTERVAL_STAGES = [1 / 24, 3, 7, 14, 30, 60, 90, 180, 359, 360];
 // Shared scheduling primitives used by the client-compatible SM-2 model.
 function getStageFromInterval(ivl, isNew) {
   if (isNew || ivl < 1) return 1;
@@ -118,6 +118,10 @@ function getStageFromInterval(ivl, isNew) {
 function getIntervalForStage(stage) {
   var index = Math.max(1, Math.min(INTERVAL_STAGES.length, parseInt(stage, 10) || 1)) - 1;
   return INTERVAL_STAGES[index];
+}
+function getReviewCountIntervalCap_(reviewCount) {
+  var caps = [0.25, 1, 3, 7, 14, 30, 60, 90, 180, 360];
+  return caps[Math.min(caps.length, Math.max(1, reviewCount)) - 1];
 }
 function applyServerFuzz_(intervalInDays) {
   var learningFuzz = Math.min(5 / 1440, Math.max(1 / 1440, intervalInDays * 0.1));
@@ -134,7 +138,7 @@ function getBoundedOverdueDays_(nextReview, currentInterval, nowMs) {
 }
 // Recompute scheduling from trusted progress and the answer outcome. Client
 // interval fields are treated as display hints only and are never persisted.
-function scheduleAnswerResult_(cardState, item, wasNew, nowMs, todayStr) {
+function scheduleAnswerResult_(cardState, item, wasNew, nowMs, todayStr, reviewCount) {
   var currentInterval = parseFloat(cardState.interval) || 1;
   var currentEF = parseFloat(cardState.ef) || 2.5;
   var currentPrevInterval = cardState.prevInterval || null;
@@ -175,15 +179,19 @@ function scheduleAnswerResult_(cardState, item, wasNew, nowMs, todayStr) {
     } else {
       var overdueDays = getBoundedOverdueDays_(cardState.nextReview, currentInterval, nowMs);
       var effectiveInterval = currentInterval + overdueDays;
+      var matureGrowthFactor = Math.min(currentEF, 1.5);
       if (q === 3) newInterval = effectiveInterval * 1.2;
-      else if (q === 4) newInterval = effectiveInterval * currentEF;
-      else if (q === 5) newInterval = effectiveInterval * currentEF * 1.3;
+      else if (q === 4) newInterval = effectiveInterval * matureGrowthFactor;
+      else if (q === 5) newInterval = effectiveInterval * matureGrowthFactor * 1.3;
     }
     if (!currentIsLeech && failCount >= 1) currentPrevInterval = currentInterval;
     newEF = currentEF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
     if (newEF < 1.3) newEF = 1.3;
   }
   var finalInterval = Math.min(MAX_INTERVAL_DAYS, applyServerFuzz_(newInterval));
+  if (wasNew || reviewCount > 0) {
+    finalInterval = Math.min(finalInterval, getReviewCountIntervalCap_(reviewCount));
+  }
   var nextReview = new Date(nowMs + finalInterval * 24 * 60 * 60 * 1000).toISOString();
   return {
     interval: finalInterval,
@@ -840,8 +848,16 @@ function saveSegmentResults(batchArray, customDeckId, clientTodayStr, clientTime
     var eventData = eventSheet.getDataRange().getValues();
     var originalEventLength = eventData.length;
     var eventsByClientId = {};
+    var reviewDaysByCard = {};
     for (var eventRow = 1; eventRow < eventData.length; eventRow++) {
-      if (eventData[eventRow][0] === uKey) eventsByClientId[String(eventData[eventRow][1])] = eventRow;
+      if (eventData[eventRow][0] !== uKey) continue;
+      eventsByClientId[String(eventData[eventRow][1])] = eventRow;
+      var eventCardId = eventData[eventRow][2] ? eventData[eventRow][2].toString() : '';
+      if (eventCardId && (eventData[eventRow][10] === 'APPLIED' || eventData[eventRow][9])) {
+        var reviewDate = eventData[eventRow][8] ? eventData[eventRow][8].toString().trim() : '';
+        if (!reviewDaysByCard[eventCardId]) reviewDaysByCard[eventCardId] = {};
+        if (reviewDate) reviewDaysByCard[eventCardId][reviewDate] = true;
+      }
     }
     var pendingEvents = [];
     batchArray.forEach(function (item) {
@@ -870,7 +886,13 @@ function saveSegmentResults(batchArray, customDeckId, clientTodayStr, clientTime
       if (!result) {
         var wasNew = !savedProgress[cardId];
         var cardState = savedProgress[cardId] || { interval: 1, failCount: 0, isLeech: false, ef: 2.5, prevInterval: null };
-        result = scheduleAnswerResult_(cardState, event.item, wasNew, nowMs, todayStr);
+        var reviewDays = reviewDaysByCard[cardId] || {};
+        var reviewCount = Object.keys(reviewDays).length;
+        var eventReviewDate = eventRowData[8] ? eventRowData[8].toString().trim() : todayStr;
+        var isNewReviewDay = !reviewDays[eventReviewDate];
+        result = scheduleAnswerResult_(cardState, event.item, wasNew, nowMs, todayStr, reviewCount + (isNewReviewDay ? 1 : 0));
+        reviewDays[eventReviewDate] = true;
+        reviewDaysByCard[cardId] = reviewDays;
         eventRowData[5] = wasNew;
         eventRowData[9] = JSON.stringify(result);
       }
