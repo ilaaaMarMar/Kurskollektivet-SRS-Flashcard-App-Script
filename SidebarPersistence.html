@@ -1,3 +1,4 @@
+    <script>
       function handleWindowToggle() {
         if (window.innerWidth > 400) {
           google.script.run.withSuccessHandler(() => { if (google.script.host && google.script.host.close) { google.script.host.close(); } }).showFlashcardSidebar();
@@ -5,25 +6,21 @@
           google.script.run.showFlashcardDialog();
         }
       }
-
       document.addEventListener('keydown', function(e) {
         ensureDomCache();
         const quizView = $('viewQuiz');
         if (!quizView || quizView.style.display === 'none') return;
         const activeEl = document.activeElement;
         const isTypingInput = activeEl && activeEl.tagName === 'INPUT';
-        
-        if (isTypingInput && (e.key === 'Enter' || e.key === ' ')) return; 
-
+        if (isTypingInput && (e.key === 'Enter' || e.key === ' ')) return;
         if (e.key === ' ' || e.key === 'Enter') {
           e.preventDefault();
-          if (currentMode === 'flip' && revealBtnEl && revealBtnEl.style.display !== 'none') { revealFlip(); } 
-          else if (nextBtnEl && nextBtnEl.style.display !== 'none') { 
-            if (Date.now() - lastFeedbackTime < 600) return; 
-            renderNextCard(); 
+          if (currentMode === 'flip' && revealBtnEl && revealBtnEl.style.display !== 'none') { revealFlip(); }
+          else if (nextBtnEl && nextBtnEl.style.display !== 'none') {
+            if (Date.now() - lastFeedbackTime < 600) return;
+            renderNextCard();
           }
         }
-
         if (currentMode === 'flip') {
           if (flipAnswerAreaEl && flipAnswerAreaEl.style.display !== 'none') {
             if (e.key === '1') { e.preventDefault(); submitAnswer(false, 'again'); }
@@ -50,13 +47,11 @@
           }
         }
       });
-
       window.onload = function() {
         initDomCache();
         const savedTheme = localStorage.getItem('srs_app_theme') || 'kurskollektivet';
         changeAppTheme(savedTheme);
         setupLifecycleSync();
-        
         updateWindowModeUI(); window.onresize = updateWindowModeUI;
         try {
           if (typeof window.URL_DECK_ID !== 'undefined') localStorage.setItem('srs_selected_deck_id', window.URL_DECK_ID.trim());
@@ -67,8 +62,6 @@
         const defaultLang = detectDefaultUiLanguage(); applyUiLanguage(defaultLang);
         initPreflightFlow();
       };
-
-      // Server data loading and local/server merge rules live in this partial.
       function initPreflightFlow() {
         $('loading-ui').style.display = 'block'; $('main-ui').style.display = 'none';
         loadFlashcardData(function(error) {
@@ -76,7 +69,6 @@
           showCustomAlert("Error loading flashcard data. Ensure you have access to the Google Spreadsheet.");
         });
       }
-
       function loadFlashcardData(onFailure) {
         const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
         google.script.run
@@ -84,44 +76,43 @@
           .withFailureHandler(onFailure || (() => { showCustomAlert("Error loading flashcard data. Ensure you have access to the Google Spreadsheet."); }))
           .getFlashcardData(savedDeckId, getClientTodayStr(), getClientTimeZone());
       }
-
       function fetchData() { loadFlashcardData(); }
-
       function initApp(data) {
         $('loading-ui').style.display = 'none'; $('main-ui').style.display = 'block';
+        const pendingCardIds = new Set((pendingBatchResults || []).map(result => result.cardId));
+        const pendingDates = new Set((pendingBatchResults || []).map(result => result.lastReviewed));
         if (rawData && rawData.savedProgress && data && data.savedProgress) {
-          data.savedProgress = { ...data.savedProgress, ...rawData.savedProgress };
+          pendingCardIds.forEach(cardId => {
+            if (rawData.savedProgress[cardId]) data.savedProgress[cardId] = rawData.savedProgress[cardId];
+          });
         }
-        if (rawData && rawData.studiedToday && data) {
+        if (data) {
           const serverStudied = data.studiedToday || { newCount: 0, oldCount: 0 };
-          const localStudied = rawData.studiedToday || { newCount: 0, oldCount: 0 };
+          const pendingToday = (pendingBatchResults || []).filter(result => result.lastReviewed === data.todayStr);
           data.studiedToday = {
-            newCount: Math.max(serverStudied.newCount || 0, localStudied.newCount || 0),
-            oldCount: Math.max(serverStudied.oldCount || 0, localStudied.oldCount || 0)
+            newCount: (serverStudied.newCount || 0) + pendingToday.filter(result => result.wasNew).length,
+            oldCount: (serverStudied.oldCount || 0) + pendingToday.filter(result => !result.wasNew).length
           };
         }
-        if (rawData && rawData.studyHistory && data) {
+        if (rawData && rawData.studyHistory && data && pendingDates.size > 0) {
           const mergedHistory = Object.assign({}, data.studyHistory || {});
-          Object.keys(rawData.studyHistory).forEach(function(dateKey) {
+          pendingDates.forEach(function(dateKey) {
             var serverVal = parseInt(mergedHistory[dateKey] || 0, 10) || 0;
             var localVal = parseInt(rawData.studyHistory[dateKey] || 0, 10) || 0;
             mergedHistory[dateKey] = Math.max(serverVal, localVal);
           });
           data.studyHistory = mergedHistory;
         }
-
         rawData = data;
         activeUserKey = data.activeUserKey;
+        $('loggedInUser').innerText = data.activeUserEmail ? 'Logged in as: ' + data.activeUserEmail : 'Logged-in account unavailable';
         currentWebAppUrl = data.webAppUrl || "Not available";
         $('webAppUrlInput').value = currentWebAppUrl;
-        
         $('dashDeckName').innerText = data.ssName || "Spreadsheet Deck";
         initLanguages();
         processCardsForActivePair();
       }
-
       const INTERVAL_STAGES = [1 / 24, 1, 3, 7, 14, 30, 60, 90, 180, 360];
-
       function getStageFromInterval(ivl, isNew) {
         if (isNew || ivl < 1) return 1;
         for (let i = 1; i < INTERVAL_STAGES.length; i++) {
@@ -129,9 +120,8 @@
         }
         return INTERVAL_STAGES.length;
       }
-
       function getIntervalForStage(stage) {
         const index = Math.max(1, Math.min(INTERVAL_STAGES.length, parseInt(stage, 10) || 1)) - 1;
         return INTERVAL_STAGES[index];
       }
-      
+    </script>

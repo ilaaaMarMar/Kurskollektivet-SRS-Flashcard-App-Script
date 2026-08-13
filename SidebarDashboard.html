@@ -1,69 +1,66 @@
-      // Dashboard owns card indexing, counts, heatmap rendering, rewards, and
-      // the durable queue flush used when the user leaves the page.
+    <script>
       function processCardsForActivePair() {
         allCards = []; duePool = []; newPool = []; leechPool = []; studiedTodayPool = [];
+        quickAddSourceIndex = new Map();
+        quickAddCardIndex = new Map();
+        quizDistractorWords = { front: [], back: [] };
         let stageCounts = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0 };
         nextDueTimestamp = Infinity;
-
         if (!selectedPair || !rawData || !rawData.rawRows) { renderDashboard(stageCounts); return; }
         resolvePairColumns();
         const todayStr = rawData.todayStr;
         const nowMs = Date.now();
-
+        const pendingIds = new Set((pendingBatchResults || []).map(result => result.cardId));
         rawData.rawRows.forEach((row, rowIndex) => {
           let front = row[selectedPair.idxA] ? row[selectedPair.idxA].toString().trim() : "";
           let back = row[selectedPair.idxB] ? row[selectedPair.idxB].toString().trim() : "";
           if (!front || !back) return;
-
-          let legacyCardId = cleanString(front) + ":::" + cleanString(back);
-          let cardId = rawData.cardIds && rawData.cardIds[rowIndex] ? rawData.cardIds[rowIndex] : legacyCardId;
+          let cardId = rawData.cardIds[rowIndex];
           let progressId = `${cardId}:::pair:${selectedPair.idxA}:${selectedPair.idxB}`;
           let cardState = rawData.savedProgress ? rawData.savedProgress[progressId] : null;
-
           let isNew = !cardState;
           let interval = cardState ? (parseFloat(cardState.interval) || 1) : 1;
-          let ef = cardState ? (parseFloat(cardState.ef) || 2.5) : 2.5; 
+          let ef = cardState ? (parseFloat(cardState.ef) || 2.5) : 2.5;
           let nextReviewStr = cardState ? (cardState.nextReview || todayStr) : todayStr;
           let failCount = cardState ? (parseFloat(cardState.failCount) || 0) : 0;
           let isLeech = cardState ? (cardState.isLeech || failCount >= 1) : false;
-
           const nextReviewMs = parseReviewDateMs(nextReviewStr, nowMs);
           let isDue = (!isNew && nextReviewMs <= nowMs);
-
           let card = {
-            id: cardId, progressId: progressId, legacyId: legacyCardId, front: front, back: back, interval: interval, nextReview: nextReviewStr, ef: ef,
+            id: cardId, progressId: progressId, front: front, back: back, interval: interval, nextReview: nextReviewStr, ef: ef,
             langA: selectedPair.codeA, langB: selectedPair.codeB, isNew: isNew, failCount: failCount,
             isLeech: isLeech, rowIndex: rowIndex + 2, colIdxA: selectedPair.idxA, colIdxB: selectedPair.idxB
           };
-
           allCards.push(card);
+          const cleanFront = cleanString(front);
+          const cleanBack = cleanString(back);
+          if (!quickAddSourceIndex.has('a:' + cleanFront)) quickAddSourceIndex.set('a:' + cleanFront, card);
+          if (!quickAddSourceIndex.has('b:' + cleanBack)) quickAddSourceIndex.set('b:' + cleanBack, card);
+          quickAddCardIndex.set(cleanFront + ':::' + cleanBack, card);
+          front.split(/\s+/).forEach(word => { if (cleanString(word).length >= 2) quizDistractorWords.front.push(word); });
+          back.split(/\s+/).forEach(word => { if (cleanString(word).length >= 2) quizDistractorWords.back.push(word); });
           const stage = getStageFromInterval(interval, isNew);
           stageCounts[stage] = (stageCounts[stage] || 0) + 1;
-
-          if (isLeech) leechPool.push(card);
-          
-          if (isNew) {
+          if (isLeech && !pendingIds.has(progressId)) leechPool.push(card);
+          if (pendingIds.has(progressId)) {
+            card.isNew = false;
+          } else if (isNew) {
             newPool.push(card);
           } else if (isDue) {
             duePool.push(card);
           } else {
             nextDueTimestamp = Math.min(nextDueTimestamp, nextReviewMs);
           }
-          
           if (cardState && cardState.lastReviewed === todayStr) studiedTodayPool.push(card);
         });
-
         const dueIds = new Set(duePool.map(c => c.id));
         const newIds = new Set(newPool.map(c => c.id));
         nonDuePool = shuffleArray(allCards.filter(c => !dueIds.has(c.id) && !newIds.has(c.id)));
-
         renderDashboard(stageCounts);
       }
-
       function startCountdown(targetMs) {
         const btn = $('startReviewBtn');
-        btn.disabled = true; 
-        
+        btn.disabled = true;
         const updateTimer = () => {
           const t = i18n[currentUiLang] || i18n.en;
           const diff = targetMs - Date.now();
@@ -71,104 +68,126 @@
             clearInterval(dueCountdownInterval);
             btn.innerText = `🚀 ${t.dueReadyRefresh || "Due Cards Ready! (Click to Refresh)"}`;
             btn.disabled = false;
-            btn.onclick = () => showDashboard(); 
+            btn.onclick = () => showDashboard();
             return;
           }
-          
           const days = Math.floor(diff / (1000 * 60 * 60 * 24));
           const hrs = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
           const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
           const secs = Math.floor((diff % (1000 * 60)) / 1000);
-          
           let timeStr = "";
           if (days > 0) timeStr += `${days}${t.unitD || 'd'} `;
           if (hrs > 0 || days > 0) timeStr += `${hrs}${t.unitH || 'h'} `;
           timeStr += `${mins}${t.unitM || 'm'} ${secs}${t.unitS || 's'}`;
-          
           btn.innerText = `⏳ ${t.nextReviewIn || "Next review in"} ${timeStr}`;
         };
-        
-        updateTimer(); 
+        updateTimer();
         dueCountdownInterval = setInterval(updateTimer, 1000);
       }
-
-      function changeBadgeTheme(theme) {
-          localStorage.setItem('srs_badge_theme', theme);
-          renderGamificationBadges();
+      const heatmapWindowOffsets = { '7': 0, '30': 0, '365': 0 };
+      function getIsoWeekInfo(dateObj) {
+        const dUtc = new Date(Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()));
+        const dayNum = dUtc.getUTCDay() || 7;
+        dUtc.setUTCDate(dUtc.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(dUtc.getUTCFullYear(), 0, 1));
+        const isoWeek = Math.ceil((((dUtc - yearStart) / 86400000) + 1) / 7);
+        const isoYear = dUtc.getUTCFullYear();
+        const monday = new Date(dUtc);
+        monday.setUTCDate(dUtc.getUTCDate() - 3);
+        const sunday = new Date(monday);
+        sunday.setUTCDate(monday.getUTCDate() + 6);
+        return {
+          key: `${isoYear}-W${isoWeek}`,
+          monday: new Date(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate()),
+          sunday: new Date(sunday.getUTCFullYear(), sunday.getUTCMonth(), sunday.getUTCDate())
+        };
       }
-
+      function formatHeatmapPeriodDate(dateObj) {
+        return dateObj.toLocaleDateString(currentUiLang, { month: 'short', day: 'numeric' });
+      }
+      function onHeatmapRangeChange() {
+        renderHeatmap();
+      }
+      function shiftHeatmapWindow(delta) {
+        const rangeSelect = $('hmRangeSelect');
+        if (!rangeSelect) return;
+        const rangeVal = rangeSelect.value;
+        const currentOffset = heatmapWindowOffsets[rangeVal] || 0;
+        const nextOffset = Math.min(currentOffset + delta, 0);
+        heatmapWindowOffsets[rangeVal] = nextOffset;
+        renderHeatmap();
+      }
       function renderDashboard(stageCounts) {
         $('viewQuiz').style.display = 'none'; $('viewSummary').style.display = 'none'; $('viewDashboard').style.display = 'flex';
         const t = i18n[currentUiLang] || i18n.en;
-
         const studiedToday = rawData.studiedToday || { newCount: 0, oldCount: 0 };
         const newC = studiedToday.newCount || 0; const oldC = studiedToday.oldCount || 0;
         $('dashStudiedTotal').innerText = newC + oldC; $('dashStudiedNew').innerText = newC; $('dashStudiedOld').innerText = oldC;
-
         const dueC = duePool.length; const newCardC = newPool.length; const leechC = leechPool.length;
-
         const startBtn = $('startReviewBtn'); const startNewBtn = $('startNewBtn');
         const startLeechBtn = $('startLeechBtn');
+        const syncing = isFlushInFlight;
         $('btnViewStudied').disabled = studiedTodayPool.length === 0;
-
         if (dueCountdownInterval) clearInterval(dueCountdownInterval);
         startBtn.onclick = () => startQuiz('due');
-
         if (allCards.length === 0) {
           startBtn.innerText = "⚠️ No Cards Found"; startBtn.disabled = true; startNewBtn.innerText = t.studyNew;
           startNewBtn.disabled = true; startLeechBtn.disabled = true;
         } else {
-          if (dueC === 0) { 
+          if (dueC === 0) {
             if (nextDueTimestamp !== Infinity) {
               startCountdown(nextDueTimestamp);
             } else {
-              startBtn.innerText = t.allCaughtUp; 
-              startBtn.disabled = true; 
+              startBtn.innerText = t.allCaughtUp;
+              startBtn.disabled = true;
             }
-          } else { 
-            startBtn.innerText = `${t.studyDue} (${dueC})`; 
-            startBtn.disabled = false; 
+          } else {
+            startBtn.innerText = `${t.studyDue} (${dueC})`;
+            startBtn.disabled = syncing;
           }
-          if (newCardC === 0) { startNewBtn.innerText = t.noNewCards; startNewBtn.disabled = true; } else { startNewBtn.innerText = `${t.studyNew} (${newCardC})`; startNewBtn.disabled = false; }
-          if (leechC === 0) { startLeechBtn.innerText = t.noLeechCards; startLeechBtn.disabled = true; } else { startLeechBtn.innerText = `${t.studyLeeches} (${leechC})`; startLeechBtn.disabled = false; }
+          if (newCardC === 0) { startNewBtn.innerText = t.noNewCards; startNewBtn.disabled = true; } else { startNewBtn.innerText = `${t.studyNew} (${newCardC})`; startNewBtn.disabled = syncing; }
+          if (leechC === 0) { startLeechBtn.innerText = t.noLeechCards; startLeechBtn.disabled = true; } else { startLeechBtn.innerText = `${t.studyLeeches} (${leechC})`; startLeechBtn.disabled = syncing; }
         }
-
         renderHeatmap();
-        
         const grid = $('dashBoxGrid'); grid.replaceChildren();
         for (let i = 1; i <= 10; i++) {
           const count = stageCounts[i] || 0;
           const labelText = t['stage' + i] || `Stage ${i}`;
           const item = document.createElement('div');
           item.className = 'box-item';
-          item.innerHTML = `<span class="box-label">${labelText}</span><span class="box-val">${count} / ${allCards.length}</span>`;
+          const label = document.createElement('span');
+          label.className = 'box-label';
+          label.innerText = labelText;
+          const countText = document.createElement('span');
+          countText.className = 'box-val';
+          countText.innerText = `${count} / ${allCards.length}`;
+          const viewButton = document.createElement('button');
+          viewButton.type = 'button';
+          viewButton.className = 'box-view';
+          viewButton.innerText = t.viewList || 'View';
+          viewButton.disabled = count === 0;
+          viewButton.addEventListener('click', () => openStageModal(i));
+          item.appendChild(label);
+          item.appendChild(countText);
+          item.appendChild(viewButton);
           grid.appendChild(item);
         }
-        
         renderGamificationBadges();
       }
-
       function renderGamificationBadges() {
         const t = i18n[currentUiLang] || i18n.en;
-        const theme = localStorage.getItem('srs_badge_theme') || 'flora';
-        const activeBadges = theme === 'fauna' ? badgesFauna : badgesFlora;
-        const storageScope = `${activeUserKey || 'unauthenticated_user'}::${(rawData && rawData.activeDeckId) || 'default_deck'}`;
+        const activeBadges = badgesFauna;
+        const rewardUserScope = (rawData && rawData.activeUserEmail) || activeUserKey || 'unauthenticated_user';
+        const storageScope = `${rewardUserScope}::${(rawData && rawData.activeDeckId) || 'default_deck'}`;
         const scopedEarnedKey = `srs_earned_badges_counts_${storageScope}`;
         const scopedCooldownKey = `srs_reward_cooldowns_${storageScope}`;
-        
-        const themeSelect = $('themeSelect');
-        if (themeSelect && themeSelect.value !== theme) {
-            themeSelect.value = theme;
-        }
-
-        const history = rawData.studyHistory || {}; 
+        const lastRewardKey = `srs_last_reward_${storageScope}`;
+        const history = rawData.studyHistory || {};
         const activeDates = Object.keys(history).filter(d => history[d] > 0).sort();
-        
         const badgeCounts = {};
         const badgeAwardEventsById = {};
         activeBadges.forEach(b => badgeCounts[b.id] = 0);
         activeBadges.forEach(b => badgeAwardEventsById[b.id] = []);
-
         if (activeDates.length > 0) {
           const firstDateStr = activeDates[0];
           const firstDateObj = new Date(firstDateStr + "T00:00:00Z");
@@ -176,14 +195,13 @@
           const weekBadges = activeBadges.filter(b => b.type === 'week');
           const monthBadges = activeBadges.filter(b => b.type === 'month');
           const yearBadges = activeBadges.filter(b => b.type === 'year');
-
+          const currentIsoWeekKey = getIsoWeekInfo(new Date()).key;
             activeDates.forEach(dateStr => {
                 const d = new Date(dateStr + "T00:00:00Z");
                 const dUtc = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
                 const dayNum = dUtc.getUTCDay() || 7;
                 dUtc.setUTCDate(dUtc.getUTCDate() + 4 - dayNum);
                 const yearStart = new Date(Date.UTC(dUtc.getUTCFullYear(), 0, 1));
-                
                 const weekKey = dUtc.getUTCFullYear() + "-W" + Math.ceil((((dUtc - yearStart) / 86400000) + 1) / 7);
                 weekMap[weekKey] = (weekMap[weekKey] || 0) + 1;
                 const monthKey = d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, '0');
@@ -193,8 +211,9 @@
                 const yearKey = "Y" + (Math.floor(diffDays / 365) + 1);
                 yearMap[yearKey] = (yearMap[yearKey] || 0) + 1;
             });
-
               Object.keys(weekMap).sort().forEach(weekKey => {
+                // Weekly streak badges are based on completed ISO weeks only.
+                if (weekKey === currentIsoWeekKey) return;
                 const days = weekMap[weekKey];
                 weekBadges.forEach(b => {
                   if (days >= b.req) {
@@ -206,7 +225,6 @@
                   }
                 });
               });
-
               Object.keys(monthMap).sort().forEach(monthKey => {
                 const days = monthMap[monthKey];
                 monthBadges.forEach(b => {
@@ -219,7 +237,6 @@
                   }
                 });
               });
-
               Object.keys(yearMap).sort().forEach(yearKey => {
                 const days = yearMap[yearKey];
                 yearBadges.forEach(b => {
@@ -233,56 +250,44 @@
                 });
               });
         }
-
         // Load per-user+deck earned counts first; then migrate from legacy keys.
+        let storedEarnedCounts = null;
+        try { storedEarnedCounts = localStorage.getItem(scopedEarnedKey); } catch (e) {}
+        const hasEarnedSnapshot = storedEarnedCounts !== null;
         let previouslyEarned = {};
         try {
-          previouslyEarned = JSON.parse(localStorage.getItem(scopedEarnedKey) || '{}') || {};
+          previouslyEarned = JSON.parse(storedEarnedCounts || '{}') || {};
         } catch (e) {
           previouslyEarned = {};
         }
-
         if (Object.keys(previouslyEarned).length === 0) {
           let legacyGlobal = {};
-          let legacyTheme = {};
           try {
             legacyGlobal = JSON.parse(localStorage.getItem('srs_earned_badges_counts_global') || '{}') || {};
           } catch (e) {
             legacyGlobal = {};
           }
-          try {
-            legacyTheme = JSON.parse(localStorage.getItem('srs_earned_badges_counts_' + theme) || '{}') || {};
-          } catch (e) {
-            legacyTheme = {};
-          }
-
           activeBadges.forEach(b => {
             const g = legacyGlobal[b.id] || 0;
-            const th = legacyTheme[b.id] || 0;
-            previouslyEarned[b.id] = Math.max(g, th);
+            previouslyEarned[b.id] = g;
           });
         }
-
         let announcedCooldowns = {};
         try {
           announcedCooldowns = JSON.parse(localStorage.getItem(scopedCooldownKey) || '{}') || {};
         } catch (e) {
           announcedCooldowns = {};
         }
-
         const currentlyEarnedCounts = {};
         const newlyEarnedEvents = [];
-
         const badgeContainer = $('badgeScrollContainer');
         badgeContainer.innerHTML = '';
-        
+        let badgeMarkup = '';
         activeBadges.forEach(b => {
             const count = badgeCounts[b.id] || 0;
             currentlyEarnedCounts[b.id] = count;
-            
             const prevCount = previouslyEarned[b.id] || 0;
             const events = badgeAwardEventsById[b.id] || [];
-
             // Bootstrap cooldown memory using prior count-based history so existing users do not get re-announced.
             if (prevCount > 0 && events.length > 0) {
               const migrateCount = Math.min(prevCount, events.length);
@@ -290,22 +295,19 @@
                 announcedCooldowns[events[i].fingerprint] = 1;
               }
             }
-
-            events.forEach(evt => {
-              if (!announcedCooldowns[evt.fingerprint]) {
+            events.slice(prevCount).forEach(evt => {
+              if (hasEarnedSnapshot && count > prevCount && !announcedCooldowns[evt.fingerprint]) {
                 newlyEarnedEvents.push({ badge: b, count: count, prevCount: prevCount, fingerprint: evt.fingerprint });
               }
             });
-
             // Keep cooldown set complete for currently achieved events once evaluated.
             events.forEach(evt => {
               announcedCooldowns[evt.fingerprint] = 1;
             });
-
             const owned = count > 0;
             let suffix = b.type === 'week' ? t.daysWk : (b.type === 'month' ? t.daysMo : t.daysYr);
             let bName = `${b.req} ${suffix}`;
-            badgeContainer.innerHTML += `
+            badgeMarkup += `
                 <div class="badge-col ${owned ? 'owned' : ''}">
                     <div class="badge-emoji" title="${bName}">${b.emoji}</div>
                     <div class="badge-name">${bName}</div>
@@ -313,7 +315,7 @@
                 </div>
             `;
         });
-
+        badgeContainer.innerHTML = badgeMarkup;
         try {
           localStorage.setItem(scopedEarnedKey, JSON.stringify(currentlyEarnedCounts));
         } catch (e) {
@@ -324,42 +326,55 @@
         } catch (e) {
           // If storage is unavailable, continue gracefully without persistence.
         }
-        
         if (newlyEarnedEvents.length > 0) {
             const topEarned = newlyEarnedEvents[newlyEarnedEvents.length - 1];
+            let lastStoredFingerprint = "";
+            try {
+              lastStoredFingerprint = localStorage.getItem(lastRewardKey) || "";
+            } catch (e) {}
+            if (topEarned.fingerprint === lastShownRewardFingerprint || topEarned.fingerprint === lastStoredFingerprint) {
+              return;
+            }
+            lastShownRewardFingerprint = topEarned.fingerprint;
+            try {
+              localStorage.setItem(lastRewardKey, topEarned.fingerprint);
+            } catch (e) {}
             const isFirstTime = topEarned.prevCount === 0;
-            
             $('rewardModalIcon').innerText = topEarned.badge.emoji;
             let suffix = topEarned.badge.type === 'week' ? (t.daysWk || "Days/Wk") : (topEarned.badge.type === 'month' ? (t.daysMo || "Days/Mo") : (t.daysYr || "Days/Yr"));
             $('rewardModalName').innerText = `${topEarned.badge.req} ${suffix}`;
-            
             const rewardTitle = $('rewardModalTitle');
             if (rewardTitle) {
                 rewardTitle.innerText = isFirstTime ? (t.newRewardUnlocked || "🎉 New Reward!") : (t.rewardUnlocked || "🎉 Reward!");
             }
-            
             $('rewardModal').style.display = 'flex';
         }
       }
-
       function renderHeatmap() {
         const grid = $('heatmapGrid'); const statsBar = $('hmStatsBar'); const rangeVal = $('hmRangeSelect').value;
         const scrollContainer = $('hmScrollContainer'); const monthHeader = $('hmMonthHeader'); const hmWrapper = $('hmWrapper');
+        const periodLabel = $('hmPeriodLabel'); const prevBtn = $('hmPrevBtn'); const nextBtn = $('hmNextBtn');
         const t = i18n[currentUiLang] || i18n.en;
         if (!grid || !rawData) return; grid.replaceChildren();
         const history = rawData.studyHistory || {}; const today = new Date();
+        const offset = heatmapWindowOffsets[rangeVal] || 0;
         let activeDaysCount = 0; let totalReviewsInRange = 0;
-
+        if (prevBtn) prevBtn.disabled = false;
+        if (nextBtn) nextBtn.disabled = offset >= 0;
         if (monthHeader) { monthHeader.style.display = 'none'; monthHeader.replaceChildren(); }
-
         if (rangeVal === '7') {
+          const weekInfo = getIsoWeekInfo(new Date(today.getFullYear(), today.getMonth(), today.getDate() + (offset * 7)));
+          const monday = weekInfo.monday;
+          const sunday = weekInfo.sunday;
+          if (periodLabel) {
+            periodLabel.innerText = offset === 0
+              ? (t.thisWeek || 'This Week')
+              : `${formatHeatmapPeriodDate(monday)} - ${formatHeatmapPeriodDate(sunday)}`;
+          }
           if(hmWrapper) { hmWrapper.style.width = '100%'; hmWrapper.style.margin = '0'; }
           scrollContainer.style.overflowX = 'hidden';
           grid.style.display = 'flex'; grid.style.justifyContent = 'space-between'; grid.style.gap = '6px';
           grid.style.gridTemplateColumns = 'none'; grid.style.gridTemplateRows = 'none'; grid.style.gridAutoColumns = 'none'; grid.style.gridAutoFlow = 'none'; grid.style.width = '100%';
-          const currentDayOfWeek = today.getDay(); const distToMon = (currentDayOfWeek + 6) % 7;
-          const monday = new Date(today); monday.setDate(today.getDate() - distToMon);
-
           for (let i = 0; i < 7; i++) {
             const d = new Date(monday); d.setDate(monday.getDate() + i);
             const dateStr = formatDateKey(d); const count = history[dateStr] || 0;
@@ -375,13 +390,18 @@
             card.innerHTML = `<span style="font-size: 10px; color: var(--text-muted); font-weight: 600;">${dayName}</span><span style="font-size: 9px; color: var(--text-muted); font-weight: 500;">${ordinal}</span><div class="hm-cell ${levelClass}" style="width: 100%; max-width: 32px; height: 26px; border-radius: 6px;" title="${dateStr} (${ordinal}): ${count} ${t.cards}"></div><span style="font-size: 10px; color: var(--text-main); font-weight: 700;">${count > 0 ? count : '-'}</span>`;
             grid.appendChild(card);
           }
-          statsBar.innerHTML = `${t.thisWeek}: ${t.active} <strong>${activeDaysCount}</strong> ${t.outOf} <strong>7</strong> ${t.days} &bull; <strong>${totalReviewsInRange}</strong> ${t.reviews}`;
+          const statsPrefix = offset === 0
+            ? (t.thisWeek || 'This Week')
+            : `${formatHeatmapPeriodDate(monday)} - ${formatHeatmapPeriodDate(sunday)}`;
+          statsBar.innerHTML = `${statsPrefix}: ${t.active} <strong>${activeDaysCount}</strong> ${t.outOf} <strong>7</strong> ${t.days} &bull; <strong>${totalReviewsInRange}</strong> ${t.reviews}`;
         }
         else if (rangeVal === '30') {
+          const monthAnchor = new Date(today.getFullYear(), today.getMonth() + offset, 1);
           if(hmWrapper) { hmWrapper.style.width = '100%'; hmWrapper.style.margin = '0'; }
           scrollContainer.style.overflowX = 'hidden';
-          const year = today.getFullYear(); const month = today.getMonth();
-          let monthName = today.toLocaleDateString(currentUiLang, { month: 'long' }); monthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+          const year = monthAnchor.getFullYear(); const month = monthAnchor.getMonth();
+          let monthName = monthAnchor.toLocaleDateString(currentUiLang, { month: 'long' }); monthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+          if (periodLabel) periodLabel.innerText = `${monthName} ${year}`;
           const firstDay = new Date(year, month, 1); const daysInMonth = new Date(year, month + 1, 0).getDate();
           const startDayOfWeek = (firstDay.getDay() + 6) % 7;
           grid.style.display = 'grid'; grid.style.gridTemplateColumns = 'repeat(7, 1fr)'; grid.style.gridAutoFlow = 'row';
@@ -405,15 +425,21 @@
           statsBar.innerHTML = `${monthName}: ${t.active} <strong>${activeDaysCount}</strong> ${t.outOf} <strong>${daysInMonth}</strong> ${t.days} &bull; <strong>${totalReviewsInRange}</strong> ${t.reviews}`;
         }
         else {
+          const rangeDays = 365;
+          const rangeEnd = new Date(today);
+          rangeEnd.setDate(today.getDate() + (offset * rangeDays));
+          const rangeStart = new Date(rangeEnd);
+          rangeStart.setDate(rangeEnd.getDate() - (rangeDays - 1));
+          if (periodLabel) periodLabel.innerText = String(rangeEnd.getFullYear());
           if(hmWrapper) { hmWrapper.style.width = 'max-content'; hmWrapper.style.margin = '0 auto'; }
-          scrollContainer.style.overflowX = 'auto'; const rangeDays = 365;
+          scrollContainer.style.overflowX = 'auto';
           if (monthHeader) { monthHeader.style.display = 'block'; monthHeader.style.position = 'relative'; monthHeader.style.height = '14px'; monthHeader.style.width = '100%'; monthHeader.style.marginBottom = '3px'; monthHeader.replaceChildren(); }
           grid.style.display = 'grid'; grid.style.gridAutoFlow = 'column'; grid.style.justifyContent = 'start'; grid.style.width = 'max-content'; grid.style.gridTemplateColumns = 'none';
           let cellSize = 10; let cellGap = 2;
           grid.style.gridTemplateRows = `repeat(7, ${cellSize}px)`; grid.style.gridAutoColumns = `${cellSize}px`; grid.style.gap = `${cellGap}px`;
           const dateArray = [];
           for (let i = rangeDays - 1; i >= 0; i--) {
-            const d = new Date(today); d.setDate(d.getDate() - i); const dateStr = formatDateKey(d);
+            const d = new Date(rangeEnd); d.setDate(d.getDate() - i); const dateStr = formatDateKey(d);
             dateArray.push({ dateObj: d, dateStr: dateStr, count: history[dateStr] || 0, month: d.getMonth() });
           }
           let prevMonth = -1; let lastLabelCol = -5;
@@ -443,152 +469,154 @@
           setTimeout(() => { if (scrollContainer) { scrollContainer.scrollLeft = scrollContainer.scrollWidth; } }, 50);
         }
       }
-
       function flushPendingBatchResults(reason) {
-        if (!pendingBatchResults || pendingBatchResults.length === 0) return;
-        if (isFlushInFlight) return;
-
+        if (!pendingBatchResults || pendingBatchResults.length === 0) return Promise.resolve(true);
+        if (pendingFlushPromise) return pendingFlushPromise;
         const batchToSync = pendingBatchResults.slice();
         const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
         isFlushInFlight = true;
-
-        google.script.run
+        pendingFlushPromise = new Promise(resolve => {
+          google.script.run
           .withSuccessHandler(res => {
             if (!res || res.success === false) {
               console.warn("Batch sync rejected" + (reason ? " (" + reason + ")" : ""), res && res.error);
               isFlushInFlight = false;
+              pendingFlushPromise = null;
+              resolve(false);
               return;
+            }
+            if (res.appliedProgress && rawData) {
+              rawData.savedProgress = rawData.savedProgress || {};
+              Object.assign(rawData.savedProgress, res.appliedProgress);
             }
             const syncedIds = new Set(batchToSync.map(result => result.clientId));
             pendingBatchResults = pendingBatchResults.filter(result => !syncedIds.has(result.clientId));
             isFlushInFlight = false;
+            pendingFlushPromise = null;
+            resolve(true);
           })
           .withFailureHandler(e => {
             console.warn("Batch sync error" + (reason ? " (" + reason + ")" : "") + ":", e);
             isFlushInFlight = false;
+            pendingFlushPromise = null;
+            resolve(false);
           })
           .saveSegmentResults(batchToSync, savedDeckId, getClientTodayStr(), getClientTimeZone(), selectedPair.idxA, selectedPair.idxB);
+        });
+        return pendingFlushPromise;
       }
-
       function setupLifecycleSync() {
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'hidden') {
             flushPendingBatchResults('visibility_hidden');
           }
         });
-
         window.addEventListener('pagehide', () => {
           flushPendingBatchResults('pagehide');
         });
-
         window.addEventListener('beforeunload', () => {
           flushPendingBatchResults('beforeunload');
         });
       }
-
       function showDashboard() {
         const btn1 = $('returnDashSummaryBtn'); if (btn1) btn1.innerText = "⏳ Loading...";
         const btn2 = $('returnDashBtn'); if (btn2) btn2.innerText = "⏳ Loading...";
-        flushPendingBatchResults('dashboard_exit');
-        if (rawData && rawData.rawRows) {
-          processCardsForActivePair();
-        }
-        setTimeout(fetchData, 700);
+        flushPendingBatchResults('dashboard_exit').then(() => {
+          if (rawData && rawData.rawRows) processCardsForActivePair();
+          fetchData();
+        });
       }
-
       function startQuiz(mode) {
-        if (allCards.length === 0) return;
+        if (isFlushInFlight || allCards.length === 0) return;
         activeQuizMode = mode;
-        processCardsForActivePair();
-
-          if (mode === 'leeches') { 
-          leechPool = shuffleArray(leechPool); 
-        } 
-        else if (mode === 'new') { 
-          newPool.sort((a, b) => b.rowIndex - a.rowIndex);
-          let bottom30 = newPool.slice(0, 30);
-          let restOfDeck = newPool.slice(30);
-          bottom30 = shuffleArray(bottom30);
-          restOfDeck = shuffleArray(restOfDeck);
-          
-          let interleaved = [];
-          while (bottom30.length > 0 || restOfDeck.length > 0) {
-              for (let i = 0; i < 5 && bottom30.length > 0; i++) interleaved.push(bottom30.shift());
-              for (let i = 0; i < 5 && restOfDeck.length > 0; i++) interleaved.push(restOfDeck.shift());
-          }
-          newPool = interleaved;
-
-          duePool = []; 
-          nonDuePool = []; 
-        }
-
         startNextSegment();
       }
-
-      function startNextSegment() {
-        pendingBatchResults = [];
+      function prepareStudyPools(mode) {
         processCardsForActivePair();
-
+        if (mode === 'leeches') {
+          leechPool = shuffleArray(leechPool);
+        } else if (mode === 'new') {
+          duePool = [];
+          nonDuePool = [];
+        }
+      }
+      function selectNewCardsForBatch() {
+        const ordered = [...newPool].sort((a, b) => a.rowIndex - b.rowIndex);
+        if (ordered.length <= 5) {
+          newPool = [];
+          return shuffleArray(ordered);
+        }
+        const oldest = ordered.slice(0, 10);
+        const newest = ordered.slice(-10).reverse();
+        const selected = [];
+        const selectedIds = new Set();
+        const addAvailable = candidates => {
+          for (const card of shuffleArray(candidates)) {
+            if (selected.length >= 4 || selectedIds.has(card.id)) continue;
+            selected.push(card);
+            selectedIds.add(card.id);
+            if (selected.length === 2 || selected.length === 4) break;
+          }
+        };
+        addAvailable(newest);
+        addAvailable(oldest);
+        const remaining = ordered.filter(card => !selectedIds.has(card.id));
+        const randomCard = shuffleArray(remaining)[0];
+        if (randomCard) {
+          selected.push(randomCard);
+          selectedIds.add(randomCard.id);
+        }
+        newPool = newPool.filter(card => !selectedIds.has(card.id));
+        return shuffleArray(selected);
+      }
+      function buildSegmentQueue(mode, targetBatchSize) {
+        const queue = [];
+        if (mode === 'due') {
+          while (queue.length < targetBatchSize && duePool.length > 0) {
+            queue.push({ card: duePool.shift(), mode: null });
+          }
+        } else if (mode === 'new') {
+          const selectedNew = selectNewCardsForBatch();
+          let firstPass = selectedNew.map(card => ({ card: card, mode: 'flip' }));
+          let secondPass = selectedNew.map(card => ({ card: card, mode: Math.random() < 0.5 ? 'tf' : 'mcq' }));
+          firstPass = shuffleArray(firstPass);
+          secondPass = shuffleArray(secondPass);
+          const finalQueue = firstPass.splice(0, Math.min(3, firstPass.length));
+          const remaining = [...firstPass, ...secondPass];
+          while (remaining.length > 0) {
+            const validIndices = remaining.reduce((indices, candidate, index) => {
+              if (candidate.mode === 'flip' || finalQueue.some(item => item.card.id === candidate.card.id && item.mode === 'flip')) {
+                indices.push(index);
+              }
+              return indices;
+            }, []);
+            const pickIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
+            finalQueue.push(remaining.splice(pickIndex, 1)[0]);
+          }
+          return finalQueue;
+        } else if (mode === 'leeches') {
+          while (queue.length < targetBatchSize && leechPool.length > 0) {
+            queue.push({ card: leechPool.shift(), mode: null });
+          }
+        } else if (mode === 'all') {
+          while (queue.length < targetBatchSize && nonDuePool.length > 0) {
+            queue.push({ card: nonDuePool.shift(), mode: null });
+          }
+        }
+        return queue;
+      }
+      function startNextSegment() {
+        prepareStudyPools(activeQuizMode);
         $('viewDashboard').style.display = 'none'; $('viewSummary').style.display = 'none'; $('viewQuiz').style.display = 'block';
         segmentStats = { correct: 0, wrong: 0, newCards: 0, reviewCards: 0, dueClearedNotice: false };
         const hadDueCardsAtStart = duePool.length > 0;
         segmentQueue = [];
-        
         let targetBatchSize = 10;
         if (activeQuizMode === 'leeches') {
             targetBatchSize = Math.min(10, leechPool.length);
         }
-        
-        if (activeQuizMode === 'due') {
-            while (segmentQueue.length < targetBatchSize && duePool.length > 0) {
-                segmentQueue.push({ card: duePool.shift(), mode: null });
-            }
-        } else if (activeQuizMode === 'new') {
-            let selectedNew = [];
-            while (selectedNew.length < 5 && newPool.length > 0) {
-                selectedNew.push(newPool.shift());
-            }
-            let step1 = [];
-            let step2 = [];
-            selectedNew.forEach(c => {
-                step1.push({ card: c, mode: 'flip' });
-                step2.push({ card: c, mode: Math.random() < 0.5 ? 'tf' : 'mcq' });
-            });
-            step1 = shuffleArray(step1);
-            step2 = shuffleArray(step2);
-
-            let finalQueue = [];
-            for(let i=0; i < Math.min(3, step1.length); i++){
-                finalQueue.push(step1.shift());
-            }
-            let remaining = [...step1, ...step2];
-            while(remaining.length > 0) {
-                let validIndices = [];
-                for (let i = 0; i < remaining.length; i++) {
-                    let candidate = remaining[i];
-                    if (candidate.mode === 'flip') {
-                        validIndices.push(i);
-                    } else {
-                        if (finalQueue.find(q => q.card.id === candidate.card.id && q.mode === 'flip')) {
-                            validIndices.push(i);
-                        }
-                    }
-                }
-                let pickIdx = validIndices[Math.floor(Math.random() * validIndices.length)];
-                finalQueue.push(remaining.splice(pickIdx, 1)[0]);
-            }
-            segmentQueue = finalQueue;
-        } else if (activeQuizMode === 'leeches') {
-            while (segmentQueue.length < targetBatchSize && leechPool.length > 0) {
-                segmentQueue.push({ card: leechPool.shift(), mode: null });
-            }
-        } else if (activeQuizMode === 'all') {
-            while (segmentQueue.length < targetBatchSize && nonDuePool.length > 0) {
-                segmentQueue.push({ card: nonDuePool.shift(), mode: null });
-            }
-        }
-
+        segmentQueue = buildSegmentQueue(activeQuizMode, targetBatchSize);
         if (hadDueCardsAtStart && duePool.length === 0 && activeQuizMode === 'due') { segmentStats.dueClearedNotice = true; }
         renderNextCard();
       }
-
+    </script>

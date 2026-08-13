@@ -1,19 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
 <!-- Apps Script evaluates these partials into one shared page and script scope. -->
   <style>
     <?!= include_("SidebarStyles"); ?>
   </style>
 </head>
-
 <body>
   <?!= include_("SidebarMarkup"); ?>
-
-  <script>
-    <?!= include_("SidebarState"); ?>
-    <?!= include_("SidebarLocalization"); ?>
-    <?!= include_("SidebarUtils"); ?>
-    <?!= include_("SidebarPersistence"); ?>
-    <?!= include_("SidebarDashboard"); ?>
-    <?!= include_("SidebarQuiz"); ?>
-  </script>
+  <?!= include_("SidebarState"); ?>
+  <?!= include_("SidebarLocalization"); ?>
+  <?!= include_("SidebarUtils"); ?>
+  <?!= include_("SidebarPersistence"); ?>
+  <?!= include_("SidebarDashboard"); ?>
+  <?!= include_("SidebarQuiz"); ?>
 </body>
 </html>

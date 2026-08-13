@@ -1,12 +1,17 @@
+    <script>
       let typeInputEl = null;
       let typeSubmitBtnEl = null;
       let nextBtnEl = null;
       let revealBtnEl = null;
       let flipAnswerAreaEl = null;
       let overrideBtnEl = null;
-
-      // Small UI helpers, validation, translation, editing, and navigation.
-      // Keep these functions global: HTML inline handlers call them directly.
+      let quickAddRequestId = 0;
+      let quickAddPendingCalls = 0;
+      let quickAddMergedResults = null;
+      const audioCache = new Map();
+      let quickAddSourceIndex = new Map();
+      let quickAddCardIndex = new Map();
+      let languageSelectsInitialized = false;
       function initDomCache() {
         typeInputEl = $('typeInput');
         typeSubmitBtnEl = $('typeSubmitBtn');
@@ -15,13 +20,11 @@
         flipAnswerAreaEl = $('flipAnswerArea');
         overrideBtnEl = $('overrideBtn');
       }
-
       function ensureDomCache() {
         if (!typeInputEl || !typeSubmitBtnEl || !nextBtnEl || !revealBtnEl || !flipAnswerAreaEl || !overrideBtnEl) {
           initDomCache();
         }
       }
-
       function showCustomAlert(message) {
         const t = i18n[currentUiLang] || i18n.en;
         $('customDialogTitle').innerText = t.notice || "Notice";
@@ -32,7 +35,6 @@
         $('btnDialogConfirm').onclick = () => { $('customDialogModal').style.display = 'none'; };
         $('customDialogModal').style.display = 'flex';
       }
-
       function showCustomPrompt(message, defaultValue, callback) {
         const t = i18n[currentUiLang] || i18n.en;
         $('customDialogTitle').innerText = t.inputRequired || "Input Required";
@@ -48,80 +50,38 @@
         $('customDialogModal').style.display = 'flex';
         setTimeout(() => inputEl.focus(), 100);
       }
-
       function countWords(str) {
         if (!str) return 0;
         return str.trim().split(/\s+/).filter(Boolean).length;
       }
-
-      function applyClientFuzz(intervalInDays) {
-        let fuzzRange = 0;
-
-        if (intervalInDays <= 0.26) fuzzRange = 0.02;
-        else if (intervalInDays <= 0.51) fuzzRange = 0.04;
-        else if (intervalInDays <= 1) fuzzRange = 0.08;
-        else if (intervalInDays <= 4) fuzzRange = 0.5;
-        else if (intervalInDays <= 7) fuzzRange = 1;
-        else if (intervalInDays <= 14) fuzzRange = 2;
-        else fuzzRange = intervalInDays * 0.1;
-
-        const fuzz = (Math.random() * (fuzzRange * 2)) - fuzzRange;
-        return Math.max(0.01, intervalInDays + fuzz);
+      function validateTextFields(fields, warningId) {
+        const warningDiv = $(warningId);
+        const t = i18n[currentUiLang] || i18n.en;
+        const messages = fields.filter(field => field.count > 20).map(field => `${field.label} (${field.count}/20 words)`);
+        const hasError = messages.length > 0;
+        if (hasError) {
+          warningDiv.style.display = 'block';
+          warningDiv.innerText = `${t.wordLimitExceeded}: ${messages.join(', ')}. Please shorten to proceed.`;
+        } else {
+          warningDiv.style.display = 'none';
+          warningDiv.innerText = '';
+        }
+        return hasError;
       }
-
       function validateTranslateInputs() {
-        const sourceVal = $('transSourceInput').value;
-        const resultVal = $('transResultInput').value;
-        const countSource = countWords(sourceVal);
-        const countResult = countWords(resultVal);
-        const warningDiv = $('transWordWarning');
-        const saveBtn = $('btnSaveTransCard');
-        const runBtn = $('btnRunTranslate');
-        const t = i18n[currentUiLang] || i18n.en;
-
-        let hasError = false;
-        let messages = [];
-        if (countSource > 20) { hasError = true; messages.push(`Source (${countSource}/20 words)`); }
-        if (countResult > 20) { hasError = true; messages.push(`Result (${countResult}/20 words)`); }
-
-        if (hasError) {
-          warningDiv.style.display = 'block';
-          warningDiv.innerText = `${t.wordLimitExceeded}: ${messages.join(', ')}. Please shorten to proceed.`;
-          saveBtn.disabled = true;
-          runBtn.disabled = countSource > 20;
-        } else {
-          warningDiv.style.display = 'none';
-          warningDiv.innerText = '';
-          saveBtn.disabled = false;
-          runBtn.disabled = false;
-        }
+        const sourceCount = countWords($('transSourceInput').value);
+        const resultCount = countWords($('transResultInput').value);
+        const invalid = validateTextFields([{ label: 'Source', count: sourceCount }, { label: 'Result', count: resultCount }], 'transWordWarning');
+        $('btnSaveTransCard').disabled = invalid;
+        $('btnRunTranslate').disabled = sourceCount > 20;
       }
-
       function validateEditInputs() {
-        const frontVal = $('editFrontInput').value;
-        const backVal = $('editBackInput').value;
-        const countFront = countWords(frontVal);
-        const countBack = countWords(backVal);
-        const warningDiv = $('editWordWarning');
-        const saveBtn = $('btnSaveEdit');
-        const t = i18n[currentUiLang] || i18n.en;
-
-        let hasError = false;
-        let messages = [];
-        if (countFront > 20) { hasError = true; messages.push(`Front (${countFront}/20 words)`); }
-        if (countBack > 20) { hasError = true; messages.push(`Back (${countBack}/20 words)`); }
-
-        if (hasError) {
-          warningDiv.style.display = 'block';
-          warningDiv.innerText = `${t.wordLimitExceeded}: ${messages.join(', ')}. Please shorten to proceed.`;
-          saveBtn.disabled = true;
-        } else {
-          warningDiv.style.display = 'none';
-          warningDiv.innerText = '';
-          saveBtn.disabled = false;
-        }
+        const invalid = validateTextFields([
+          { label: 'Front', count: countWords($('editFrontInput').value) },
+          { label: 'Back', count: countWords($('editBackInput').value) }
+        ], 'editWordWarning');
+        $('btnSaveEdit').disabled = invalid;
       }
-
       function detectDefaultUiLanguage() {
         const saved = localStorage.getItem('srs_ui_lang');
         if (saved && i18n[saved]) return saved;
@@ -130,113 +90,66 @@
         if (navLang.startsWith('it')) return 'it';
         return 'en';
       }
-
       function changeAppTheme(theme) {
+        if (theme !== 'dark' && theme !== 'kurskollektivet') theme = 'kurskollektivet';
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('srs_app_theme', theme);
         const sel = $('themeSelectUI');
         if (sel) sel.value = theme;
       }
-
       function applyUiLanguage(langCode) {
         if (!i18n[langCode]) langCode = 'en';
         currentUiLang = langCode;
         localStorage.setItem('srs_ui_lang', langCode);
         $('uiLangSelect').value = langCode;
         const t = i18n[langCode];
-
-        $('lblLangCombo').innerText = t.langCombo;
-        $('lblSelectedDeck').innerText = t.selectedDeck;
-        $('btnSwitchDeck').innerText = t.switchDeck;
-        $('btnEditCard').innerText = t.editCard;
+        const localizedText = {
+          lblLangCombo: 'langCombo', lblSelectedDeck: 'selectedDeck', btnSwitchDeck: 'switchDeck', btnEditCard: 'editCard',
+          btnWebApp: 'webAppBtn', lblWebAppTitle: 'webAppTitle', lblWebAppDesc: 'webAppDesc', btnCancelWebApp: 'close',
+          lblEditModalTitle: 'editModalTitle', lblEditFront: 'editFront', lblEditBack: 'editBack', btnSaveEdit: 'saveSheet',
+          btnCancelEdit: 'cancel', openTranslatorBtn: 'openTranslator', lblTranslateTitle: 'translateModalTitle',
+          lblTransDir: 'transDir', lblLookUpText: 'lookUpText', btnRunTranslate: 'runTranslate', lblSelectBestTrans: 'selectBestTrans',
+          lblResultText: 'resultText', btnCancelTranslate: 'close', lblStudiedToday: 'studiedToday', lblStudyConsistency: 'consistency',
+          lblDeckMastery: 'deckMastery', optRangeWeek: 'rangeWeek', optRangeMonth: 'rangeMonth', optRangeYear: 'rangeYear',
+          lblLess: 'less', lblMore: 'more', lblNew: 'newLabel', lblReview: 'reviewLabel', startLeechBtn: 'studyLeeches',
+          revealBtn: 'reveal', typeSubmitBtn: 'submit', nextBtn: 'nextCard', lblListen: 'listen', lblListenAns: 'listenAns',
+          lblOverride: 'override', lblAutoAudio: 'autoAudio', lblConfAgain: 'confAgain', lblConfHard: 'confHard',
+          lblConfGood: 'confGood', lblConfEasy: 'confEasy', btnResetTiles: 'resetTiles', btnSubmitTiles: 'submitOrder',
+          tfSubheader: 'tfHeader', tfTrueBtn: 'trueBtn', tfFalseBtn: 'falseBtn', lblSegmentPerf: 'segmentPerf',
+          lblAccuracy: 'accuracy', lblCorrectAns: 'correctAns', lblPracticeNeeded: 'practiceNeeded', lblNewLearnt: 'newLearnt',
+          lblReviewPracticed: 'reviewPracticed', lblCantListen: 'cantListen'
+        };
+        Object.keys(localizedText).forEach(elementId => {
+          const element = $(elementId);
+          if (element) element.innerText = t[localizedText[elementId]];
+        });
         const btnArchiveCard = $('btnArchiveCard'); if(btnArchiveCard) btnArchiveCard.innerText = t.archiveCard || "🗃️ Archive";
-        $('btnWebApp').innerText = t.webAppBtn;
-        $('lblWebAppTitle').innerText = t.webAppTitle;
-        $('lblWebAppDesc').innerText = t.webAppDesc;
-        $('btnCancelWebApp').innerText = t.close;
         $('btnCopyWebApp').innerText = "📋 " + t.copyLink;
-        $('lblEditModalTitle').innerText = t.editModalTitle;
-        $('lblEditFront').innerText = t.editFront;
-        $('lblEditBack').innerText = t.editBack;
-        $('btnSaveEdit').innerText = t.saveSheet;
-        $('btnCancelEdit').innerText = t.cancel;
-        $('openTranslatorBtn').innerText = t.openTranslator;
-        $('lblTranslateTitle').innerText = t.translateModalTitle;
-        $('lblTransDir').innerText = t.transDir;
-        $('lblLookUpText').innerText = t.lookUpText;
-        $('btnRunTranslate').innerText = t.runTranslate;
-        $('lblSelectBestTrans').innerText = t.selectBestTrans;
-        $('lblResultText').innerText = t.resultText;
-        $('btnSaveTransCard').innerText = t.addCardToDeck || "➕ Add to Deck"; 
-        $('btnCancelTranslate').innerText = t.close;
-        $('lblStudiedToday').innerText = t.studiedToday;
-        $('lblStudyConsistency').innerText = t.consistency;
-        $('lblDeckMastery').innerText = t.deckMastery;
-        $('optRangeWeek').innerText = t.rangeWeek;
-        $('optRangeMonth').innerText = t.rangeMonth;
-        $('optRangeYear').innerText = t.rangeYear;
-        $('lblLess').innerText = t.less;
-        $('lblMore').innerText = t.more;
-        $('lblNew').innerText = t.newLabel;
-        $('lblReview').innerText = t.reviewLabel;
-        $('startLeechBtn').innerText = t.studyLeeches;
-        $('revealBtn').innerText = t.reveal;
-        $('typeSubmitBtn').innerText = t.submit;
-        $('nextBtn').innerText = t.nextCard;
-        
+        $('btnSaveTransCard').innerText = t.addCardToDeck || "➕ Add to Deck";
         $('btnViewStudied').innerText = "📋 " + t.viewList;
         const btnArchive = $('btnArchive'); if(btnArchive) btnArchive.innerText = "🗃️ " + t.archiveMastered;
         const lblRewards = $('lblRewards'); if(lblRewards) lblRewards.innerText = "🏅 " + t.rewards;
-
         const returnDashBtn = $('returnDashBtn');
         if(returnDashBtn && !returnDashBtn.innerText.includes("Loading")) returnDashBtn.innerText = t.returnDash;
         const returnDashSummaryBtn = $('returnDashSummaryBtn');
         if(returnDashSummaryBtn && !returnDashSummaryBtn.innerText.includes("Loading")) returnDashSummaryBtn.innerText = t.returnDash;
-
-        $('lblListen').innerText = t.listen;
-        $('lblListenAns').innerText = t.listenAns;
-        $('lblOverride').innerText = t.override;
-        $('lblAutoAudio').innerText = t.autoAudio;
-        $('lblConfAgain').innerText = t.confAgain;
-        $('lblConfHard').innerText = t.confHard;
-        $('lblConfGood').innerText = t.confGood;
-        $('lblConfEasy').innerText = t.confEasy;
-        $('btnResetTiles').innerText = t.resetTiles;
-        $('btnSubmitTiles').innerText = t.submitOrder;
-        $('tfSubheader').innerText = t.tfHeader;
-        $('tfTrueBtn').innerText = t.trueBtn;
-        $('tfFalseBtn').innerText = t.falseBtn;
-        $('lblSegmentPerf').innerText = t.segmentPerf;
-        $('lblAccuracy').innerText = t.accuracy;
-        $('lblCorrectAns').innerText = t.correctAns;
-        $('lblPracticeNeeded').innerText = t.practiceNeeded;
-        $('lblNewLearnt').innerText = t.newLearnt;
-        $('lblReviewPracticed').innerText = t.reviewPracticed;
-        $('lblCantListen').innerText = t.cantListen;
-
         const lblDidYouMean = $('lblDidYouMean'); if (lblDidYouMean) lblDidYouMean.innerText = t.didYouMean || "Did you mean:";
         const rewardBtn = $('btnRewardDismiss'); if (rewardBtn) rewardBtn.innerText = t.woohoo || "Woohoo!";
-        
         const lblInitializing = $('lblInitializing'); if (lblInitializing) lblInitializing.innerText = t.initializing || "Initializing...";
         const lblStudiedModalTitle = $('lblStudiedModalTitle'); if (lblStudiedModalTitle) lblStudiedModalTitle.innerText = t.studiedModalTitle || "Cards Studied Today";
         const btnStudiedModalClose = $('btnStudiedModalClose'); if (btnStudiedModalClose) btnStudiedModalClose.innerText = t.close || "Close";
-
         const themeSel = $('themeSelectUI');
         if (themeSel) {
             themeSel.options[0].text = t.themeKurs || "🎨 Kurskollektivet Theme";
             themeSel.options[1].text = t.themeDark || "🌙 Dark Theme";
-            themeSel.options[2].text = t.themeLight || "☀️ Light Theme";
         }
-
         updatePairSelectUI();
         updateWindowModeUI();
         if (rawData) {
-            processCardsForActivePair(); 
+            processCardsForActivePair();
         }
       }
-
       function changeUiLanguage(newLang) { applyUiLanguage(newLang); }
-
       function getClientTodayStr() {
         const d = new Date();
         const y = d.getFullYear();
@@ -244,7 +157,6 @@
         const day = String(d.getDate()).padStart(2, '0');
         return `${y}-${m}-${day}`;
       }
-
       function getClientTimeZone() {
         try {
           const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -253,78 +165,118 @@
           return 'UTC';
         }
       }
-
       function openWebAppModal() { $('webAppModal').style.display = 'flex'; }
       function closeWebAppModal() { $('webAppModal').style.display = 'none'; const t = i18n[currentUiLang] || i18n.en; $('btnCopyWebApp').innerText = "📋 " + (t.copyLink || "Copy Link"); }
-
-      function openStudiedModal() {
-        if (studiedTodayPool.length === 0) return;
+      function renderCardListModal(cards, title) {
+        if (!cards || cards.length === 0) return;
         const listEl = $('studiedCardsList');
         const t = i18n[currentUiLang] || i18n.en;
+        $('lblStudiedModalTitle').innerText = title;
         listEl.replaceChildren();
-        studiedTodayPool.forEach(card => {
+        cards.forEach(card => {
           const row = document.createElement('div');
           row.className = 'studied-card-row';
-
           const text = document.createElement('div');
           text.className = 'studied-card-text';
-
           const front = document.createElement('strong');
           front.textContent = card.front;
           text.appendChild(front);
           text.appendChild(document.createElement('br'));
-
           const back = document.createElement('span');
           back.style.color = 'var(--text-muted)';
           back.textContent = card.back;
           text.appendChild(back);
-
-          const editButton = document.createElement('button');
-          editButton.type = 'button';
-          editButton.className = 'btn-edit-studied';
-          editButton.textContent = t.editCard || '✏️ Edit';
-          editButton.title = t.editCard || '✏️ Edit';
-          editButton.addEventListener('click', () => openStudiedCardEdit(card));
-
+          const actionGroup = document.createElement('div');
+          actionGroup.className = 'studied-card-actions';
+          [
+            ['btn-edit-studied', t.editCard || '✏️ Edit', () => openStudiedCardEdit(card)],
+            ['btn-archive-studied', t.archiveCard || '🗃️ Archive', button => archiveListedCard(card, button, row)]
+          ].forEach(([className, label, handler]) => {
+            const button = document.createElement('button');
+            button.type = 'button'; button.className = className;
+            button.textContent = label; button.title = label;
+            button.addEventListener('click', () => handler(button));
+            actionGroup.appendChild(button);
+          });
           row.appendChild(text);
-          row.appendChild(editButton);
+          row.appendChild(actionGroup);
           listEl.appendChild(row);
         });
         $('studiedCardsModal').style.display = 'flex';
       }
-
+      function archiveListedCard(card, button, row) {
+        if (!card || !button) return;
+        const t = i18n[currentUiLang] || i18n.en;
+        const savedDeckId = localStorage.getItem('srs_selected_deck_id') || '';
+        button.disabled = true;
+        button.innerText = '⏳';
+        runServerMutation('archiveSingleCard', [card.rowIndex, savedDeckId, card.id, card.colIdxA, card.colIdxB], res => {
+            if (res && res.success) {
+              if (row) row.remove();
+              $('studiedCardsModal').style.display = 'none';
+              fetchData();
+            } else {
+              button.disabled = false;
+              button.innerText = t.archiveCard || '🗃️ Archive';
+              showCustomAlert('Error archiving card: ' + ((res && (res.error || res.message)) || 'Unknown error'));
+            }
+          }, error => {
+            button.disabled = false;
+            button.innerText = t.archiveCard || '🗃️ Archive';
+            showCustomAlert('Connection Error: ' + error);
+          });
+      }
+      function openStudiedModal() {
+        const t = i18n[currentUiLang] || i18n.en;
+        renderCardListModal(studiedTodayPool, t.studiedModalTitle || 'Cards Studied Today');
+      }
+      function openStageModal(stage) {
+        const stageCards = allCards.filter(card => getStageFromInterval(card.interval, card.isNew) === stage);
+        const t = i18n[currentUiLang] || i18n.en;
+        const title = `${t['stage' + stage] || `Stage ${stage}`} (${stageCards.length})`;
+        renderCardListModal(stageCards, title);
+      }
       function copyWebAppLink() {
         const input = $('webAppUrlInput');
-        input.select(); input.setSelectionRange(0, 99999); 
+        input.select(); input.setSelectionRange(0, 99999);
         if (navigator.clipboard) { navigator.clipboard.writeText(input.value).then(() => { const t = i18n[currentUiLang] || i18n.en; $('btnCopyWebApp').innerText = "✅ " + (t.copied || "Copied!"); }).catch(err => { document.execCommand("copy"); const t = i18n[currentUiLang] || i18n.en; $('btnCopyWebApp').innerText = "✅ " + (t.copied || "Copied!"); }); } else { document.execCommand("copy"); const t = i18n[currentUiLang] || i18n.en; $('btnCopyWebApp').innerText = "✅ " + (t.copied || "Copied!"); }
       }
-
       function getNativeLangName(code) {
-          const lang = ALL_LANGUAGES.find(l => l.code === code);
-          return lang ? lang.name : code.toUpperCase();
+          return LANGUAGE_NAMES[code] || code.toUpperCase();
       }
-
+      function getAvailableLanguages() {
+        const languages = new Map();
+        (rawData && rawData.headers || []).forEach(header => {
+          if (header.trim().toLowerCase() === 'srs card id') return;
+          const code = Object.keys(LANGUAGE_NAMES).find(key => header.toLowerCase().includes(key)) || header.toLowerCase().trim();
+          languages.set(code, { code: code, name: LANGUAGE_NAMES[code] || header });
+        });
+        [selectedPair && selectedPair.codeA, selectedPair && selectedPair.codeB].forEach(code => {
+          if (code && !languages.has(code)) languages.set(code, { code: code, name: getNativeLangName(code) });
+        });
+        return Array.from(languages.values());
+      }
       function updatePairSelectUI() {
         const selA = $('langASelect');
         const selB = $('langBSelect');
         if (!selA || !selB || !selectedPair) return;
-        
-        selA.replaceChildren();
-        selB.replaceChildren();
-        
-        ALL_LANGUAGES.forEach(lang => {
-            let optA = document.createElement('option');
-            optA.value = lang.code; optA.innerText = lang.name;
-            let optB = document.createElement('option');
-            optB.value = lang.code; optB.innerText = lang.name;
-            
-            selA.appendChild(optA);
-            selB.appendChild(optB);
-        });
-        
+        if (!languageSelectsInitialized) {
+          selA.replaceChildren();
+          selB.replaceChildren();
+          const languages = getAvailableLanguages();
+          [['langASelect', languages], ['langBSelect', languages]].forEach(([id, options]) => {
+            const fragment = document.createDocumentFragment();
+            options.forEach(lang => {
+              const option = document.createElement('option');
+              option.value = lang.code; option.innerText = lang.name;
+              fragment.appendChild(option);
+            });
+            $(id).appendChild(fragment);
+          });
+          languageSelectsInitialized = true;
+        }
         selA.value = selectedPair.codeA;
         selB.value = selectedPair.codeB;
-        
         selA.onchange = () => {
           resolvePairColumns();
             selectedPair.codeA = selA.value;
@@ -342,14 +294,12 @@
             processCardsForActivePair();
         };
       }
-
       function openTranslateModal() {
         $('transSourceInput').value = ''; $('transResultInput').value = ''; $('transResultsArea').style.display = 'none'; $('spellcheckArea').style.display = 'none';
         const dirSelect = $('transDirSelect'); dirSelect.replaceChildren();
         if (selectedPair) {
           const nameA = getNativeLangName(selectedPair.codeA);
           const nameB = getNativeLangName(selectedPair.codeB);
-          
           const optForward = document.createElement('option'); optForward.value = 'forward'; optForward.innerText = `${nameA} ➔ ${nameB}`;
           const optReverse = document.createElement('option'); optReverse.value = 'reverse'; optReverse.innerText = `${nameB} ➔ ${nameA}`;
           dirSelect.appendChild(optForward); dirSelect.appendChild(optReverse);
@@ -358,9 +308,77 @@
         $('translateModal').style.display = 'flex';
         setTimeout(() => { $('transSourceInput').focus(); }, 100);
       }
-
       function closeTranslateModal() { $('translateModal').style.display = 'none'; }
-
+      function findQuickAddSourceDuplicate(sourceText, dirValue) {
+        const cleanSource = cleanString(sourceText);
+        if (!cleanSource || !Array.isArray(allCards)) return null;
+        return quickAddSourceIndex.get((dirValue === 'forward' ? 'a:' : 'b:') + cleanSource) || null;
+      }
+      function showQuickAddDuplicate(card) {
+        showCustomAlert(`⚠️ This source already exists in your deck:\n\n${card.front} ➔ ${card.back}`);
+      }
+      function setQuickAddBusy(isBusy) {
+        const button = $('btnRunTranslate');
+        if (button) button.disabled = isBusy;
+      }
+      function runServerMutation(method, args, onSuccess, onFailure) {
+        const runner = google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure || showCustomAlert);
+        runner[method].apply(runner, args);
+      }
+      function renderTranslationResults(res, requestId) {
+        if (requestId !== quickAddRequestId) return;
+        const providers = [
+          ['google', 'optGoogleTrans', 'optGoogleTransText'],
+          ['deepl', 'optDeeplTrans', 'optDeeplTransText'],
+          ['gemini', 'optGeminiTrans', 'optGeminiTransText']
+        ];
+        $('transResultsArea').style.display = 'flex';
+        providers.forEach(([key, buttonId, textId]) => {
+          const value = res && res.success && typeof res[key] === 'string' && res[key].trim() && !/unavailable| error/i.test(res[key]) ? res[key].trim() : '';
+          const button = $(buttonId);
+          button.style.display = 'flex';
+          $(textId).innerText = value || (key === 'google' && res && res.googleError ? 'Unavailable: ' + res.googleError : 'Unavailable');
+          button.setAttribute('data-val', value);
+          const resultInput = $('transResultInput');
+          if (value && (!resultInput.value || resultInput.value === 'Fetching translations...')) resultInput.value = value;
+        });
+        validateTranslateInputs();
+      }
+      function requestQuickAddTranslation(text, sourceCode, targetCode, requestId) {
+        quickAddPendingCalls = 1;
+        quickAddMergedResults = { success: true };
+        const mergeResult = res => {
+          if (requestId !== quickAddRequestId) return;
+          if (res && res.success) {
+            ['google', 'deepl', 'gemini'].forEach(key => {
+              if (res[key] !== undefined) quickAddMergedResults[key] = res[key];
+            });
+          } else if (res && res.error) {
+            quickAddMergedResults.googleError = res.error;
+          }
+          quickAddPendingCalls--;
+          if (quickAddPendingCalls === 0) renderTranslationResults(quickAddMergedResults, requestId);
+        };
+        google.script.run
+          .withSuccessHandler(mergeResult)
+          .withFailureHandler(() => mergeResult(null))
+          .translateText(text, sourceCode, targetCode, true);
+      }
+      function requestQuickAddSpelling(text, sourceCode, targetCode, dirValue, requestId) {
+        google.script.run
+          .withSuccessHandler(res => {
+            if (requestId !== quickAddRequestId || !res || !res.success || !res.corrected || res.corrected === 'OK' || res.corrected.trim().toLowerCase() === text.toLowerCase()) return;
+            $('spellcheckArea').style.display = 'block';
+            $('spellcheckSuggestion').innerText = res.corrected;
+            $('spellcheckSuggestion').onclick = (e) => {
+              e.preventDefault();
+              $('transSourceInput').value = res.corrected.trim();
+              runAiTranslation();
+            };
+          })
+          .withFailureHandler(() => {})
+          .checkSpelling(text, sourceCode);
+      }
       function runAiTranslation() {
         const text = $('transSourceInput').value.trim();
         if (!text) return;
@@ -370,142 +388,91 @@
         const codeB = selectedPair ? selectedPair.codeB : 'en';
         const sourceCode = (dirValue === 'forward') ? codeA : codeB;
         const targetCode = (dirValue === 'forward') ? codeB : codeA;
-
+        const requestId = ++quickAddRequestId;
+        const initialDuplicate = findQuickAddSourceDuplicate(text, dirValue);
+        if (initialDuplicate) {
+          showQuickAddDuplicate(initialDuplicate);
+          return;
+        }
+        setQuickAddBusy(true);
         $('transResultInput').value = "Fetching translations...";
-        $('transResultsArea').style.display = 'none';
+        $('transResultsArea').style.display = 'flex';
+        ['optGoogleTransText', 'optDeeplTransText', 'optGeminiTransText'].forEach(id => $(id).innerText = 'Fetching...');
         $('spellcheckArea').style.display = 'none';
-        
-        // 1. Concurrent Call: Spellcheck
-        google.script.run.withSuccessHandler(res => {
-            if (res && res.success && res.corrected && res.corrected !== 'OK') {
-                $('spellcheckArea').style.display = 'block';
-                $('spellcheckSuggestion').innerText = res.corrected;
-                $('spellcheckSuggestion').onclick = (e) => {
-                    e.preventDefault();
-                    $('transSourceInput').value = res.corrected;
-                    runAiTranslation(); // Re-run translation with corrected text
-                };
-            }
-          }).withFailureHandler(() => {}).checkSpelling(text, sourceCode);
-        
-        // 2. Main Call: Translation
-        google.script.run
-          .withSuccessHandler(res => {
-            if (res.success) {
-              $('transResultsArea').style.display = 'flex';
-              
-              if (res.google && !res.google.includes("unavailable")) {
-                $('optGoogleTrans').style.display = 'flex'; 
-                $('optGoogleTransText').innerText = res.google; 
-                $('optGoogleTrans').setAttribute('data-val', res.google); 
-                $('transResultInput').value = res.google;
-              } else { $('optGoogleTrans').style.display = 'none'; }
-              
-              if (res.deepl && res.deepl.trim().length > 0 && !res.deepl.startsWith("DeepL Error")) {
-                $('optDeeplTrans').style.display = 'flex'; 
-                $('optDeeplTransText').innerText = res.deepl; 
-                $('optDeeplTrans').setAttribute('data-val', res.deepl);
-              } else {
-                $('optDeeplTrans').style.display = 'none';
-              }
-
-              if (res.gemini && res.gemini.trim().length > 0 && !res.gemini.startsWith("Gemini Error")) {
-                $('optGeminiTrans').style.display = 'flex'; 
-                $('optGeminiTransText').innerText = res.gemini; 
-                $('optGeminiTrans').setAttribute('data-val', res.gemini);
-                
-                if (!res.gemini.startsWith("Gemini Error") && (!res.google || res.google.includes("unavailable"))) { 
-                   $('transResultInput').value = res.gemini; 
-                }
-              } else {
-                $('optGeminiTrans').style.display = 'none';
-              }
-
-              validateTranslateInputs();
-            } else { 
-              $('transResultInput').value = ""; 
-              validateTranslateInputs(); 
-            }
-          })
-          .withFailureHandler(() => { 
-            $('transResultInput').value = ""; 
-            validateTranslateInputs(); 
-          })
-          .translateText(text, sourceCode, targetCode);
+        requestQuickAddTranslation(text, sourceCode, targetCode, requestId);
+        requestQuickAddSpelling(text, sourceCode, targetCode, dirValue, requestId);
+        setQuickAddBusy(false);
       }
-
       function selectTranslationOption(val) {
         if (!val) return;
         $('transResultInput').value = val.trim(); validateTranslateInputs(); $('transResultInput').focus();
       }
-
       function saveTranslatedCard() {
         const lookupText = $('transSourceInput').value.trim();
         const translationText = $('transResultInput').value.trim();
         const t = i18n[currentUiLang] || i18n.en;
-        
-        if (!lookupText || !translationText || translationText === "Fetching translations...") { 
-          showCustomAlert("Please look up a translation first."); 
-          return; 
+        if (!lookupText || !translationText || translationText === "Fetching translations...") {
+          showCustomAlert("Please look up a translation first.");
+          return;
         }
-        if (countWords(lookupText) > 20 || countWords(translationText) > 20) { 
-          validateTranslateInputs(); 
-          return; 
+        if (countWords(lookupText) > 20 || countWords(translationText) > 20) {
+          validateTranslateInputs();
+          return;
         }
-
         const dirValue = $('transDirSelect').value;
         let cardLangA, cardLangB;
-        if (dirValue === 'forward') { 
-          cardLangA = lookupText; 
-          cardLangB = translationText; 
-        } else { 
-          cardLangA = translationText; 
-          cardLangB = lookupText; 
+        if (dirValue === 'forward') {
+          cardLangA = lookupText;
+          cardLangB = translationText;
+        } else {
+          cardLangA = translationText;
+          cardLangB = lookupText;
         }
-
         const cleanA = cleanString(cardLangA);
         const cleanB = cleanString(cardLangB);
-        const duplicateCard = allCards.find(c => cleanString(c.front) === cleanA && cleanString(c.back) === cleanB);
+        const duplicateCard = quickAddCardIndex.get(cleanA + ':::' + cleanB);
         if (duplicateCard) {
             showCustomAlert(`⚠️ Duplicate detected!\n\nThis word already exists in your deck as:\n\n${duplicateCard.front} ➔ ${duplicateCard.back}`);
             return;
         }
-
         const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
-
         $('btnSaveTransCard').disabled = true;
         $('btnSaveTransCard').innerText = "Saving...";
         google.script.run
           .withSuccessHandler(res => {
             $('btnSaveTransCard').disabled = false; $('btnSaveTransCard').innerText = t.addCardToDeck || "➕ Add to Deck";
-            if (res.success) { showCustomAlert("🎉 Card added directly to your spreadsheet deck!"); closeTranslateModal(); fetchData(); } else { showCustomAlert("Error adding card: " + res.error); }
+            if (res.success) {
+              showCustomAlert("🎉 Card added directly to your spreadsheet deck!");
+              closeTranslateModal();
+              fetchData();
+            } else if (res.duplicate) {
+              showQuickAddDuplicate({ front: res.front, back: res.back });
+            } else {
+              showCustomAlert("Error adding card: " + res.error);
+            }
           })
           .withFailureHandler(e => { $('btnSaveTransCard').disabled = false; showCustomAlert("Error saving card: " + e); })
           .addNewCardToSheet(cardLangA, cardLangB, savedDeckId, selectedPair.idxA, selectedPair.idxB);
       }
-
       function openEditModal() {
         if (!currentCard) return;
         $('editFrontInput').value = currentCard.front; $('editBackInput').value = currentCard.back;
         validateEditInputs(); $('editCardModal').style.display = 'flex';
       }
-
       function openStudiedCardEdit(card) {
         currentCard = card;
         $('studiedCardsModal').style.display = 'none';
         openEditModal();
       }
-
       function closeEditModal() { $('editCardModal').style.display = 'none'; }
-
       function saveCardEdit() {
         if (!currentCard) return;
         const newFront = $('editFrontInput').value.trim(); const newBack = $('editBackInput').value.trim();
         if (!newFront || !newBack) { showCustomAlert("Both front and back fields must contain text."); return; }
         if (countWords(newFront) > 20 || countWords(newBack) > 20) { validateEditInputs(); return; }
-
         const oldCardId = currentCard.id;
-
+        // Update the local card immediately for responsive quiz UI. If the
+        // server rejects the write, fetchData() restores the authoritative row.
         currentCard.front = newFront; currentCard.back = newBack;
         if (rawData && rawData.rawRows && currentCard.rowIndex) {
           const row = rawData.rawRows[currentCard.rowIndex - 2];
@@ -516,46 +483,35 @@
         }
         targetPrompt = isForward ? currentCard.front : currentCard.back; targetAnswer = isForward ? currentCard.back : currentCard.front;
         const dispAnswerLang = getDisplayLangCode(answerLangCode);
-
-        if (currentMode === 'flip') { $('promptMain').innerText = targetPrompt; $('flipAnswerText').innerText = targetAnswer; } 
-        else if (currentMode === 'word_tiles') { setupWordTiles(); } 
-        else if (currentMode === 'faded_hints') { setupFadedHints(dispAnswerLang); } 
+        if (currentMode === 'flip') { $('promptMain').innerText = targetPrompt; $('flipAnswerText').innerText = targetAnswer; }
+        else if (currentMode === 'word_tiles') { setupWordTiles(); }
+        else if (currentMode === 'faded_hints') { setupFadedHints(dispAnswerLang); }
         else { $('promptMain').innerText = targetPrompt; }
-
         closeEditModal();
         const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
-        google.script.run
-          .withSuccessHandler(() => { console.log("Card updated in spreadsheet!"); })
-          .withFailureHandler(e => { showCustomAlert("Error saving to spreadsheet: " + e); fetchData(); })
-          .updateCardInSheet(currentCard.rowIndex, currentCard.colIdxA, currentCard.colIdxB, newFront, newBack, savedDeckId, oldCardId);
+        runServerMutation('updateCardInSheet', [currentCard.rowIndex, currentCard.colIdxA, currentCard.colIdxB, newFront, newBack, savedDeckId, oldCardId], () => {}, e => { showCustomAlert("Error saving to spreadsheet: " + e); fetchData(); });
       }
-
       function archiveMasteredCards() {
         const btn = $('btnArchive'); if(!btn) return;
         const oldText = btn.innerText; btn.innerText = "⏳ Archiving..."; btn.disabled = true;
         const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
-        google.script.run
-          .withSuccessHandler(res => {
+        runServerMutation('archiveMasteredCards', [savedDeckId, selectedPair.idxA, selectedPair.idxB], res => {
             btn.innerText = oldText; btn.disabled = false;
             if (res.success) { showCustomAlert(res.message); if (res.count > 0) fetchData(); } else { showCustomAlert("Error: " + res.message); }
-          })
-          .withFailureHandler(e => { showCustomAlert("Error: " + e); btn.innerText = oldText; btn.disabled = false; })
-          .archiveMasteredCards(savedDeckId, selectedPair.idxA, selectedPair.idxB);
+          }, e => { showCustomAlert("Error: " + e); btn.innerText = oldText; btn.disabled = false; });
       }
-
       function extractSpreadsheetId(urlOrId) {
         if (!urlOrId) return "";
         const match = urlOrId.match(/\/d\/([a-zA-Z0-9-_]+)/);
         if (match && match[1]) { return match[1]; }
         return urlOrId.trim();
       }
-
       function promptSwitchDeck() {
         const t = i18n[currentUiLang] || i18n.en;
         showCustomPrompt(t.deckPrompt, "", (input) => {
           if (input !== null) {
             const cleanInput = input.trim();
-            if (cleanInput === "") { localStorage.removeItem('srs_selected_deck_id'); fetchData(); } 
+            if (cleanInput === "") { localStorage.removeItem('srs_selected_deck_id'); fetchData(); }
             else {
               const extractedId = extractSpreadsheetId(cleanInput);
               if (extractedId) { localStorage.setItem('srs_selected_deck_id', extractedId); fetchData(); }
@@ -563,21 +519,19 @@
           }
         });
       }
-
       function getOrdinal(n) { const s = ["th", "st", "nd", "rd"]; const v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
       function formatDateKey(d) { const year = d.getFullYear(); const month = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0'); return `${year}-${month}-${day}`; }
-
       // Advanced Heuristic Auto-Detection for Rows 2+
       function detectLangFromRows(colIdx, rawRows) {
+          // This is a best-effort fallback for decks without saved header
+          // metadata; explicit user selections always win in initLanguages().
           if (!rawRows || rawRows.length === 0) return (colIdx === 0 ? 'no' : 'en');
-          
           let sampleText = "";
           for(let i=0; i<Math.min(20, rawRows.length); i++) {
               if(rawRows[i] && rawRows[i][colIdx]) {
                   sampleText += " " + rawRows[i][colIdx].toString().toLowerCase() + " ";
               }
           }
-          
           const langSignatures = {
               en: { chars: [], words: [" the ", " be ", " to ", " of ", " and ", " in ", " that ", " have ", " it ", " is "] },
               no: { chars: ["æ", "ø", "å"], words: [" og ", " det ", " er ", " til ", " en ", " av ", " for ", " med ", " at ", " ikke ", " som ", " på ", " vi "] },
@@ -586,19 +540,17 @@
               fr: { chars: ["œ", "ç", "à", "â", "é", "è", "ê", "ë", "î", "ï", "ô", "ù", "û", "ü"], words: [" le ", " de ", " un ", " est ", " et ", " il ", " les ", " en ", " que ", " la ", " pour "] },
               de: { chars: ["ä", "ö", "ü", "ß"], words: [" der ", " die ", " und ", " in ", " den ", " von ", " zu ", " das ", " mit ", " sich ", " auf ", " für "] }
           };
-
           let scores = { en: 0, no: 0, it: 0, es: 0, fr: 0, de: 0 };
           for (const [lang, sig] of Object.entries(langSignatures)) {
               sig.chars.forEach(char => {
                   let matches = sampleText.split(char).length - 1;
-                  scores[lang] += matches * 5; 
+                  scores[lang] += matches * 5;
               });
               sig.words.forEach(word => {
                   let matches = sampleText.split(word).length - 1;
-                  scores[lang] += matches * 2; 
+                  scores[lang] += matches * 2;
               });
           }
-          
           let bestLang = (colIdx === 0 ? 'no' : 'en');
           let maxScore = 0;
           for (const [lang, score] of Object.entries(scores)) {
@@ -609,17 +561,14 @@
           }
           return bestLang;
       }
-
       function initLanguages() {
         const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "default";
         let savedA = localStorage.getItem('srs_langA_' + savedDeckId);
         let savedB = localStorage.getItem('srs_langB_' + savedDeckId);
         let savedHeaderA = localStorage.getItem('srs_headerA_' + savedDeckId);
         let savedHeaderB = localStorage.getItem('srs_headerB_' + savedDeckId);
-        
         let codeA = savedA || detectLangFromRows(0, rawData.rawRows);
         let codeB = savedB || detectLangFromRows(1, rawData.rawRows);
-        
         let idxA = savedHeaderA ? rawData.headers.indexOf(savedHeaderA) : 0;
         let idxB = savedHeaderB ? rawData.headers.indexOf(savedHeaderB) : 1;
         if (idxA < 0 || idxA >= rawData.headers.length) idxA = 0;
@@ -629,14 +578,14 @@
         localStorage.setItem('srs_headerB_' + savedDeckId, selectedPair.headerB || '');
         updatePairSelectUI();
       }
-
       function resolvePairColumns() {
         if (!rawData || !rawData.headers || !selectedPair) return;
+        // Headers are the stable anchor. Language-name matching is only used
+        // when a saved header was removed or renamed in the spreadsheet.
         const idxA = selectedPair.headerA ? rawData.headers.indexOf(selectedPair.headerA) : -1;
         const idxB = selectedPair.headerB ? rawData.headers.indexOf(selectedPair.headerB) : -1;
         const findLanguageHeader = (code, excludedIdx) => {
-          const language = ALL_LANGUAGES.find(item => item.code === code);
-          const terms = [code, language && language.name].filter(Boolean).map(term => term.toLowerCase());
+          const terms = [code, getNativeLangName(code)].filter(Boolean).map(term => term.toLowerCase());
           return rawData.headers.findIndex((header, index) => {
             if (index === excludedIdx || header.trim().toLowerCase() === 'srs card id') return false;
             const normalized = header.toLowerCase();
@@ -650,27 +599,26 @@
         selectedPair.headerA = rawData.headers[selectedPair.idxA];
         selectedPair.headerB = rawData.headers[selectedPair.idxB];
       }
-
       function isEnglish(code) { return !code || code.toLowerCase().trim() === 'en'; }
-
       function cleanString(str) {
+        // Used for duplicate detection and answer comparison, not for display.
         if (!str) return '';
         return str.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/g, '').replace(/\s+/g, ' ').trim();
       }
-
       function levenshteinDistance(a, b) {
+        // Dynamic programming gives edit distance for typing mode without an
+        // external dependency; callers decide what distance is acceptable.
         const matrix = [];
         for (let i = 0; i <= b.length; i++) matrix[i] = [i];
         for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
         for (let i = 1; i <= b.length; i++) {
           for (let j = 1; j <= a.length; j++) {
-            if (b.charAt(i - 1) === a.charAt(j - 1)) { matrix[i][j] = matrix[i - 1][j - 1]; } 
+            if (b.charAt(i - 1) === a.charAt(j - 1)) { matrix[i][j] = matrix[i - 1][j - 1]; }
             else { matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1); }
           }
         }
         return matrix[b.length][a.length];
       }
-
       function updateWindowModeUI() {
         const btnPop = $('popoutToggleBtn'); const btnWeb = $('btnWebApp');
         const isWebApp = (window.IS_WEB_APP === true);
@@ -679,9 +627,9 @@
         } else {
           const t = i18n[currentUiLang] || i18n.en;
           if (btnPop) {
-            if (window.innerWidth > 400) { btnPop.innerText = t.dockSidebar; btnPop.title = t.dockTitle; } 
+            if (window.innerWidth > 400) { btnPop.innerText = t.dockSidebar; btnPop.title = t.dockTitle; }
             else { btnPop.innerText = t.popOut; btnPop.title = t.popoutTitle; }
           }
         }
       }
-
+    </script>

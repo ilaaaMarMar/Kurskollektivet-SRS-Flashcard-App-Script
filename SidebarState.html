@@ -1,93 +1,63 @@
-    // Shared client state. Keep declarations global because inline handlers
-    // and all included script partials use the same Apps Script page scope.
+  <script>
     const $ = id => document.getElementById(id);
-
       let rawData = null;
       let activeUserKey = "";
       let currentWebAppUrl = "";
-
       let selectedPair = { idxA: 0, idxB: 1, codeA: 'no', codeB: 'en' };
-
       let allCards = [];
       let duePool = [];
       let newPool = [];
       let leechPool = [];
       let nonDuePool = [];
       let studiedTodayPool = [];
-
       let activeQuizMode = 'due';
       let segmentQueue = [];
       let currentCard = null;
-      
       let isForward = true;
       let targetPrompt = "";
       let targetAnswer = "";
       let promptLangCode = "en";
       let answerLangCode = "en";
       let currentMode = "";
-      
       let mcqCorrectIndex = -1;
       let tfIsActuallyCorrect = false;
       let tfProposedText = "";
-
       let clozeTargetWordRaw = "";
       let clozeTargetWordClean = "";
       let clozeClueType = "";
-
       let currentTileSelected = [];
       let targetTileWords = [];
-
+      let quizDistractorWords = { front: [], back: [] };
       let lastGradedCard = null;
       let pendingBatchResults = [];
       let nextPendingResultId = 1;
       let isFlushInFlight = false;
+      let pendingFlushPromise = null;
       let hasAutoPlayed = false;
       let isRetyping = false;
-
       let segmentStats = { correct: 0, wrong: 0, newCards: 0, reviewCards: 0, dueClearedNotice: false };
       let nextDueTimestamp = Infinity;
       let dueCountdownInterval = null;
-      let lastFeedbackTime = 0; 
-
-      const badgesFlora = [
-        { id: 'w4', req: 4, type: 'week', emoji: '🌱', name: '4 Days/Wk', color: 'var(--success)' }, 
-        { id: 'w5', req: 5, type: 'week', emoji: '☘️', name: '5 Days/Wk', color: '#0f9d58' },
-        { id: 'w6', req: 6, type: 'week', emoji: '🌿', name: '6 Days/Wk', color: '#00bfa5' }, 
-        { id: 'w7', req: 7, type: 'week', emoji: '🪴', name: '7 Days/Wk', color: '#00bcd4' }, 
-        { id: 'm10', req: 10, type: 'month', emoji: '🌼', name: '10 Days/Mo', color: '#4285f4' }, 
-        { id: 'm20', req: 20, type: 'month', emoji: '🌸', name: '20 Days/Mo', color: 'var(--primary)' },
-        { id: 'm30', req: 30, type: 'month', emoji: '🌺', name: '30 Days/Mo', color: '#3f51b5' }, 
-        { id: 'y60', req: 60, type: 'year', emoji: '🍄', name: '60 Days/Yr', color: '#673ab7' }, 
-        { id: 'y90', req: 90, type: 'year', emoji: '🪷', name: '90 Days/Yr', color: 'var(--violet)' },
-        { id: 'y120', req: 120, type: 'year', emoji: '🌹', name: '120 Days/Yr', color: '#ab47bc' },
-        { id: 'y150', req: 150, type: 'year', emoji: '🌻', name: '150 Days/Yr', color: '#e91e63' }, 
-        { id: 'y180', req: 180, type: 'year', emoji: '🌵', name: '180 Days/Yr', color: '#f06292' },
-        { id: 'y210', req: 210, type: 'year', emoji: '🎋', name: '210 Days/Yr', color: 'var(--danger)' }, 
-        { id: 'y240', req: 240, type: 'year', emoji: '🌴', name: '240 Days/Yr', color: '#d32f2f' },
-        { id: 'y270', req: 270, type: 'year', emoji: '🌳', name: '270 Days/Yr', color: '#ff5722' }, 
-        { id: 'y300', req: 300, type: 'year', emoji: '🌲', name: '300 Days/Yr', color: '#f57c00' },
-        { id: 'y330', req: 330, type: 'year', emoji: '🎄', name: '330 Days/Yr', color: '#ff9800' }, 
-        { id: 'y360', req: 360, type: 'year', emoji: '🍀', name: '360 Days/Yr', color: '#f9a825' }  
-      ];
-
+      let lastFeedbackTime = 0;
+      let lastShownRewardFingerprint = "";
       const badgesFauna = [
-        { id: 'w4', req: 4, type: 'week', emoji: '🐛', name: '4 Days/Wk', color: 'var(--success)' }, 
+        { id: 'w4', req: 4, type: 'week', emoji: '🐛', name: '4 Days/Wk', color: 'var(--success)' },
         { id: 'w5', req: 5, type: 'week', emoji: '🦋', name: '5 Days/Wk', color: '#0f9d58' },
-        { id: 'w6', req: 6, type: 'week', emoji: '🐁', name: '6 Days/Wk', color: '#00bfa5' }, 
-        { id: 'w7', req: 7, type: 'week', emoji: '🐇', name: '7 Days/Wk', color: '#00bcd4' }, 
-        { id: 'm10', req: 10, type: 'month', emoji: '🦊', name: '10 Days/Mo', color: '#4285f4' }, 
+        { id: 'w6', req: 6, type: 'week', emoji: '🐁', name: '6 Days/Wk', color: '#00bfa5' },
+        { id: 'w7', req: 7, type: 'week', emoji: '🐇', name: '7 Days/Wk', color: '#00bcd4' },
+        { id: 'm10', req: 10, type: 'month', emoji: '🦊', name: '10 Days/Mo', color: '#4285f4' },
         { id: 'm20', req: 20, type: 'month', emoji: '🐺', name: '20 Days/Mo', color: 'var(--primary)' },
-        { id: 'm30', req: 30, type: 'month', emoji: '🐻', name: '30 Days/Mo', color: '#3f51b5' }, 
-        { id: 'y60', req: 60, type: 'year', emoji: '🦅', name: '60 Days/Yr', color: '#673ab7' }, 
+        { id: 'm30', req: 30, type: 'month', emoji: '🐻', name: '30 Days/Mo', color: '#3f51b5' },
+        { id: 'y60', req: 60, type: 'year', emoji: '🦅', name: '60 Days/Yr', color: '#673ab7' },
         { id: 'y90', req: 90, type: 'year', emoji: '🐅', name: '90 Days/Yr', color: 'var(--violet)' },
         { id: 'y120', req: 120, type: 'year', emoji: '🐆', name: '120 Days/Yr', color: '#ab47bc' },
-        { id: 'y150', req: 150, type: 'year', emoji: '🦍', name: '150 Days/Yr', color: '#e91e63' }, 
+        { id: 'y150', req: 150, type: 'year', emoji: '🦍', name: '150 Days/Yr', color: '#e91e63' },
         { id: 'y180', req: 180, type: 'year', emoji: '🦏', name: '180 Days/Yr', color: '#f06292' },
-        { id: 'y210', req: 210, type: 'year', emoji: '🐘', name: '210 Days/Yr', color: 'var(--danger)' }, 
+        { id: 'y210', req: 210, type: 'year', emoji: '🐘', name: '210 Days/Yr', color: 'var(--danger)' },
         { id: 'y240', req: 240, type: 'year', emoji: '🐋', name: '240 Days/Yr', color: '#d32f2f' },
-        { id: 'y270', req: 270, type: 'year', emoji: '🦖', name: '270 Days/Yr', color: '#ff5722' }, 
+        { id: 'y270', req: 270, type: 'year', emoji: '🦖', name: '270 Days/Yr', color: '#ff5722' },
         { id: 'y300', req: 300, type: 'year', emoji: '🦄', name: '300 Days/Yr', color: '#f57c00' },
-        { id: 'y330', req: 330, type: 'year', emoji: '🐉', name: '330 Days/Yr', color: '#ff9800' }, 
-        { id: 'y360', req: 360, type: 'year', emoji: '🐦‍🔥', name: '360 Days/Yr', color: '#f9a825' }  
+        { id: 'y330', req: 330, type: 'year', emoji: '🐉', name: '330 Days/Yr', color: '#ff9800' },
+        { id: 'y360', req: 360, type: 'year', emoji: '🐦‍🔥', name: '360 Days/Yr', color: '#f9a825' }
       ];
-
+    </script>

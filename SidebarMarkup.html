@@ -1,9 +1,8 @@
-  <!-- Partial: static modals, dashboard controls, quiz controls, and summary. -->
   <div class="logo-container">
-    <img id="appLogo" src="https://github.com/ilaaaMarMar/Kurskollektivet/blob/main/LOGO%20KK%20banner%20cropped.png?raw=true" alt="Kurskollektivet Logo" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='block';">
+    <img id="appLogo" width="355" height="50" loading="eager" fetchpriority="high" src="https://raw.githubusercontent.com/ilaaaMarMar/Kurskollektivet-SRS-Flashcard-App-Script/refs/heads/main/LOGO%20KK%20banner%20cropped.png" alt="Kurskollektivet Logo" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='block';">
     <div id="logoFallback" style="display:none; font-size: 26px; font-weight: 900; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; width: 100%; text-align: center;">Kurskollektivet</div>
   </div>
-
+  <div id="loggedInUser" style="width:100%; max-width:700px; margin:-4px auto 10px; font-size:11px; color:var(--success-text); font-weight:700; text-align:center;"></div>
   <div id="customDialogModal" class="modal" style="z-index:9999;">
     <div class="modal-content">
       <h3 style="margin-top:0;" id="customDialogTitle">Notice</h3>
@@ -15,7 +14,6 @@
       </div>
     </div>
   </div>
-
   <div id="rewardModal" class="modal" style="z-index:2500;">
     <div class="modal-content" style="text-align: center; max-width: 300px;">
       <div id="rewardModalTitle" style="font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">🎉 New Reward!</div>
@@ -24,7 +22,6 @@
       <button class="btn-primary" style="margin-top: 14px;" onclick="document.getElementById('rewardModal').style.display='none'" id="btnRewardDismiss">Woohoo!</button>
     </div>
   </div>
-
   <div id="studiedCardsModal" class="modal">
     <div class="modal-content" style="max-height: 80vh; display:flex; flex-direction:column;">
       <h3 style="margin-top: 0; margin-bottom: 8px;" id="lblStudiedModalTitle">Cards Studied Today</h3>
@@ -32,11 +29,9 @@
       <button class="btn-secondary" style="margin-top:14px;" onclick="document.getElementById('studiedCardsModal').style.display='none'" id="btnStudiedModalClose">Close</button>
     </div>
   </div>
-
   <div id="loading-ui" style="text-align: center; margin-top: 50px; font-weight: 600; color: var(--text-muted); width: 100%;">
     <p id="lblInitializing">Initializing...</p>
   </div>
-
   <div id="main-ui" class="view-section" style="width: 100%;">
     <div id="webAppModal" class="modal" style="z-index:1000;">
       <div class="modal-content">
@@ -49,7 +44,6 @@
         </div>
       </div>
     </div>
-
     <div id="editCardModal" class="modal" style="z-index:1000;">
       <div class="modal-content">
         <div style="font-weight:700; font-size:14px; margin-bottom:10px; color:var(--text-main);" id="lblEditModalTitle">✏️ Edit Card</div>
@@ -64,7 +58,6 @@
         </div>
       </div>
     </div>
-
     <div id="translateModal" class="modal" style="z-index:1000;">
       <div class="modal-content">
         <div style="font-weight:700; font-size:14px; margin-bottom:10px; color:var(--text-main);" id="lblTranslateTitle">🔍 Dictionary & Quick Add</div>
@@ -78,29 +71,24 @@
           <input type="text" id="transSourceInput" style="margin-bottom:0;" placeholder="Type word..." oninput="validateTranslateInputs()" onkeydown="if(event.key==='Enter') runAiTranslation()">
           <button class="btn-primary" style="width:auto; padding:0 12px; white-space:nowrap;" onclick="runAiTranslation()" id="btnRunTranslate">🔍 Translate</button>
         </div>
-        
         <div id="spellcheckArea" style="display:none; color: var(--warning-text); font-size: 14px; margin-top: -4px; margin-bottom: 10px; font-weight: 700; text-align: left;">
            <span id="lblDidYouMean" style="font-size: 14px; font-weight: 800;">Did you mean:</span>
            <a href="#" id="spellcheckSuggestion" style="color: var(--primary); text-decoration: none; cursor: pointer; font-size: 15px; font-weight: 800; padding: 6px 10px; border-radius: 8px; background: rgba(59, 130, 246, 0.12); display: inline-block; margin-top: 4px;">Suggestion</a>
         </div>
         <div id="transResultsArea" style="display:none; flex-direction:column; gap:6px; margin-bottom:12px; background:var(--bg-secondary); padding:8px; border-radius:8px;">
           <div style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; text-align:left;" id="lblSelectBestTrans">Select the best translation:</div>
-          
           <button class="btn-mcq" style="padding:8px 10px; display:flex; flex-direction:column; gap:2px;" onclick="selectTranslationOption(this.getAttribute('data-val'))" id="optGoogleTrans">
               <span style="font-size:10px; font-weight:700; color:var(--primary); text-transform:uppercase;">🌐 Google Translate</span>
               <span style="font-size:13px; font-weight:600; color:var(--text-main);" id="optGoogleTransText">...</span>
           </button>
-          
           <button class="btn-mcq" style="padding:8px 10px; display:flex; flex-direction:column; gap:2px;" onclick="selectTranslationOption(this.getAttribute('data-val'))" id="optDeeplTrans">
               <span style="font-size:10px; font-weight:700; color:var(--primary); text-transform:uppercase;">🟦 DeepL Translator</span>
               <span style="font-size:13px; font-weight:600; color:var(--text-main);" id="optDeeplTransText">...</span>
           </button>
-
           <button class="btn-mcq" style="padding:8px 10px; display:flex; flex-direction:column; gap:2px;" onclick="selectTranslationOption(this.getAttribute('data-val'))" id="optGeminiTrans">
               <span style="font-size:10px; font-weight:700; color:var(--primary); text-transform:uppercase;">✨ Google Gemini AI</span>
               <span style="font-size:13px; font-weight:600; color:var(--text-main);" id="optGeminiTransText">...</span>
           </button>
-
         </div>
         <label style="font-size:11px; font-weight:600; color:var(--text-muted); display:block; text-align:left;" id="lblResultText">Final Card Answer:</label>
         <input type="text" id="transResultInput" style="margin-top:2px; margin-bottom:12px;" placeholder="Result will appear here..." oninput="validateTranslateInputs()">
@@ -110,7 +98,6 @@
         </div>
       </div>
     </div>
-
     <div class="user-bar-container">
       <button class="lang-select-btn" onclick="openWebAppModal()" title="Open Web App Link" id="btnWebApp">🌐 Web App ↗</button>
       <select id="uiLangSelect" class="lang-select-btn" onchange="changeUiLanguage(this.value)">
@@ -121,11 +108,9 @@
       <select id="themeSelectUI" class="lang-select-btn" onchange="changeAppTheme(this.value)">
           <option value="kurskollektivet">🎨 Kurskollektivet Theme</option>
           <option value="dark">🌙 Dark Theme</option>
-          <option value="light">☀️ Light Theme</option>
       </select>
       <button class="btn-popout" id="popoutToggleBtn" onclick="handleWindowToggle()">↗ Pop Out</button>
     </div>
-
     <div id="viewDashboard" class="dash-container">
       <div class="stat-card">
         <div class="stat-title" id="lblLangCombo">Language Combination</div>
@@ -135,7 +120,6 @@
             <select id="langBSelect" style="flex:1; min-width:0; text-overflow:ellipsis; padding:6px; border:none; background:var(--bg-card); font-size:13px; font-weight:800; color:var(--primary); border-radius:4px; cursor:pointer; text-align:center; text-align-last:center; text-transform:uppercase;"></select>
         </div>
       </div>
-      
       <div class="stat-card">
         <div class="stat-title" id="lblSelectedDeck">Selected Deck</div>
         <div style="font-size: 13px; font-weight: 600; color: var(--text-main); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px;">
@@ -145,16 +129,13 @@
           </div>
         </div>
       </div>
-
       <!-- Action Buttons -->
       <button class="btn-primary" id="startReviewBtn" onclick="startQuiz('due')">🚀 Study Due Cards</button>
       <button class="btn-success" id="startNewBtn" onclick="startQuiz('new')">✨ Study New Cards</button>
-
       <div class="row">
         <button class="btn-violet" id="openTranslatorBtn" onclick="openTranslateModal()">🔍 Translate & Quick Add</button>
         <button class="btn-warning" id="startLeechBtn" onclick="startQuiz('leeches')">⚡ Study Difficult Cards</button>
       </div>
-
       <!-- Studied Today -->
       <div class="stat-card" id="cardStudiedToday">
         <div class="stat-header-row">
@@ -169,7 +150,6 @@
           </div>
         </div>
       </div>
-
       <!-- Deck Mastery Levels -->
       <div class="stat-card">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -178,16 +158,20 @@
         </div>
         <div class="box-grid" id="dashBoxGrid"></div>
       </div>
-
       <!-- Study Consistency -->
       <div class="stat-card">
         <div class="heatmap-header">
           <div class="stat-title" id="lblStudyConsistency" style="margin-bottom:0;">🗓️ Study Consistency</div>
-          <select id="hmRangeSelect" class="range-select" onchange="renderHeatmap()">
-              <option value="7" selected id="optRangeWeek">1 Week</option>
-              <option value="30" id="optRangeMonth">1 Month</option>
-              <option value="365" id="optRangeYear">1 Year</option>
-          </select>
+          <div class="heatmap-controls">
+            <button type="button" id="hmPrevBtn" class="heatmap-nav-btn" onclick="shiftHeatmapWindow(-1)" aria-label="Previous period">◀</button>
+            <span id="hmPeriodLabel" class="heatmap-period-label">This Week</span>
+            <button type="button" id="hmNextBtn" class="heatmap-nav-btn" onclick="shiftHeatmapWindow(1)" aria-label="Next period">▶</button>
+            <select id="hmRangeSelect" class="range-select" onchange="onHeatmapRangeChange()">
+                <option value="7" selected id="optRangeWeek">1 Week</option>
+                <option value="30" id="optRangeMonth">1 Month</option>
+                <option value="365" id="optRangeYear">1 Year</option>
+            </select>
+          </div>
         </div>
         <div class="heatmap-stats-bar" id="hmStatsBar">Active 0 days</div>
         <div class="heatmap-container" id="hmScrollContainer">
@@ -206,23 +190,16 @@
           <span id="lblMore">More</span>
         </div>
       </div>
-
       <!-- GAMIFICATION BADGES BOX (Rewards) -->
       <div class="stat-card gamification-box">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
             <div class="stat-title" id="lblRewards" style="margin-bottom: 0;">🏅 Rewards</div>
-            <select id="themeSelect" class="range-select" onchange="changeBadgeTheme(this.value)">
-                <option value="flora">🌿 Flora</option>
-                <option value="fauna">🐾 Fauna</option>
-            </select>
         </div>
         <div id="badgeScrollContainer" class="badge-scroll-container">
           <!-- Badges dynamically injected here -->
         </div>
       </div>
-
     </div>
-
     <div id="viewQuiz" style="display:none; width:100%;">
       <div class="top-bar">
         <div class="badge-container">
@@ -238,7 +215,6 @@
           </label>
         </div>
       </div>
-
       <div class="card-box" id="promptCardBox">
         <div class="prompt-sub" id="promptSub">PROMPT</div>
         <div class="prompt-main" id="promptMain">...</div>
@@ -246,10 +222,8 @@
         <button class="btn-audio" id="promptAudioBtn" onclick="playPromptAudio()">🔊 <span id="lblListen">Listen</span></button>
         <button class="btn-audio" id="cantListenBtn" onclick="handleCantListen()" style="display:none; background-color: var(--bg-card); color: var(--text-muted); border-color: var(--border);">🔇 <span id="lblCantListen">Can't listen</span></button>
       </div>
-
       <div id="feedbackBox" class="feedback"></div>
       <button class="btn-override" id="overrideBtn" style="display:none;" onclick="handleOverride()">✏️ <span id="lblOverride">Actually, I was correct</span></button>
-
       <div id="modeFlip" class="mode-container">
         <div id="flipAnswerArea" class="answer-container" style="display:none;">
           <div class="prompt-sub" id="answerSub">ANSWER</div>
@@ -264,19 +238,16 @@
         </div>
         <button type="button" class="btn-primary" id="revealBtn" onclick="revealFlip()">Reveal Answer</button>
       </div>
-
       <div id="modeTyping" class="mode-container">
         <input type="text" id="typeInput" placeholder="Type answer..." onkeydown="if(event.key==='Enter') checkTyping()">
         <button class="btn-primary" id="typeSubmitBtn" onclick="checkTyping()">Submit Answer</button>
       </div>
-
       <div id="modeMCQ" class="mode-container">
         <button class="btn-mcq" id="mcq0" onclick="checkMCQ(0)"></button>
         <button class="btn-mcq" id="mcq1" onclick="checkMCQ(1)"></button>
         <button class="btn-mcq" id="mcq2" onclick="checkMCQ(2)"></button>
         <button class="btn-mcq" id="mcq3" onclick="checkMCQ(3)"></button>
       </div>
-
       <div id="modeTF" class="mode-container">
         <div id="tfSubheader" style="text-align:center; font-size: 13px; color: var(--text-muted);">Is this matching translation correct?</div>
         <div id="tfProposed" style="text-align:center; font-size:18px; font-weight:bold; margin: 4px 0 6px 0; color:var(--primary);"></div>
@@ -286,7 +257,6 @@
           <button class="btn-correct" id="tfTrueBtn" onclick="checkTF(true)">✅ True</button>
         </div>
       </div>
-
       <div id="modeTiles" class="mode-container">
         <div class="tiles-answer-box" id="tilesAnswerBox"></div>
         <div class="tiles-pool-box" id="tilesPoolBox"></div>
@@ -295,12 +265,10 @@
           <button class="btn-primary" onclick="checkTiles()" id="btnSubmitTiles">Submit Order</button>
         </div>
       </div>
-
       <button class="btn-primary" id="nextBtn" style="display:none; margin-top:8px;" onclick="renderNextCard()">Next Card ➔</button>
       <div class="stats" id="statsText">0 cards remaining in batch</div>
       <button class="btn-secondary" id="returnDashBtn" onclick="showDashboard()">🏠 Return to Dashboard</button>
     </div>
-
     <div id="viewSummary" class="dash-container" style="display:none;">
       <div class="summary-banner" id="summaryBanner">Segment Complete!</div>
       <div class="stat-card">
@@ -314,4 +282,4 @@
       <button class="btn-primary" id="continueBatchBtn" onclick="startNextSegment()">▶ Continue</button>
       <button class="btn-secondary" id="returnDashSummaryBtn" onclick="showDashboard()">🏠 Return to Dashboard</button>
     </div>
-  </div> 
+  </div>
