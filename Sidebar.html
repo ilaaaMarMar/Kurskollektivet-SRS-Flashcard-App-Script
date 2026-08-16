@@ -2,17 +2,22 @@
 <html>
 <head>
   <base target="_top">
-<!-- Apps Script evaluates these partials into one shared page and script scope. -->
+<!-- Apps Script evaluates these partials into one shared page and script scope.
+  Order matters: earlier partials may define globals used by later ones.
+  - SidebarStyles:                 all CSS / theme tokens (head)
+  - SidebarMarkup:                 static HTML for dashboard, quiz, modals, top-bar
+  - SidebarLocalizationAndUtils:   i18n (en/no/it) + shared UI helpers
+  - SidebarStateAndStorage:        shared state, localStorage, server-call plumbing
+  - SidebarDashboard:              dashboard rendering, heatmap, rewards, sync queue
+  - SidebarQuiz:                   quiz modes, grading, flip, submitAnswer -->
   <style>
     <?!= include_("SidebarStyles"); ?>
   </style>
 </head>
 <body>
   <?!= include_("SidebarMarkup"); ?>
-  <?!= include_("SidebarState"); ?>
-  <?!= include_("SidebarLocalization"); ?>
-  <?!= include_("SidebarUtils"); ?>
-  <?!= include_("SidebarPersistence"); ?>
+  <?!= include_("SidebarLocalizationAndUtils"); ?>
+  <?!= include_("SidebarStateAndStorage"); ?>
   <?!= include_("SidebarDashboard"); ?>
   <?!= include_("SidebarQuiz"); ?>
 </body>

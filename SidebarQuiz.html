@@ -1,6 +1,9 @@
     <script>
-      // Quiz state machines and answer grading. Each mode updates shared state
-      // and appends a validated result for the persistence partial to flush.
+      /* SidebarQuiz — quiz modes, grading, and card actions.
+         Modes: type, MCQ, cloze, audio, tiles, flip, true/false.
+         Each mode updates shared state and appends a validated result
+         for SidebarStateAndStorage to flush to the server. Also handles
+         archive/undo and the flip select-then-submit flow. */
       function handleAutoPlay(phase) {
         if (!$('autoPlayChk').checked) return;
         if (hasAutoPlayed) return;
@@ -27,7 +30,9 @@
           if (answerWordCount >= 2) modes.push('word_tiles');
         } else if (intervalDays <= 3) {
           addBasicModes(true);
-        } else if (intervalDays <= 14) {
+        } else if (intervalDays <= 3) {
+          addBasicModes(true);
+        } else {
           addBasicModes(true);
           if (answerLangCode === selectedPair.codeA) {
             modes.push('faded_hints', 'audio_dictation');
@@ -35,15 +40,8 @@
           }
           if (promptWordCount >= 3 && promptLangCode === selectedPair.codeA) {
             modes.push('cloze_typing');
-            if (allCards.length >= 2) modes.push('cloze_mcq');
+            if (intervalDays <= 14 && allCards.length >= 2) modes.push('cloze_mcq');
           }
-        } else {
-          addBasicModes(true);
-          if (answerLangCode === selectedPair.codeA) {
-            modes.push('faded_hints', 'audio_dictation');
-            if (answerWordCount < 8) modes.push('typing');
-          }
-          if (promptWordCount >= 3 && promptLangCode === selectedPair.codeA) modes.push('cloze_typing');
         }
         return modes;
       }
@@ -51,9 +49,11 @@
         if (!segmentQueue || segmentQueue.length === 0) { showSegmentSummary(); return; }
         hasAutoPlayed = false;
         isRetyping = false;
+        isReverseDictation = false;
         $('typeInput').style.borderColor = "var(--border)";
         const t = i18n[currentUiLang] || i18n.en;
         $('typeSubmitBtn').innerText = t.submit;
+        if (flipSubmitEl) flipSubmitEl.innerText = t.submit;
         const btnQuiz = $('returnDashBtn'); if (btnQuiz) btnQuiz.innerText = t.returnDash;
         const queueItem = segmentQueue[0];
         currentCard = queueItem.card;
@@ -76,9 +76,9 @@
         $('dirBadge').innerText = `${dispPromptLang} ➔ ${dispAnswerLang}`;
         if (currentCard.interval < 1) {
             let hrs = Math.round(currentCard.interval * 24);
-            $('boxBadge').innerText = `Int: ${hrs}h`;
+            $('boxBadge').innerText = `${t.intervalShort || "Int"}: ${hrs}h`;
         } else {
-            $('boxBadge').innerText = `Int: ${Math.floor(currentCard.interval)}d`;
+            $('boxBadge').innerText = `${t.intervalShort || "Int"}: ${Math.floor(currentCard.interval)}d`;
         }
         $('promptSub').innerText = `${t.prompt} (${dispPromptLang})`;
         const answerWordCount = countWords(targetAnswer); const promptWordCount = countWords(targetPrompt);
@@ -123,7 +123,7 @@
           const targetText = currentCard.front; const targetLang = currentCard.langA;
           const otherText = currentCard.back; const otherLang = currentCard.langB;
           const canReverse = intervalDays >= 60;
-          const isReverseDictation = canReverse && Math.random() < 0.5;
+          isReverseDictation = canReverse && Math.random() < 0.5;
           if (isReverseDictation) {
             targetPrompt = otherText; targetAnswer = targetText; promptLangCode = otherLang; answerLangCode = targetLang;
           } else {
@@ -142,6 +142,7 @@
           if (currentMode === 'flip') {
             $('modeFlip').style.display = 'flex'; $('flipAnswerArea').style.display = 'none'; $('revealBtn').style.display = 'block';
             $('answerSub').innerText = `${t.answer} (${dispAnswerLang})`; $('flipAnswerText').innerText = targetAnswer;
+            flipSelection = null; if (flipSubmitEl) flipSubmitEl.disabled = true;
           } else if (currentMode === 'typing') {
             $('modeTyping').style.display = 'flex'; $('typeInput').value = ''; $('typeInput').placeholder = `${t.typeInLang} ${dispAnswerLang}...`;
             $('typeInput').disabled = false; $('typeSubmitBtn').disabled = false;
@@ -150,11 +151,15 @@
           else if (currentMode === 'tf') { setupTF(); }
         }
         handleAutoPlay('start');
-        $('statsText').innerText = `${segmentQueue.length} ${t.remainingInBatch}`;
+        if (activeQuizMode === 'due' && totalDueThisSession > 0) {
+          $('statsText').innerText = (t.remainingOutOfDue || "{x} card(s) remaining out of {y} due").replace('{x}', segmentQueue.length).replace('{y}', totalDueThisSession);
+        } else {
+          $('statsText').innerText = `${segmentQueue.length} ${t.remainingInBatch}`;
+        }
       }
       function setupAudioDictation(dispAnswerLang) {
         const t = i18n[currentUiLang] || i18n.en;
-        $('promptSub').innerText = t.audioModeBadge; $('promptMain').innerText = "🔊 Listening...";
+        $('promptSub').innerText = t.audioModeBadge; $('promptMain').innerText = t.listening || "🔊 Listening...";
         const clueBox = $('clueBox'); clueBox.style.display = 'block'; clueBox.innerText = t.audioModePrompt;
         $('modeTyping').style.display = 'flex'; $('typeInput').value = ''; $('typeInput').placeholder = `${t.typeInLang} ${dispAnswerLang}...`;
         $('typeInput').disabled = false; $('typeSubmitBtn').disabled = false;
@@ -166,8 +171,8 @@
         $('promptAudioBtn').style.display = 'none';
         const t = i18n[currentUiLang] || i18n.en;
         if (currentMode === 'audio_dictation') {
-          const translation = (targetAnswer === currentCard.front) ? currentCard.back : currentCard.front;
-          const transLangCode = (targetAnswer === currentCard.front) ? currentCard.langB : currentCard.langA;
+          const translation = isReverseDictation ? currentCard.front : currentCard.back;
+          const transLangCode = isReverseDictation ? currentCard.langA : currentCard.langB;
           $('promptMain').innerText = translation;
           $('promptSub').innerText = `${(t.translation || "Translation").toUpperCase()} (${getDisplayLangCode(transLangCode)})`;
           $('clueBox').innerText = `💡 ${t.translation || "Translation"}`;
@@ -191,7 +196,7 @@
             faded += (i % 3 === 0) ? char : "_ ";
           }
         }
-        const clueBox = $('clueBox'); clueBox.style.display = 'block'; clueBox.innerText = `💡 Pattern: ${faded}`;
+        const clueBox = $('clueBox'); clueBox.style.display = 'block'; clueBox.innerText = `💡 ${t.pattern || "Pattern"}: ${faded}`;
         $('modeTyping').style.display = 'flex'; $('typeInput').value = ''; $('typeInput').placeholder = `${t.typeInLang} ${dispAnswerLang}...`;
         $('typeInput').disabled = false; $('typeSubmitBtn').disabled = false;
         setTimeout(() => { $('typeInput').focus(); }, 100);
@@ -270,9 +275,7 @@
         const cleanTargetWord = clozeTargetWordRaw.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'«»]/g, "");
         let options = shuffleArray([...wordPool, cleanTargetWord]);
         mcqCorrectIndex = options.indexOf(cleanTargetWord);
-        for (let i = 0; i < 4; i++) {
-          const btn = $(`mcq${i}`); btn.innerText = `${['A','B','C','D'][i]}. ${options[i]}`; btn.disabled = false; btn.style.backgroundColor = 'var(--bg-card)';
-        }
+        renderMcqOptions(options);
       }
       function showSegmentSummary() {
         flushPendingBatchResults('segment_summary');
@@ -305,12 +308,6 @@
         let wrongCount = segmentStats.wrong;
         let newCardsCount = segmentStats.newCards;
         let reviewCardsCount = segmentStats.reviewCards;
-        if (correctCount === 0 && wrongCount === 0 && pendingBatchResults && pendingBatchResults.length > 0) {
-          correctCount = pendingBatchResults.filter(r => r.isCorrect).length;
-          wrongCount = pendingBatchResults.filter(r => !r.isCorrect).length;
-          newCardsCount = pendingBatchResults.filter(r => r.wasNew).length;
-          reviewCardsCount = pendingBatchResults.filter(r => !r.wasNew).length;
-        }
         if (pendingBatchResults && pendingBatchResults.length > 0) {
           correctCount = pendingBatchResults.filter(r => r.isCorrect).length;
           wrongCount = pendingBatchResults.filter(r => !r.isCorrect).length;
@@ -328,7 +325,7 @@
       function hideAllModes() { $('modeFlip').style.display = 'none'; $('modeTyping').style.display = 'none'; $('modeMCQ').style.display = 'none'; $('modeTF').style.display = 'none'; $('modeTiles').style.display = 'none'; }
       function parseReviewDateMs(nextReviewStr, fallbackMs) {
         if (!nextReviewStr) return fallbackMs;
-        const raw = String(nextReviewStr).trim();
+        const raw = String(nextReviewStr).trim().replace(/^'+/, '');
         if (!raw) return fallbackMs;
         const hasTimezone = /(?:Z|[+\-]\d{2}:?\d{2})$/.test(raw);
         const normalized = raw.includes(' ') ? raw.replace(' ', 'T') : raw;
@@ -352,14 +349,19 @@
         if (audioCache.has(cacheKey)) { new Audio(audioCache.get(cacheKey)).play(); return; }
         google.script.run
           .withSuccessHandler(res => {
-            if (res && res.success) { audioCache.set(cacheKey, res.data); const audio = new Audio(res.data); audio.play(); } else { showAudioError(btnId); }
+            if (res && res.success) {
+              if (audioCache.size >= 200) audioCache.delete(audioCache.keys().next().value);
+              audioCache.set(cacheKey, res.data);
+              const audio = new Audio(res.data); audio.play();
+            } else { showAudioError(btnId); }
           })
           .withFailureHandler(e => showAudioError(btnId))
           .getAudioBase64(text, targetLangTag);
       }
       function showAudioError(btnId) {
         if (!btnId) return; const btn = $(btnId); if (!btn) return;
-        const oldHtml = btn.innerHTML; btn.innerHTML = "🚫 Audio Unavailable"; btn.style.color = "var(--danger-text)"; btn.style.backgroundColor = "var(--bg-danger-light)";
+        const t = i18n[currentUiLang] || i18n.en;
+        const oldHtml = btn.innerHTML; btn.innerHTML = t.audioUnavailable || "🚫 Audio Unavailable"; btn.style.color = "var(--danger-text)"; btn.style.backgroundColor = "var(--bg-danger-light)";
         setTimeout(() => { btn.innerHTML = oldHtml; btn.style.color = ""; btn.style.backgroundColor = ""; }, 2000);
       }
       function playPromptAudio() { playBackendAudio(targetPrompt, promptLangCode, 'promptAudioBtn'); }
@@ -368,7 +370,25 @@
         if (!isEnglish(answerLangCode)) { playAnswerAudio(); } else if (!isEnglish(promptLangCode)) { playPromptAudio(); } else { playAnswerAudio(); }
       }
       function playProposedTFTranslationAudio() { playBackendAudio(tfProposedText, answerLangCode, 'tfAudioBtn'); }
-      function revealFlip() { $('revealBtn').style.display = 'none'; $('flipAnswerArea').style.display = 'flex'; handleAutoPlay('end'); }
+      function revealFlip() {
+        $('revealBtn').style.display = 'none'; $('flipAnswerArea').style.display = 'flex';
+        selectFlipConfidence('good');
+        handleAutoPlay('end');
+      }
+      const FLIP_CONF_IDS = { again: 'btn-conf-again', hard: 'btn-conf-hard', good: 'btn-conf-good', easy: 'btn-conf-easy' };
+      function selectFlipConfidence(conf) {
+        flipSelection = conf;
+        Object.keys(FLIP_CONF_IDS).forEach(c => {
+          const b = $(FLIP_CONF_IDS[c]); if (b) b.classList.toggle('conf-selected', c === conf);
+        });
+        if (flipSubmitEl) flipSubmitEl.disabled = false;
+      }
+      function submitFlipSelection() {
+        if (!flipSelection) return;
+        const conf = flipSelection; flipSelection = null;
+        if (flipSubmitEl) flipSubmitEl.disabled = true;
+        submitAnswer(conf !== 'again', conf);
+      }
       function checkTyping() {
         ensureDomCache();
         const userInput = typeInputEl.value;
@@ -435,13 +455,18 @@
           setTimeout(() => { if (nextBtnEl) nextBtnEl.focus(); }, 100);
         }
       }
+      function renderMcqOptions(options) {
+        for (let i = 0; i < 4; i++) {
+          const btn = $(`mcq${i}`); btn.innerText = `${['A','B','C','D'][i]}. ${options[i]}`; btn.disabled = false; btn.style.backgroundColor = 'var(--bg-card)';
+        }
+      }
       function setupMCQ() {
         $('modeMCQ').style.display = 'flex';
         let distractors = (isForward ? quizDistractorWords.back : quizDistractorWords.front).slice();
         distractors = distractors.filter(value => cleanString(value) !== cleanString(targetAnswer));
         distractors = shuffleArray([...new Set(distractors)]).slice(0, 3);
         let options = shuffleArray([...distractors, targetAnswer]); mcqCorrectIndex = options.indexOf(targetAnswer);
-        for (let i = 0; i < 4; i++) { const btn = $(`mcq${i}`); btn.innerText = `${['A','B','C','D'][i]}. ${options[i]}`; btn.disabled = false; btn.style.backgroundColor = 'var(--bg-card)'; }
+        renderMcqOptions(options);
       }
       function checkMCQ(selectedIndex) {
         for (let i = 0; i < 4; i++) { $(`mcq${i}`).disabled = true; }
@@ -463,7 +488,14 @@
       function setupTF() {
         $('modeTF').style.display = 'flex'; const t = i18n[currentUiLang] || i18n.en; $('tfSubheader').innerText = t.tfHeader; $('tfFalseBtn').disabled = false; $('tfTrueBtn').disabled = false;
         tfIsActuallyCorrect = Math.random() < 0.5;
-        if (tfIsActuallyCorrect) { tfProposedText = targetAnswer; } else { let wrongCards = allCards.filter(c => c.id !== currentCard.id); let randomWrong = wrongCards[Math.floor(Math.random() * wrongCards.length)]; tfProposedText = isForward ? randomWrong.back : randomWrong.front; }
+        let wrongCards = allCards.filter(c => c.id !== currentCard.id);
+        if (!tfIsActuallyCorrect && wrongCards.length > 0) {
+          const randomWrong = wrongCards[Math.floor(Math.random() * wrongCards.length)];
+          tfProposedText = isForward ? randomWrong.back : randomWrong.front;
+        } else {
+          tfIsActuallyCorrect = true;
+          tfProposedText = targetAnswer;
+        }
         const dispAnswerLang = getDisplayLangCode(answerLangCode);
         $('tfProposed').style.color = 'var(--primary)'; $('tfProposed').innerText = tfProposedText; $('tfAudioBtn').innerText = `🔊 ${t.listen} (${dispAnswerLang})`;
       }
@@ -487,10 +519,6 @@
       function submitAnswer(isCorrect, confidence, isTypo) {
         if (!currentCard) return;
         const cardId = currentCard.progressId;
-        const currentStage = getStageFromInterval(currentCard.interval, currentCard.isNew);
-        if (!isCorrect) {
-          console.log('Incorrect answer', cardId, 'stage', currentStage, 'interval', currentCard.interval, 'EF', currentCard.ef, 'mode', activeQuizMode, 'typo', isTypo);
-        }
         let conf = confidence;
         if (!conf) {
           if (!isCorrect) {
@@ -523,8 +551,9 @@
         rawData.studiedToday = studiedToday;
   if (!rawData.studyHistory) rawData.studyHistory = {};
   rawData.studyHistory[todayKey] = (parseInt(rawData.studyHistory[todayKey] || 0, 10) || 0) + 1;
+        historyVersion++;
         const currentResult = {
-          clientId: nextPendingResultId++,
+          clientId: nextClientId(),
           cardId: cardId,
           isCorrect: isCorrect,
           confidence: conf,
@@ -533,8 +562,10 @@
           inDifficultMode: activeQuizMode === 'leeches',
           lastReviewed: todayKey
         };
+        if (isCorrect) handleLeechPass(cardId, currentResult);
         lastGradedCard.clientId = currentResult.clientId;
         pendingBatchResults.push(currentResult);
+        streamPendingResult(currentResult);
         if (currentMode === 'flip') { renderNextCard(); }
       }
       function handleOverride() {
@@ -542,12 +573,30 @@
         if (!lastGradedCard) return;
         segmentStats.wrong = Math.max(0, segmentStats.wrong - 1); segmentStats.correct++;
         const t = i18n[currentUiLang] || i18n.en;
-        const lastItem = pendingBatchResults.find(item => item.clientId === lastGradedCard.clientId);
-        if (lastItem) {
-          lastItem.isCorrect = true;
-          lastItem.confidence = 'good';
-          lastItem.isTypo = false;
+        // Reuse the ORIGINAL clientId so the server corrects the existing event
+        // in place instead of inserting a second event (which would double-schedule
+        // the card). This also works after the batch has already been flushed.
+        let lastItem = pendingBatchResults.find(item => item.clientId === lastGradedCard.clientId);
+        if (!lastItem) {
+          lastItem = {
+            clientId: lastGradedCard.clientId,
+            cardId: lastGradedCard.id,
+            isCorrect: true,
+            confidence: 'good',
+            wasNew: false,
+            isTypo: false,
+            inDifficultMode: activeQuizMode === 'leeches',
+            lastReviewed: getClientTodayStr(),
+            corrected: true
+          };
+          pendingBatchResults.push(lastItem);
         }
+        lastItem.isCorrect = true;
+        lastItem.confidence = 'good';
+        lastItem.isTypo = false;
+        lastItem.corrected = true;
+        handleLeechPass(lastGradedCard.id, lastItem);
+        streamPendingResult(lastItem);
         const fb = $('feedbackBox'); fb.innerText = `${t.overriddenSuccess}\n${t.answer}: ${lastGradedCard.targetAnswer}`; fb.className = 'feedback feedback-success';
         overrideBtnEl.style.display = 'none';
         if (isRetyping) {
@@ -567,6 +616,7 @@
         if (!currentCard) return;
         const archivedCardId = currentCard.id;
         const btn = $('btnArchiveCard');
+        const t = i18n[currentUiLang] || i18n.en;
         const oldText = btn.innerText;
         btn.innerText = "⏳...";
         btn.disabled = true;
@@ -580,6 +630,16 @@
               newPool = newPool.filter(c => c.id !== archivedCardId);
               leechPool = leechPool.filter(c => c.id !== archivedCardId);
               nonDuePool = nonDuePool.filter(c => c.id !== archivedCardId);
+              // Keep rawData consistent so the next segment (rebuilt via
+              // processCardsForActivePair) cannot resurrect the archived card.
+              if (rawData && Array.isArray(rawData.cardIds)) {
+                const rawIdx = rawData.cardIds.indexOf(archivedCardId);
+                if (rawIdx !== -1) {
+                  rawData.rawRows.splice(rawIdx, 1);
+                  rawData.cardIds.splice(rawIdx, 1);
+                }
+              }
+              if (rawData && rawData.savedProgress) delete rawData.savedProgress[currentCard.progressId];
               // Remove it from the current queue and move to the next card
               const queueIdx = segmentQueue.findIndex(item => item && item.card && item.card.id === archivedCardId);
               if (queueIdx !== -1) {
@@ -589,16 +649,16 @@
               btn.innerText = oldText;
               btn.disabled = false;
             } else {
-              showCustomAlert("Error archiving card: " + res.error);
+              showCustomAlert((t.errorArchivingCard || "Error archiving card: ") + res.error);
               btn.innerText = oldText;
               btn.disabled = false;
             }
           })
           .withFailureHandler(e => {
-            showCustomAlert("Connection Error: " + e);
+            showCustomAlert((t.connectionError || "Connection Error: ") + e);
             btn.innerText = oldText;
             btn.disabled = false;
           })
-          .archiveSingleCard(currentCard.rowIndex, savedDeckId, archivedCardId, currentCard.colIdxA, currentCard.colIdxB);
+          .archiveSingleCard(currentCard.rowIndex, savedDeckId, archivedCardId, currentCard.colIdxA, currentCard.colIdxB, currentUiLang);
       }
     </script>

@@ -1,4 +1,8 @@
     <script>
+      /* SidebarDashboard — dashboard rendering and session plumbing.
+         Pool indexing (processCardsForActivePair incl. leech exclusion),
+         mastery stages, study heatmap, gamification badges + stacked
+         reward queue, and the study-session result sync queue. */
       function processCardsForActivePair() {
         allCards = []; duePool = []; newPool = []; leechPool = []; studiedTodayPool = [];
         quickAddSourceIndex = new Map();
@@ -44,6 +48,9 @@
           if (isLeech && !pendingIds.has(progressId)) leechPool.push(card);
           if (pendingIds.has(progressId)) {
             card.isNew = false;
+          } else if (isLeech) {
+            // Leech cards are exclusive to difficult study until cleared; they
+            // must not also surface in the due/new/all study lists.
           } else if (isNew) {
             newPool.push(card);
           } else if (isDue) {
@@ -53,9 +60,10 @@
           }
           if (cardState && cardState.lastReviewed === todayStr) studiedTodayPool.push(card);
         });
+        const leechIds = new Set(leechPool.map(c => c.id));
         const dueIds = new Set(duePool.map(c => c.id));
         const newIds = new Set(newPool.map(c => c.id));
-        nonDuePool = shuffleArray(allCards.filter(c => !dueIds.has(c.id) && !newIds.has(c.id)));
+        nonDuePool = shuffleArray(allCards.filter(c => !leechIds.has(c.id) && !dueIds.has(c.id) && !newIds.has(c.id)));
         renderDashboard(stageCounts);
       }
       function startCountdown(targetMs) {
@@ -131,7 +139,7 @@
         if (dueCountdownInterval) clearInterval(dueCountdownInterval);
         startBtn.onclick = () => startQuiz('due');
         if (allCards.length === 0) {
-          startBtn.innerText = "⚠️ No Cards Found"; startBtn.disabled = true; startNewBtn.innerText = t.studyNew;
+          startBtn.innerText = t.noCardsFound || "⚠️ No Cards Found"; startBtn.disabled = true; startNewBtn.innerText = t.studyNew;
           startNewBtn.disabled = true; startLeechBtn.disabled = true;
         } else {
           if (dueC === 0) {
@@ -174,6 +182,35 @@
         }
         renderGamificationBadges();
       }
+      let lastBadgeHistoryRef = null;
+      let lastBadgeSig = '';
+      let rewardQueue = [];
+      let rewardQueueActive = false;
+      function showNextReward() {
+        const t = i18n[currentUiLang] || i18n.en;
+        if (rewardQueue.length === 0) {
+          $('rewardModal').style.display = 'none';
+          rewardQueueActive = false;
+          return;
+        }
+        const topEarned = rewardQueue.shift();
+        lastShownRewardFingerprint = topEarned.fingerprint;
+        try {
+          localStorage.setItem(lastRewardKey, topEarned.fingerprint);
+        } catch (e) {}
+        const isFirstTime = topEarned.prevCount === 0;
+        $('rewardModalIcon').innerText = topEarned.badge.emoji;
+        const suffix = topEarned.badge.type === 'week' ? (t.daysWk || "Days/Wk") : (topEarned.badge.type === 'month' ? (t.daysMo || "Days/Mo") : (t.daysYr || "Days/Yr"));
+        $('rewardModalName').innerText = `${topEarned.badge.req} ${suffix}`;
+        const rewardTitle = $('rewardModalTitle');
+        if (rewardTitle) {
+          rewardTitle.innerText = isFirstTime ? (t.newRewardUnlocked || "🎉 New Reward!") : (t.rewardUnlocked || "🎉 Reward!");
+        }
+        const dismiss = $('btnRewardDismiss');
+        if (dismiss) dismiss.innerText = t.woohoo || "Woohoo!";
+        $('rewardModal').style.display = 'flex';
+        rewardQueueActive = true;
+      }
       function renderGamificationBadges() {
         const t = i18n[currentUiLang] || i18n.en;
         const activeBadges = badgesFauna;
@@ -182,6 +219,10 @@
         const scopedEarnedKey = `srs_earned_badges_counts_${storageScope}`;
         const scopedCooldownKey = `srs_reward_cooldowns_${storageScope}`;
         const lastRewardKey = `srs_last_reward_${storageScope}`;
+        const badgeSig = `${currentUiLang}|${historyVersion}|${rawData.studyHistory === lastBadgeHistoryRef ? 'S' : 'N'}|${storageScope}`;
+        if (badgeSig === lastBadgeSig) return;
+        lastBadgeSig = badgeSig;
+        lastBadgeHistoryRef = rawData.studyHistory;
         const history = rawData.studyHistory || {};
         const activeDates = Object.keys(history).filter(d => history[d] > 0).sort();
         const badgeCounts = {};
@@ -195,8 +236,7 @@
           const weekBadges = activeBadges.filter(b => b.type === 'week');
           const monthBadges = activeBadges.filter(b => b.type === 'month');
           const yearBadges = activeBadges.filter(b => b.type === 'year');
-          const currentIsoWeekKey = getIsoWeekInfo(new Date()).key;
-            activeDates.forEach(dateStr => {
+          activeDates.forEach(dateStr => {
                 const d = new Date(dateStr + "T00:00:00Z");
                 const dUtc = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
                 const dayNum = dUtc.getUTCDay() || 7;
@@ -212,8 +252,10 @@
                 yearMap[yearKey] = (yearMap[yearKey] || 0) + 1;
             });
               Object.keys(weekMap).sort().forEach(weekKey => {
-                // Weekly streak badges are based on completed ISO weeks only.
-                if (weekKey === currentIsoWeekKey) return;
+                // Count every ISO week including the in-progress one, so active
+                // days this week award the streak badge immediately (e.g. 6 days
+                // studied this week -> 6 Days/Wk). Days only accumulate, so a
+                // partially-completed week never overstates a prior week.
                 const days = weekMap[weekKey];
                 weekBadges.forEach(b => {
                   if (days >= b.req) {
@@ -327,37 +369,33 @@
           // If storage is unavailable, continue gracefully without persistence.
         }
         if (newlyEarnedEvents.length > 0) {
-            const topEarned = newlyEarnedEvents[newlyEarnedEvents.length - 1];
             let lastStoredFingerprint = "";
             try {
               lastStoredFingerprint = localStorage.getItem(lastRewardKey) || "";
             } catch (e) {}
-            if (topEarned.fingerprint === lastShownRewardFingerprint || topEarned.fingerprint === lastStoredFingerprint) {
-              return;
+            const queuedFps = new Set(rewardQueue.map(e => e.fingerprint));
+            const fresh = newlyEarnedEvents.filter(evt => evt.fingerprint !== lastStoredFingerprint && !queuedFps.has(evt.fingerprint));
+            if (fresh.length > 0) {
+              rewardQueue = rewardQueue.concat(fresh);
+              if (!rewardQueueActive) showNextReward();
             }
-            lastShownRewardFingerprint = topEarned.fingerprint;
-            try {
-              localStorage.setItem(lastRewardKey, topEarned.fingerprint);
-            } catch (e) {}
-            const isFirstTime = topEarned.prevCount === 0;
-            $('rewardModalIcon').innerText = topEarned.badge.emoji;
-            let suffix = topEarned.badge.type === 'week' ? (t.daysWk || "Days/Wk") : (topEarned.badge.type === 'month' ? (t.daysMo || "Days/Mo") : (t.daysYr || "Days/Yr"));
-            $('rewardModalName').innerText = `${topEarned.badge.req} ${suffix}`;
-            const rewardTitle = $('rewardModalTitle');
-            if (rewardTitle) {
-                rewardTitle.innerText = isFirstTime ? (t.newRewardUnlocked || "🎉 New Reward!") : (t.rewardUnlocked || "🎉 Reward!");
-            }
-            $('rewardModal').style.display = 'flex';
         }
       }
+      let lastHeatmapHistoryRef = null;
+      let lastHeatmapSig = '';
       function renderHeatmap() {
         const grid = $('heatmapGrid'); const statsBar = $('hmStatsBar'); const rangeVal = $('hmRangeSelect').value;
         const scrollContainer = $('hmScrollContainer'); const monthHeader = $('hmMonthHeader'); const hmWrapper = $('hmWrapper');
         const periodLabel = $('hmPeriodLabel'); const prevBtn = $('hmPrevBtn'); const nextBtn = $('hmNextBtn');
         const t = i18n[currentUiLang] || i18n.en;
-        if (!grid || !rawData) return; grid.replaceChildren();
-        const history = rawData.studyHistory || {}; const today = new Date();
+        if (!grid || !rawData) return;
         const offset = heatmapWindowOffsets[rangeVal] || 0;
+        const heatmapSig = `${rangeVal}|${offset}|${currentUiLang}|${historyVersion}|${rawData.studyHistory === lastHeatmapHistoryRef ? 'S' : 'N'}`;
+        if (heatmapSig === lastHeatmapSig) return;
+        lastHeatmapSig = heatmapSig;
+        lastHeatmapHistoryRef = rawData.studyHistory;
+        grid.replaceChildren();
+        const history = rawData.studyHistory || {}; const today = new Date();
         let activeDaysCount = 0; let totalReviewsInRange = 0;
         if (prevBtn) prevBtn.disabled = false;
         if (nextBtn) nextBtn.disabled = offset >= 0;
@@ -493,6 +531,7 @@
             pendingBatchResults = pendingBatchResults.filter(result => !syncedIds.has(result.clientId));
             isFlushInFlight = false;
             pendingFlushPromise = null;
+            scheduleBatchFlush();
             resolve(true);
           })
           .withFailureHandler(e => {
@@ -504,6 +543,25 @@
           .saveSegmentResults(batchToSync, savedDeckId, getClientTodayStr(), getClientTimeZone(), selectedPair.idxA, selectedPair.idxB);
         });
         return pendingFlushPromise;
+      }
+      function streamPendingResult(result) {
+        // Each grade schedules a debounced flush; batching coalesces rapid grades.
+        scheduleBatchFlush();
+      }
+      function scheduleBatchFlush() {
+        if (pendingFlushPromise || isFlushInFlight) return;
+        if (pendingBatchResults.length >= STREAM_BATCH_SIZE) {
+          if (streamFlushTimer) { clearTimeout(streamFlushTimer); streamFlushTimer = null; }
+          flushPendingBatchResults('stream_batch');
+          return;
+        }
+        if (streamFlushTimer) clearTimeout(streamFlushTimer);
+        streamFlushTimer = setTimeout(() => {
+          streamFlushTimer = null;
+          if (!pendingFlushPromise && !isFlushInFlight && pendingBatchResults.length > 0) {
+            flushPendingBatchResults('stream_debounce');
+          }
+        }, STREAM_DEBOUNCE_MS);
       }
       function setupLifecycleSync() {
         document.addEventListener('visibilitychange', () => {
@@ -518,22 +576,39 @@
           flushPendingBatchResults('beforeunload');
         });
       }
+      function hidePendingDueCards() {
+        if (!pendingBatchResults || pendingBatchResults.length === 0) return;
+        const pendingIds = new Set(pendingBatchResults.map(result => result.cardId));
+        duePool = duePool.filter(card => !pendingIds.has(card.progressId));
+        const button = $('startReviewBtn');
+        if (!button) return;
+        const t = i18n[currentUiLang] || i18n.en;
+        button.innerText = duePool.length ? `${t.studyDue} (${duePool.length})` : t.allCaughtUp;
+        button.disabled = true;
+      }
       function showDashboard() {
-        const btn1 = $('returnDashSummaryBtn'); if (btn1) btn1.innerText = "⏳ Loading...";
-        const btn2 = $('returnDashBtn'); if (btn2) btn2.innerText = "⏳ Loading...";
+        const t = i18n[currentUiLang] || i18n.en;
+        const loadingText = t.loading || "⏳ Loading...";
+        const btn1 = $('returnDashSummaryBtn'); if (btn1) btn1.innerText = loadingText;
+        const btn2 = $('returnDashBtn'); if (btn2) btn2.innerText = loadingText;
         dashboardRefreshPending = true;
         isFlushInFlight = true;
+        hidePendingDueCards();
         flushPendingBatchResults('dashboard_exit').then(() => {
+          if (rawData && rawData.rawRows) processCardsForActivePair();
           fetchData(() => {
+            const t = i18n[currentUiLang] || i18n.en;
             dashboardRefreshPending = false;
             isFlushInFlight = false;
-            showCustomAlert("Error refreshing flashcard data. Please try again.");
+            processCardsForActivePair();
+            showCustomAlert(t.refreshError || "Error refreshing flashcard data. Please try again.");
           });
         });
       }
       function startQuiz(mode) {
         if (isFlushInFlight || allCards.length === 0) return;
         activeQuizMode = mode;
+        if (mode === 'due') totalDueThisSession = duePool.length;
         startNextSegment();
       }
       function prepareStudyPools(mode) {
@@ -600,9 +675,15 @@
           }
           return finalQueue;
         } else if (mode === 'leeches') {
-          while (queue.length < targetBatchSize && leechPool.length > 0) {
-            queue.push({ card: leechPool.shift(), mode: null });
-          }
+          const cardsToStudy = leechPool.splice(0, targetBatchSize);
+          cardsToStudy.forEach(card => {
+            const prog = getLeechProgress(card.progressId);
+            const modes = [];
+            if (!prog.recognition) modes.push(Math.random() < 0.5 ? 'mcq' : 'tf');
+            if (!prog.listening) modes.push('audio_dictation');
+            if (!prog.typing) modes.push('typing');
+            modes.forEach(m => queue.push({ card: card, mode: m }));
+          });
         } else if (mode === 'all') {
           while (queue.length < targetBatchSize && nonDuePool.length > 0) {
             queue.push({ card: nonDuePool.shift(), mode: null });

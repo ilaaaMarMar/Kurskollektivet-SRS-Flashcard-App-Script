@@ -1,9 +1,168 @@
     <script>
+      /* SidebarLocalizationAndUtils — merged i18n + shared helpers.
+         i18n: LANGUAGE_NAMES, the en/no/it translation dicts and
+         applyUiLanguage() that applies the active language to all UI.
+         Utils: showCustomAlert, countWords, edit-card modal, translate
+         quick-add flow, lang-pair selectors, theme/date helpers. */
+      const LANGUAGE_NAMES = { en: 'English', no: 'Norwegian (Norsk)', nb: 'Norwegian Bokmål', nn: 'Norwegian Nynorsk', it: 'Italiano' };
+      const i18n = {
+        en: {
+          langCombo: "Language Combination", selectedDeck: "Selected Deck", switchDeck: "🔄 Change Deck", editCard: "✏️ Edit",
+          webAppBtn: "🌐 Web App ↗", webAppTitle: "🌐 Web App Link", webAppDesc: "Copy the link below to access your flashcards directly in your browser on any device.",
+          copyLink: "📋 Copy Link", copied: "Copied!",
+          editModalTitle: "✏️ Edit Card", editFront: "Front Text:", editBack: "Back Text:", saveSheet: "Save to Sheet", cancel: "Cancel", close: "Close",
+          openTranslator: "🔍 Translate & Quick Add", translateModalTitle: "🔍 Dictionary & Quick Add", transDir: "Direction:",
+          lookUpText: "Look up word / phrase:", runTranslate: "🔍 Translate", selectBestTrans: "Select the best translation:", resultText: "Final Card Answer:",
+          addCardToDeck: "➕ Add to Deck", deckPrompt: "Paste the full Google Spreadsheet URL or ID for your deck (leave blank to reset to default):",
+          studiedToday: "Studied Today",
+          dueForStudy: "Due For Study", studyDue: "🚀 Study Due Cards", studyNew: "✨ Study New Cards", studyLeeches: "⚡ Study Difficult Cards",
+          consistency: "🗓️ Study Consistency", deckMastery: "Deck Mastery Levels", rangeWeek: "Week", rangeMonth: "Month", rangeYear: "Year",
+          less: "Less", more: "More", reveal: "Reveal Answer", gotIt: "✅ Got It!", submit: "Submit Answer", nextCard: "Next Card ➔",
+          returnDash: "🏠 Return to Dashboard", listen: "Listen", listenAns: "Listen Answer", override: "Actually, I was correct",
+          autoAudio: "Auto-Audio", tfHeader: "Is this matching translation correct?", tfActualHeader: "Actual Correct Translation",
+          trueBtn: "✅ True", falseBtn: "❌ False", newLabel: "new", reviewLabel: "review", outOf: "out of", cards: "cards", reviews: "reviews",
+          active: "Active", thisWeek: "This Week", days: "days", noActivity: "No activity yet. Start studying!", prompt: "PROMPT", answer: "ANSWER",
+          segmentPerf: "Segment Performance", accuracy: "Accuracy Rate", correctAns: "Correct Answers", practiceNeeded: "Practice Needed",
+          newLearnt: "New Cards Learnt", reviewPracticed: "Review Cards Practiced", continueNext: "▶ Continue (Next 10 Cards)",
+          continueBatch: "▶ Continue", continueNext10: "▶ Continue (Next 10 Cards)",
+          allCaughtUp: "🎉 All Caught Up Today!", noNewCards: "🌱 No New Cards Available", noLeechCards: "⚡ No Difficult Cards Found!",
+          typeInLang: "Type answer in", typeMissingInLang: "Type missing word in", meaning: "Meaning", listenAudioClue: "🔊 Listen to the audio clue below to find the missing word!",
+          correct: "Correct!", incorrectMissing: "Incorrect. Missing word was", fullSentence: "Full Sentence", translation: "Translation",
+          correctAcceptedTypo: "Correct! (Accepted minor typo/formatting)", incorrectAnswer: "Incorrect. Expected:", overriddenSuccess: "✅ Overridden to Correct!",
+          remainingInBatch: "card(s) remaining in batch", remainingOutOfDue: "{x} card(s) remaining out of {y} due", segComplete: "📊 Segment Complete!", allCaughtUpSummary: "🎉 All caught up with due cards!",
+          confAgain: "Again", confHard: "Hard", confGood: "Good", confEasy: "Easy", resetTiles: "↩ Reset", submitOrder: "Submit Order",
+          audioModeBadge: "🎧 LISTENING MODE", audioModePrompt: "Listen closely to the audio clip below:", wordLimitExceeded: "⚠️ Text exceeds 20 words limit",
+          cantListen: "Can't listen",
+          viewList: "📋 View List", archiveMastered: "🗃️ Archive Mastered", rewards: "🏅 Rewards",
+          daysWk: "Days/Wk", daysMo: "Days/Mo", daysYr: "Days/Yr",
+          stage1: "Stage 1: New / Lapse (<1d)", stage2: "Stage 2: Early Recall (1-3d)", stage3: "Stage 3: Short-Term (4-7d)", stage4: "Stage 4: Medium-Term (8-14d)",
+          stage5: "Stage 5: Reinforced (15-30d)", stage6: "Stage 6: Solid (31-60d)", stage7: "Stage 7: Retained (61-90d)", stage8: "Stage 8: Long-Term (91-180d)",
+          stage9: "Stage 9: Deep Memory (181-359d)", stage10: "Stage 10: Fully Mastered (360d+)",
+          nextReviewIn: "Next review in", dueReadyRefresh: "Due Cards Ready! (Click to Refresh)", unitD: "d", unitH: "h", unitM: "m", unitS: "s",
+          weekDaysInitials: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+          copyCorrect: "Copy the correct answer...", retypeContinue: "Retype to Continue",
+          newRewardUnlocked: "🎉 New Reward!", rewardUnlocked: "🎉 Reward!", woohoo: "Woohoo!", didYouMean: "Did you mean:",
+          initializing: "Initializing...", studiedModalTitle: "Cards Studied Today", notice: "Notice", inputRequired: "Input Required", ok: "OK",
+          themeDark: "🌙 Dark Theme", themeKurs: "☀️ Light Theme", archiveCard: "🗃️ Archive",
+          loggedInAs: "Logged in as: ", loggedInUnavailable: "Logged-in account unavailable", webAppUrlUnavailable: "Not available",
+          refreshError: "Error refreshing flashcard data. Please try again.", loadError: "Error loading flashcard data. Ensure you have access to the Google Spreadsheet.",
+          noCardsFound: "⚠️ No Cards Found", audioUnavailable: "🚫 Audio Unavailable", fetchingTranslations: "Fetching translations...", fetching: "Fetching...",
+          lookupFirst: "Please look up a translation first.", cardAdded: "🎉 Card added directly to your spreadsheet deck!",
+          errorAddingCard: "Error adding card: ", errorArchivingCard: "Error archiving card: ", connectionError: "Connection Error: ",
+          errorSavingCard: "Error saving card: ", errorSavingSheet: "Error saving to spreadsheet: ", errorPrefix: "Error: ",
+          archiving: "⏳ Archiving...", saving: "Saving...", duplicateSource: "⚠️ This source already exists in your deck:",
+          duplicateDetected: "⚠️ Duplicate detected!\n\nThis word already exists in your deck as:", shortenToProceed: "Please shorten to proceed.", unavailable: "Unavailable",
+          bothFieldsRequired: "Both front and back fields must contain text.", listening: "🔊 Listening...", pattern: "Pattern",
+          loading: "⏳ Loading...", intervalShort: "Int", lookupPlaceholder: "Type word...", resultPlaceholder: "Result will appear here...", typeAnswerPlaceholder: "Type answer..."
+        },
+        no: {
+          langCombo: "Språkkombinasjon", selectedDeck: "Valgt kortstokk", switchDeck: "🔄 Bytt kortstokk", editCard: "✏️ Rediger",
+          webAppBtn: "🌐 Nettapp ↗", webAppTitle: "🌐 Nettapp-lenke", webAppDesc: "Kopier lenken nedenfor for å få tilgang til flashkortene dine direkte i nettleseren.",
+          copyLink: "📋 Kopier lenke", copied: "Kopiert!",
+          editModalTitle: "✏️ Rediger kort", editFront: "Tekst forside:", editBack: "Tekst bakside:", saveSheet: "Lagre i regneark", cancel: "Avbryt", close: "Lukk",
+          openTranslator: "🔍 Oversett og legg til", translateModalTitle: "🔍 Ordbok og legg til", transDir: "Retning:",
+          lookUpText: "Søk opp ord / uttrykk:", runTranslate: "🔍 Oversett", selectBestTrans: "Velg beste oversettelse:", resultText: "Endelig svar på kortet:",
+          addCardToDeck: "➕ Legg til kort", deckPrompt: "Lim inn Google-regnearkets URL eller ID for kortstokken din (la stå tom for å tilbakestille):",
+          studiedToday: "Studert i dag",
+          dueForStudy: "Forfaller til repetisjon", studyDue: "🚀 Studer forfalte kort", studyNew: "✨ Studer nye kort", studyLeeches: "⚡ Studer vanskelige kort",
+          consistency: "🗓️ Studiekontinuitet", deckMastery: "Mestringsnivå", rangeWeek: "Uke", rangeMonth: "Måned", rangeYear: "År",
+          less: "Mindre", more: "Mer", reveal: "Vis svar", gotIt: "✅ Skjønte det!", submit: "Send inn svar", nextCard: "Neste kort ➔",
+          returnDash: "🏠 Tilbake til dashbord", listen: "Lytt", listenAns: "Lytt til svar", override: "Jeg hadde faktisk rett",
+          autoAudio: "Auto-lyd", tfHeader: "Er denne oversettelsen riktig?", tfActualHeader: "Riktig oversettelse",
+          trueBtn: "✅ Sant", falseBtn: "❌ Usant", newLabel: "nye", reviewLabel: "repetisjon", outOf: "av", cards: "kort", reviews: "repetisjoner",
+          active: "Aktiv", thisWeek: "Denne uken", days: "dager", noActivity: "Ingen aktivitet ennå. Start å studere!", prompt: "PROMPT", answer: "SVAR",
+          segmentPerf: "Resultat for økten", accuracy: "Nøyaktighet", correctAns: "Riktige svar", practiceNeeded: "Trenger øving",
+          newLearnt: "Nye kort lært", reviewPracticed: "Repeterte kort", continueNext: "▶ Fortsett (Neste 10)",
+          continueBatch: "▶ Fortsett", continueNext10: "▶ Fortsett (Neste 10)",
+          allCaughtUp: "🎉 Ferdig for i dag!", noNewCards: "🌱 Ingen nye kort tilgjengelig", noLeechCards: "⚡ Ingen vanskelige kort funnet!",
+          typeInLang: "Skriv svaret på", typeMissingInLang: "Skriv det manglende ordet på", meaning: "Betydning", listenAudioClue: "🔊 Lytt til lydsporet nedenfor for å finne det manglende ordet!",
+          correct: "Riktig!", incorrectMissing: "Feil. Det manglende ordet var", fullSentence: "Hel setning", translation: "Oversettelse",
+          correctAcceptedTypo: "Riktig! (Godtok liten skrivefeil)", incorrectAnswer: "Feil. Forventet:", overriddenSuccess: "✅ Endret til Riktig!",
+          remainingInBatch: "kort gjenstår i runden", remainingOutOfDue: "{x} kort gjenstår av {y} forfalte", segComplete: "📊 Runde fullført!", allCaughtUpSummary: "🎉 Ferdig for i dag!",
+          confAgain: "Igjen", confHard: "Vanskelig", confGood: "Bra", confEasy: "Enkelt", resetTiles: "↩ Nullstill", submitOrder: "Send inn",
+          audioModeBadge: "🎧 LYTTE-MODUS", audioModePrompt: "Lytt nøye til lydklippet nedenfor:", wordLimitExceeded: "⚠️ Teksten overskrider grensen på 20 ord",
+          cantListen: "Kan ikke lytte",
+          viewList: "📋 Vis liste", archiveMastered: "🗃️ Arkiver mestrede", rewards: "🏅 Belønninger",
+          daysWk: "Dager/Uke", daysMo: "Dager/Mnd", daysYr: "Dager/År",
+          stage1: "Nivå 1: Ny / Gjenlæring (<1d)", stage2: "Nivå 2: Tidlig gjenkalling (1-3d)", stage3: "Nivå 3: Korttidsminne (4-7d)", stage4: "Nivå 4: Mellomtidsminne (8-14d)",
+          stage5: "Nivå 5: Forsterket (15-30d)", stage6: "Nivå 6: Solid (31-60d)", stage7: "Nivå 7: Fastholdt (61-90d)", stage8: "Nivå 8: Langtidsminne (91-180d)",
+          stage9: "Nivå 9: Dyp hukommelse (181-359d)", stage10: "Nivå 10: Fullt mestret (360d+)",
+          nextReviewIn: "Neste repetisjon om", dueReadyRefresh: "Klar for repetisjon! (Klikk for å oppdatere)", unitD: "d", unitH: "t", unitM: "m", unitS: "s",
+          weekDaysInitials: ['M', 'T', 'O', 'T', 'F', 'L', 'S'],
+          copyCorrect: "Kopier det riktige svaret...", retypeContinue: "Skriv på nytt for å fortsette",
+          newRewardUnlocked: "🎉 Ny belønning!", rewardUnlocked: "🎉 Belønning!", woohoo: "Hurra!", didYouMean: "Mente du:",
+          initializing: "Initialiserer...", studiedModalTitle: "Kort studert i dag", notice: "Varsel", inputRequired: "Inndata kreves", ok: "OK",
+          themeDark: "🌙 Mørkt Tema", themeKurs: "☀️ Lyst Tema", archiveCard: "🗃️ Arkiver",
+          loggedInAs: "Logget inn som: ", loggedInUnavailable: "Logget inn-konto utilgjengelig", webAppUrlUnavailable: "Ikke tilgjengelig",
+          refreshError: "Feil ved oppdatering av flashkort-data. Prøv igjen.", loadError: "Feil ved lasting av flashkort-data. Kontroller at du har tilgang til Google-regnearket.",
+          noCardsFound: "⚠️ Ingen kort funnet", audioUnavailable: "🚫 Lyd utilgjengelig", fetchingTranslations: "Henter oversettelser...", fetching: "Henter...",
+          lookupFirst: "Søk opp en oversettelse først.", cardAdded: "🎉 Kort lagt direkte til i kortstokken!",
+          errorAddingCard: "Feil ved å legge til kort: ", errorArchivingCard: "Feil ved arkivering av kort: ", connectionError: "Tilkoblingsfeil: ",
+          errorSavingCard: "Feil ved lagring av kort: ", errorSavingSheet: "Feil ved lagring til regneark: ", errorPrefix: "Feil: ",
+          archiving: "⏳ Arkiverer...", saving: "Lagrer...", duplicateSource: "⚠️ Denne kilden finnes allerede i kortstokken din:",
+          duplicateDetected: "⚠️ Duplikat funnet!\n\nDette ordet finnes allerede i kortstokken din som:", shortenToProceed: "Kort ned for å fortsette.", unavailable: "Utilgjengelig",
+          bothFieldsRequired: "Både forside- og baksidefeltet må inneholde tekst.", listening: "🔊 Lytter...", pattern: "Mønster",
+          loading: "⏳ Laster...", intervalShort: "Int", lookupPlaceholder: "Skriv ord...", resultPlaceholder: "Resultatet vises her...", typeAnswerPlaceholder: "Skriv svar..."
+        },
+        it: {
+          langCombo: "Combinazione linguistica", selectedDeck: "Mazzo selezionato", switchDeck: "🔄 Cambia mazzo", editCard: "✏️ Modifica",
+          webAppBtn: "🌐 Web App ↗", webAppTitle: "🌐 Link Web App", webAppDesc: "Copia il link sottostante per accedere alle tue flashcard nel browser su qualsiasi dispositivo.",
+          copyLink: "📋 Copia Link", copied: "Copiato!",
+          editModalTitle: "✏️ Modifica carta", editFront: "Testo frontale:", editBack: "Testo posteriore:", saveSheet: "Salva nel foglio", cancel: "Annulla", close: "Chiudi",
+          openTranslator: "🔍 Traduci e aggiungi", translateModalTitle: "🔍 Dizionario e aggiunta rapida", transDir: "Direzione:",
+          lookUpText: "Cerca parola / frase:", runTranslate: "🔍 Traduci", selectBestTrans: "Seleziona la traduzione migliore:", resultText: "Risposta finale:",
+          addCardToDeck: "➕ Aggiungi al mazzo", deckPrompt: "Incolla l'URL o l'ID del foglio Google per il tuo mazzo (lascia vuoto per ripristinare):",
+          studiedToday: "Studiato oggi",
+          dueForStudy: "Da ripassare", studyDue: "🚀 Studia carte da ripassare", studyNew: "✨ Studia nuove carte", studyLeeches: "⚡ Studia carte difficili",
+          consistency: "🗓️ Frequenza di studio", deckMastery: "Livelli di padronanza", rangeWeek: "Settimana", rangeMonth: "Mese", rangeYear: "Anno",
+          less: "Meno", more: "Di più", reveal: "Mostra risposta", gotIt: "✅ Capito!", submit: "Invia risposta", nextCard: "Prossima carta ➔",
+          returnDash: "🏠 Torna alla dashboard", listen: "Ascolta", listenAns: "Ascolta la risposta", override: "In realtà era giusto",
+          autoAudio: "Riproduzione automatica", tfHeader: "Questa traduzione è corretta?", tfActualHeader: "Traduzione corretta",
+          trueBtn: "✅ Vero", falseBtn: "❌ Falso", newLabel: "nuove", reviewLabel: "ripasso", outOf: "su", cards: "carte", reviews: "ripassi",
+          active: "Attivo", thisWeek: "Questa settimana", days: "giorni", noActivity: "Nessuna attività finora!", prompt: "DOMANDA", answer: "RISPOSTA",
+          segmentPerf: "Risultati Sessione", accuracy: "Precisione", correctAns: "Risposte corrette", practiceNeeded: "Da rivedere",
+          newLearnt: "Nuove carte imparate", reviewPracticed: "Carte ripassate", continueNext: "▶ Continua (Prossime 10)",
+          continueBatch: "▶ Continua", continueNext10: "▶ Continua (Prossime 10)",
+          allCaughtUp: "🎉 Hai finito per oggi!", noNewCards: "🌱 Nessuna nuova carta disponibile", noLeechCards: "⚡ Nessuna carta difficile trovata!",
+          typeInLang: "Digita la risposta in", typeMissingInLang: "Digita la parola mancante in", meaning: "Significato", listenAudioClue: "🔊 Ascolta l'audio qui sotto per trovare la parola mancante!",
+          correct: "Corretto!", incorrectMissing: "Errato. La parola mancante era", fullSentence: "Frase completa", translation: "Traduzione",
+          correctAcceptedTypo: "Corretto! (Piccolo errore di battitura accettato)", incorrectAnswer: "Errato. La risposta corretta è:", overriddenSuccess: "✅ Segnata come corretta!",
+          remainingInBatch: "carte rimanenti", remainingOutOfDue: "{x} carte rimanenti su {y} da ripassare", segComplete: "📊 Sessione completata!", allCaughtUpSummary: "🎉 Hai finito per oggi!",
+          confAgain: "Ancora", confHard: "Difficile", confGood: "Buono", confEasy: "Facile", resetTiles: "↩ Ripristina", submitOrder: "Invia",
+          audioModeBadge: "🎧 MODALITÀ ASCOLTO", audioModePrompt: "Ascolta attentamente la traccia audio qui sotto:", wordLimitExceeded: "⚠️ Il testo supera il limite di 20 parole",
+          cantListen: "Non riesco ad ascoltare",
+          viewList: "📋 Visualizza elenco", archiveMastered: "🗃️ Archivia le completate", rewards: "🏅 Premi",
+          daysWk: "Giorni/Sett", daysMo: "Giorni/Mese", daysYr: "Giorni/Anno",
+          stage1: "Fase 1: Nuova / Errore (<1g)", stage2: "Fase 2: Primo richiamo (1-3g)", stage3: "Fase 3: Memoria a breve termine (4-7g)", stage4: "Fase 4: Memoria a medio termine (8-14g)",
+          stage5: "Fase 5: Rinforzata (15-30g)", stage6: "Fase 6: Solida (31-60g)", stage7: "Fase 7: Trattenuta (61-90g)", stage8: "Fase 8: Memoria a lungo termine (91-180g)",
+          stage9: "Fase 9: Memoria profonda (181-359g)", stage10: "Fase 10: Completamente appresa (360g+)",
+          nextReviewIn: "Prossimo ripasso tra", dueReadyRefresh: "Carte da ripassare pronte! (Clicca per aggiornare)", unitD: "g", unitH: "h", unitM: "m", unitS: "s",
+          weekDaysInitials: ['L', 'M', 'M', 'G', 'V', 'S', 'D'],
+          copyCorrect: "Copia la risposta corretta...", retypeContinue: "Riscrivi per continuare",
+          newRewardUnlocked: "🎉 Nuovo Premio!", rewardUnlocked: "🎉 Premio!", woohoo: "Evviva!", didYouMean: "Forse cercavi:",
+          initializing: "Inizializzazione...", studiedModalTitle: "Carte studiate oggi", notice: "Avviso", inputRequired: "Input richiesto", ok: "OK",
+          themeDark: "🌙 Tema Scuro", themeKurs: "☀️ Tema Chiaro", archiveCard: "🗃️ Archivia",
+          loggedInAs: "Accesso effettuato come: ", loggedInUnavailable: "Account di accesso non disponibile", webAppUrlUnavailable: "Non disponibile",
+          refreshError: "Errore nell'aggiornamento dei dati. Riprova.", loadError: "Errore nel caricamento dei dati. Verifica di avere accesso al foglio di calcolo.",
+          noCardsFound: "⚠️ Nessuna carta trovata", audioUnavailable: "🚫 Audio non disponibile", fetchingTranslations: "Recupero traduzioni...", fetching: "Recupero...",
+          lookupFirst: "Cerca prima una traduzione.", cardAdded: "🎉 Carta aggiunta direttamente al mazzo!",
+          errorAddingCard: "Errore aggiunta carta: ", errorArchivingCard: "Errore archiviazione carta: ", connectionError: "Errore di connessione: ",
+          errorSavingCard: "Errore salvataggio carta: ", errorSavingSheet: "Errore salvataggio foglio: ", errorPrefix: "Errore: ",
+          archiving: "⏳ Archiviazione...", saving: "Salvataggio...", duplicateSource: "⚠️ Questa fonte esiste già nel tuo mazzo:",
+          duplicateDetected: "⚠️ Duplicato rilevato!\n\nQuesta parola esiste già nel tuo mazzo come:", shortenToProceed: "Accorcia per continuare.", unavailable: "Non disponibile",
+          bothFieldsRequired: "Entrambi i campi fronte e retro devono contenere del testo.", listening: "🔊 In ascolto...", pattern: "Schema",
+          loading: "⏳ Caricamento...", intervalShort: "Int", lookupPlaceholder: "Digita la parola...", resultPlaceholder: "Il risultato apparirà qui...", typeAnswerPlaceholder: "Digita la risposta..."
+        }
+      };
+      let currentUiLang = 'en';
+    </script>
+    <script>
       let typeInputEl = null;
       let typeSubmitBtnEl = null;
       let nextBtnEl = null;
       let revealBtnEl = null;
       let flipAnswerAreaEl = null;
+      let flipSubmitEl = null;
       let overrideBtnEl = null;
       let quickAddRequestId = 0;
       let quickAddPendingCalls = 0;
@@ -18,10 +177,11 @@
         nextBtnEl = $('nextBtn');
         revealBtnEl = $('revealBtn');
         flipAnswerAreaEl = $('flipAnswerArea');
+        flipSubmitEl = $('flipSubmitBtn');
         overrideBtnEl = $('overrideBtn');
       }
       function ensureDomCache() {
-        if (!typeInputEl || !typeSubmitBtnEl || !nextBtnEl || !revealBtnEl || !flipAnswerAreaEl || !overrideBtnEl) {
+        if (!typeInputEl || !typeSubmitBtnEl || !nextBtnEl || !revealBtnEl || !flipAnswerAreaEl || !flipSubmitEl || !overrideBtnEl) {
           initDomCache();
         }
       }
@@ -61,7 +221,7 @@
         const hasError = messages.length > 0;
         if (hasError) {
           warningDiv.style.display = 'block';
-          warningDiv.innerText = `${t.wordLimitExceeded}: ${messages.join(', ')}. Please shorten to proceed.`;
+          warningDiv.innerText = `${t.wordLimitExceeded}: ${messages.join(', ')}. ${t.shortenToProceed || "Please shorten to proceed."}`;
         } else {
           warningDiv.style.display = 'none';
           warningDiv.innerText = '';
@@ -97,6 +257,8 @@
         const sel = $('themeSelectUI');
         if (sel) sel.value = theme;
       }
+      function setText(id, value) { const el = $(id); if (el) el.innerText = value; }
+      function setPh(id, value) { const el = $(id); if (el) el.placeholder = value; }
       function applyUiLanguage(langCode) {
         if (!i18n[langCode]) langCode = 'en';
         currentUiLang = langCode;
@@ -117,34 +279,28 @@
           lblConfGood: 'confGood', lblConfEasy: 'confEasy', btnResetTiles: 'resetTiles', btnSubmitTiles: 'submitOrder',
           tfSubheader: 'tfHeader', tfTrueBtn: 'trueBtn', tfFalseBtn: 'falseBtn', lblSegmentPerf: 'segmentPerf',
           lblAccuracy: 'accuracy', lblCorrectAns: 'correctAns', lblPracticeNeeded: 'practiceNeeded', lblNewLearnt: 'newLearnt',
-          lblReviewPracticed: 'reviewPracticed', lblCantListen: 'cantListen'
+          lblReviewPracticed: 'reviewPracticed', lblCantListen: 'cantListen',
+          btnArchiveCard: 'archiveCard', btnCopyWebApp: 'copyLink', btnSaveTransCard: 'addCardToDeck', btnViewStudied: 'viewList',
+          btnArchive: 'archiveMastered', lblRewards: 'rewards', lblDidYouMean: 'didYouMean', btnRewardDismiss: 'woohoo',
+          lblInitializing: 'initializing', lblStudiedModalTitle: 'studiedModalTitle', btnStudiedModalClose: 'close'
         };
         Object.keys(localizedText).forEach(elementId => {
           const element = $(elementId);
           if (element) element.innerText = t[localizedText[elementId]];
         });
-        const btnArchiveCard = $('btnArchiveCard'); if(btnArchiveCard) btnArchiveCard.innerText = t.archiveCard || "🗃️ Archive";
-        $('btnCopyWebApp').innerText = "📋 " + t.copyLink;
-        $('btnSaveTransCard').innerText = t.addCardToDeck || "➕ Add to Deck";
-        $('btnViewStudied').innerText = "📋 " + t.viewList;
-        const btnArchive = $('btnArchive'); if(btnArchive) btnArchive.innerText = "🗃️ " + t.archiveMastered;
-        const lblRewards = $('lblRewards'); if(lblRewards) lblRewards.innerText = "🏅 " + t.rewards;
         const returnDashBtn = $('returnDashBtn');
-        if(returnDashBtn && !returnDashBtn.innerText.includes("Loading")) returnDashBtn.innerText = t.returnDash;
+        if(returnDashBtn && !returnDashBtn.innerText.includes('⏳')) returnDashBtn.innerText = t.returnDash;
         const returnDashSummaryBtn = $('returnDashSummaryBtn');
-        if(returnDashSummaryBtn && !returnDashSummaryBtn.innerText.includes("Loading")) returnDashSummaryBtn.innerText = t.returnDash;
-        const lblDidYouMean = $('lblDidYouMean'); if (lblDidYouMean) lblDidYouMean.innerText = t.didYouMean || "Did you mean:";
-        const rewardBtn = $('btnRewardDismiss'); if (rewardBtn) rewardBtn.innerText = t.woohoo || "Woohoo!";
-        const lblInitializing = $('lblInitializing'); if (lblInitializing) lblInitializing.innerText = t.initializing || "Initializing...";
-        const lblStudiedModalTitle = $('lblStudiedModalTitle'); if (lblStudiedModalTitle) lblStudiedModalTitle.innerText = t.studiedModalTitle || "Cards Studied Today";
-        const btnStudiedModalClose = $('btnStudiedModalClose'); if (btnStudiedModalClose) btnStudiedModalClose.innerText = t.close || "Close";
+        if(returnDashSummaryBtn && !returnDashSummaryBtn.innerText.includes('⏳')) returnDashSummaryBtn.innerText = t.returnDash;
+        setPh('transSourceInput', t.lookupPlaceholder || "Type word...");
+        setPh('transResultInput', t.resultPlaceholder || "Result will appear here...");
+        setPh('typeInput', t.typeAnswerPlaceholder || "Type answer...");
         const themeSel = $('themeSelectUI');
         if (themeSel) {
-            themeSel.options[0].text = t.themeKurs || "🎨 Kurskollektivet Theme";
+            themeSel.options[0].text = t.themeKurs || "☀️ Light Theme";
             themeSel.options[1].text = t.themeDark || "🌙 Dark Theme";
         }
         updatePairSelectUI();
-        updateWindowModeUI();
         if (rawData) {
             processCardsForActivePair();
         }
@@ -218,12 +374,12 @@
             } else {
               button.disabled = false;
               button.innerText = t.archiveCard || '🗃️ Archive';
-              showCustomAlert('Error archiving card: ' + ((res && (res.error || res.message)) || 'Unknown error'));
+              showCustomAlert((t.errorArchivingCard || 'Error archiving card: ') + ((res && (res.error || res.message)) || 'Unknown error'));
             }
           }, error => {
             button.disabled = false;
             button.innerText = t.archiveCard || '🗃️ Archive';
-            showCustomAlert('Connection Error: ' + error);
+            showCustomAlert((t.connectionError || 'Connection Error: ') + error);
           });
       }
       function openStudiedModal() {
@@ -278,20 +434,32 @@
         selA.value = selectedPair.codeA;
         selB.value = selectedPair.codeB;
         selA.onchange = () => {
-          resolvePairColumns();
-            selectedPair.codeA = selA.value;
-          selectedPair.headerA = rawData && rawData.headers ? rawData.headers[selectedPair.idxA] : selectedPair.headerA;
-            const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "default";
-            localStorage.setItem('srs_langA_' + savedDeckId, selA.value);
-            processCardsForActivePair();
+          const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "default";
+          selectedPair.codeA = selA.value;
+          localStorage.setItem('srs_langA_' + savedDeckId, selA.value);
+          const foundA = findLanguageHeader(selectedPair.codeA, -1);
+          if (foundA >= 0) selectedPair.idxA = foundA;
+          if (selectedPair.idxB === selectedPair.idxA) selectedPair.idxB = selectedPair.idxA === 0 ? 1 : 0;
+          selectedPair.headerA = rawData.headers[selectedPair.idxA];
+          selectedPair.headerB = rawData.headers[selectedPair.idxB];
+          localStorage.setItem('srs_headerA_' + savedDeckId, selectedPair.headerA || '');
+          localStorage.setItem('srs_headerB_' + savedDeckId, selectedPair.headerB || '');
+          processCardsForActivePair();
+          fetchData();
         };
         selB.onchange = () => {
-          resolvePairColumns();
-            selectedPair.codeB = selB.value;
-          selectedPair.headerB = rawData && rawData.headers ? rawData.headers[selectedPair.idxB] : selectedPair.headerB;
-            const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "default";
-            localStorage.setItem('srs_langB_' + savedDeckId, selB.value);
-            processCardsForActivePair();
+          const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "default";
+          selectedPair.codeB = selB.value;
+          localStorage.setItem('srs_langB_' + savedDeckId, selB.value);
+          const foundB = findLanguageHeader(selectedPair.codeB, -1);
+          if (foundB >= 0) selectedPair.idxB = foundB;
+          if (selectedPair.idxA === selectedPair.idxB) selectedPair.idxA = selectedPair.idxB === 0 ? 1 : 0;
+          selectedPair.headerA = rawData.headers[selectedPair.idxA];
+          selectedPair.headerB = rawData.headers[selectedPair.idxB];
+          localStorage.setItem('srs_headerA_' + savedDeckId, selectedPair.headerA || '');
+          localStorage.setItem('srs_headerB_' + savedDeckId, selectedPair.headerB || '');
+          processCardsForActivePair();
+          fetchData();
         };
       }
       function openTranslateModal() {
@@ -315,7 +483,8 @@
         return quickAddSourceIndex.get((dirValue === 'forward' ? 'a:' : 'b:') + cleanSource) || null;
       }
       function showQuickAddDuplicate(card) {
-        showCustomAlert(`⚠️ This source already exists in your deck:\n\n${card.front} ➔ ${card.back}`);
+        const t = i18n[currentUiLang] || i18n.en;
+        showCustomAlert(`${t.duplicateSource || '⚠️ This source already exists in your deck:'}\n\n${card.front} ➔ ${card.back}`);
       }
       function setQuickAddBusy(isBusy) {
         const button = $('btnRunTranslate');
@@ -323,10 +492,11 @@
       }
       function runServerMutation(method, args, onSuccess, onFailure) {
         const runner = google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure || showCustomAlert);
-        runner[method].apply(runner, args);
+        runner[method].apply(runner, args.concat([currentUiLang]));
       }
       function renderTranslationResults(res, requestId) {
         if (requestId !== quickAddRequestId) return;
+        const t = i18n[currentUiLang] || i18n.en;
         const providers = [
           ['google', 'optGoogleTrans', 'optGoogleTransText'],
           ['deepl', 'optDeeplTrans', 'optDeeplTransText'],
@@ -337,10 +507,10 @@
           const value = res && res.success && typeof res[key] === 'string' && res[key].trim() && !/unavailable| error/i.test(res[key]) ? res[key].trim() : '';
           const button = $(buttonId);
           button.style.display = 'flex';
-          $(textId).innerText = value || (key === 'google' && res && res.googleError ? 'Unavailable: ' + res.googleError : 'Unavailable');
+          $(textId).innerText = value || (key === 'google' && res && res.googleError ? (t.unavailable || 'Unavailable') + ': ' + res.googleError : (t.unavailable || 'Unavailable'));
           button.setAttribute('data-val', value);
           const resultInput = $('transResultInput');
-          if (value && (!resultInput.value || resultInput.value === 'Fetching translations...')) resultInput.value = value;
+          if (value && (!resultInput.value || resultInput.value === (t.fetchingTranslations || "Fetching translations..."))) resultInput.value = value;
         });
         validateTranslateInputs();
       }
@@ -362,7 +532,7 @@
         google.script.run
           .withSuccessHandler(mergeResult)
           .withFailureHandler(() => mergeResult(null))
-          .translateText(text, sourceCode, targetCode, true);
+          .translateText(text, sourceCode, targetCode, true, currentUiLang);
       }
       function requestQuickAddSpelling(text, sourceCode, targetCode, dirValue, requestId) {
         google.script.run
@@ -380,6 +550,7 @@
           .checkSpelling(text, sourceCode);
       }
       function runAiTranslation() {
+        const t = i18n[currentUiLang] || i18n.en;
         const text = $('transSourceInput').value.trim();
         if (!text) return;
         if (countWords(text) > 20) { validateTranslateInputs(); return; }
@@ -395,13 +566,12 @@
           return;
         }
         setQuickAddBusy(true);
-        $('transResultInput').value = "Fetching translations...";
+        $('transResultInput').value = t.fetchingTranslations || "Fetching translations...";
         $('transResultsArea').style.display = 'flex';
-        ['optGoogleTransText', 'optDeeplTransText', 'optGeminiTransText'].forEach(id => $(id).innerText = 'Fetching...');
+        ['optGoogleTransText', 'optDeeplTransText', 'optGeminiTransText'].forEach(id => $(id).innerText = t.fetching || 'Fetching...');
         $('spellcheckArea').style.display = 'none';
         requestQuickAddTranslation(text, sourceCode, targetCode, requestId);
         requestQuickAddSpelling(text, sourceCode, targetCode, dirValue, requestId);
-        setQuickAddBusy(false);
       }
       function selectTranslationOption(val) {
         if (!val) return;
@@ -411,8 +581,8 @@
         const lookupText = $('transSourceInput').value.trim();
         const translationText = $('transResultInput').value.trim();
         const t = i18n[currentUiLang] || i18n.en;
-        if (!lookupText || !translationText || translationText === "Fetching translations...") {
-          showCustomAlert("Please look up a translation first.");
+        if (!lookupText || !translationText || translationText === (t.fetchingTranslations || "Fetching translations...")) {
+          showCustomAlert(t.lookupFirst || "Please look up a translation first.");
           return;
         }
         if (countWords(lookupText) > 20 || countWords(translationText) > 20) {
@@ -432,27 +602,27 @@
         const cleanB = cleanString(cardLangB);
         const duplicateCard = quickAddCardIndex.get(cleanA + ':::' + cleanB);
         if (duplicateCard) {
-            showCustomAlert(`⚠️ Duplicate detected!\n\nThis word already exists in your deck as:\n\n${duplicateCard.front} ➔ ${duplicateCard.back}`);
+            showCustomAlert(`${t.duplicateDetected || "⚠️ Duplicate detected!\n\nThis word already exists in your deck as:"}\n\n${duplicateCard.front} ➔ ${duplicateCard.back}`);
             return;
         }
         const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
         $('btnSaveTransCard').disabled = true;
-        $('btnSaveTransCard').innerText = "Saving...";
+        $('btnSaveTransCard').innerText = t.saving || "Saving...";
         google.script.run
           .withSuccessHandler(res => {
             $('btnSaveTransCard').disabled = false; $('btnSaveTransCard').innerText = t.addCardToDeck || "➕ Add to Deck";
             if (res.success) {
-              showCustomAlert("🎉 Card added directly to your spreadsheet deck!");
+              showCustomAlert(t.cardAdded || "🎉 Card added directly to your spreadsheet deck!");
               closeTranslateModal();
               fetchData();
             } else if (res.duplicate) {
               showQuickAddDuplicate({ front: res.front, back: res.back });
             } else {
-              showCustomAlert("Error adding card: " + res.error);
+              showCustomAlert((t.errorAddingCard || "Error adding card: ") + res.error);
             }
           })
-          .withFailureHandler(e => { $('btnSaveTransCard').disabled = false; showCustomAlert("Error saving card: " + e); })
-          .addNewCardToSheet(cardLangA, cardLangB, savedDeckId, selectedPair.idxA, selectedPair.idxB);
+          .withFailureHandler(e => { $('btnSaveTransCard').disabled = false; showCustomAlert((t.errorSavingCard || "Error saving card: ") + e); })
+          .addNewCardToSheet(cardLangA, cardLangB, savedDeckId, selectedPair.idxA, selectedPair.idxB, currentUiLang);
       }
       function openEditModal() {
         if (!currentCard) return;
@@ -467,12 +637,14 @@
       function closeEditModal() { $('editCardModal').style.display = 'none'; }
       function saveCardEdit() {
         if (!currentCard) return;
+        const t = i18n[currentUiLang] || i18n.en;
         const newFront = $('editFrontInput').value.trim(); const newBack = $('editBackInput').value.trim();
-        if (!newFront || !newBack) { showCustomAlert("Both front and back fields must contain text."); return; }
+        if (!newFront || !newBack) { showCustomAlert(t.bothFieldsRequired || "Both front and back fields must contain text."); return; }
         if (countWords(newFront) > 20 || countWords(newBack) > 20) { validateEditInputs(); return; }
         const oldCardId = currentCard.id;
-        // Update the local card immediately for responsive quiz UI. If the
-        // server rejects the write, fetchData() restores the authoritative row.
+        const editRowIndex = currentCard.rowIndex; const editColA = currentCard.colIdxA; const editColB = currentCard.colIdxB;
+        // Update the local card immediately. If the server rejects the write,
+        // fetchData() restores the authoritative row.
         currentCard.front = newFront; currentCard.back = newBack;
         if (rawData && rawData.rawRows && currentCard.rowIndex) {
           const row = rawData.rawRows[currentCard.rowIndex - 2];
@@ -481,24 +653,36 @@
             row[currentCard.colIdxB] = newBack;
           }
         }
-        targetPrompt = isForward ? currentCard.front : currentCard.back; targetAnswer = isForward ? currentCard.back : currentCard.front;
-        const dispAnswerLang = getDisplayLangCode(answerLangCode);
-        if (currentMode === 'flip') { $('promptMain').innerText = targetPrompt; $('flipAnswerText').innerText = targetAnswer; }
-        else if (currentMode === 'word_tiles') { setupWordTiles(); }
-        else if (currentMode === 'faded_hints') { setupFadedHints(dispAnswerLang); }
-        else { $('promptMain').innerText = targetPrompt; }
         closeEditModal();
+        if ($('viewQuiz') && $('viewQuiz').style.display === 'block') {
+          // In quiz mode: move to the next question now and re-show the edited
+          // card later in this segment, so the edit is applied before it
+          // returns. Only re-queue it if it was still awaiting an answer.
+          if (segmentQueue[0] && segmentQueue[0].card && segmentQueue[0].card.id === currentCard.id) {
+            const editedItem = segmentQueue.shift();
+            if (editedItem) segmentQueue.push(editedItem);
+          }
+          renderNextCard();
+        } else {
+          targetPrompt = isForward ? currentCard.front : currentCard.back; targetAnswer = isForward ? currentCard.back : currentCard.front;
+          const dispAnswerLang = getDisplayLangCode(answerLangCode);
+          if (currentMode === 'flip') { $('promptMain').innerText = targetPrompt; $('flipAnswerText').innerText = targetAnswer; }
+          else if (currentMode === 'word_tiles') { setupWordTiles(); }
+          else if (currentMode === 'faded_hints') { setupFadedHints(dispAnswerLang); }
+          else { $('promptMain').innerText = targetPrompt; }
+        }
         const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
-        runServerMutation('updateCardInSheet', [currentCard.rowIndex, currentCard.colIdxA, currentCard.colIdxB, newFront, newBack, savedDeckId, oldCardId], () => {}, e => { showCustomAlert("Error saving to spreadsheet: " + e); fetchData(); });
+        runServerMutation('updateCardInSheet', [editRowIndex, editColA, editColB, newFront, newBack, savedDeckId, oldCardId], () => {}, e => { showCustomAlert((t.errorSavingSheet || "Error saving to spreadsheet: ") + e); fetchData(); });
       }
       function archiveMasteredCards() {
         const btn = $('btnArchive'); if(!btn) return;
-        const oldText = btn.innerText; btn.innerText = "⏳ Archiving..."; btn.disabled = true;
+        const t = i18n[currentUiLang] || i18n.en;
+        const oldText = btn.innerText; btn.innerText = t.archiving || "⏳ Archiving..."; btn.disabled = true;
         const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
         runServerMutation('archiveMasteredCards', [savedDeckId, selectedPair.idxA, selectedPair.idxB], res => {
             btn.innerText = oldText; btn.disabled = false;
-            if (res.success) { showCustomAlert(res.message); if (res.count > 0) fetchData(); } else { showCustomAlert("Error: " + res.message); }
-          }, e => { showCustomAlert("Error: " + e); btn.innerText = oldText; btn.disabled = false; });
+            if (res.success) { showCustomAlert(res.message); if (res.count > 0) fetchData(); } else { showCustomAlert((t.errorPrefix || "Error: ") + res.message); }
+          }, e => { showCustomAlert((t.connectionError || "Connection Error: ") + e); btn.innerText = oldText; btn.disabled = false; });
       }
       function extractSpreadsheetId(urlOrId) {
         if (!urlOrId) return "";
@@ -569,14 +753,27 @@
         let savedHeaderB = localStorage.getItem('srs_headerB_' + savedDeckId);
         let codeA = savedA || detectLangFromRows(0, rawData.rawRows);
         let codeB = savedB || detectLangFromRows(1, rawData.rawRows);
-        let idxA = savedHeaderA ? rawData.headers.indexOf(savedHeaderA) : 0;
-        let idxB = savedHeaderB ? rawData.headers.indexOf(savedHeaderB) : 1;
-        if (idxA < 0 || idxA >= rawData.headers.length) idxA = 0;
-        if (idxB < 0 || idxB >= rawData.headers.length || idxB === idxA) idxB = idxA === 0 ? 1 : 0;
+        const hint = rawData.selectedPairHint;
+        let idxA = savedHeaderA ? rawData.headers.indexOf(savedHeaderA) : -1;
+        let idxB = savedHeaderB ? rawData.headers.indexOf(savedHeaderB) : -1;
+        if (idxA < 0 && hint) idxA = hint.idxA;
+        if (idxB < 0 && hint) idxB = hint.idxB;
+        if (idxA < 0) idxA = 0;
+        if (idxB < 0 || idxB === idxA) idxB = idxA === 0 ? 1 : 0;
         selectedPair = { idxA: idxA, idxB: idxB, codeA: codeA, codeB: codeB, headerA: rawData.headers[idxA], headerB: rawData.headers[idxB] };
+        resolvePairColumns();
         localStorage.setItem('srs_headerA_' + savedDeckId, selectedPair.headerA || '');
         localStorage.setItem('srs_headerB_' + savedDeckId, selectedPair.headerB || '');
         updatePairSelectUI();
+      }
+      function findLanguageHeader(code, excludedIdx) {
+        if (!rawData || !rawData.headers) return -1;
+        const terms = [code, getNativeLangName(code)].filter(Boolean).map(term => term.toLowerCase());
+        return rawData.headers.findIndex((header, index) => {
+          if (index === excludedIdx || header.trim().toLowerCase() === 'srs card id') return false;
+          const normalized = header.toLowerCase();
+          return terms.some(term => normalized === term || normalized.indexOf(term) !== -1);
+        });
       }
       function resolvePairColumns() {
         if (!rawData || !rawData.headers || !selectedPair) return;
@@ -584,14 +781,6 @@
         // when a saved header was removed or renamed in the spreadsheet.
         const idxA = selectedPair.headerA ? rawData.headers.indexOf(selectedPair.headerA) : -1;
         const idxB = selectedPair.headerB ? rawData.headers.indexOf(selectedPair.headerB) : -1;
-        const findLanguageHeader = (code, excludedIdx) => {
-          const terms = [code, getNativeLangName(code)].filter(Boolean).map(term => term.toLowerCase());
-          return rawData.headers.findIndex((header, index) => {
-            if (index === excludedIdx || header.trim().toLowerCase() === 'srs card id') return false;
-            const normalized = header.toLowerCase();
-            return terms.some(term => normalized === term || normalized.indexOf(term) !== -1);
-          });
-        };
         selectedPair.idxA = idxA >= 0 ? idxA : findLanguageHeader(selectedPair.codeA, -1);
         selectedPair.idxB = idxB >= 0 ? idxB : findLanguageHeader(selectedPair.codeB, selectedPair.idxA);
         if (selectedPair.idxA < 0) selectedPair.idxA = 0;
@@ -618,18 +807,5 @@
           }
         }
         return matrix[b.length][a.length];
-      }
-      function updateWindowModeUI() {
-        const btnPop = $('popoutToggleBtn'); const btnWeb = $('btnWebApp');
-        const isWebApp = (window.IS_WEB_APP === true);
-        if (isWebApp) {
-          if (btnPop) btnPop.style.display = 'none'; if (btnWeb) btnWeb.style.display = 'none';
-        } else {
-          const t = i18n[currentUiLang] || i18n.en;
-          if (btnPop) {
-            if (window.innerWidth > 400) { btnPop.innerText = t.dockSidebar; btnPop.title = t.dockTitle; }
-            else { btnPop.innerText = t.popOut; btnPop.title = t.popoutTitle; }
-          }
-        }
       }
     </script>

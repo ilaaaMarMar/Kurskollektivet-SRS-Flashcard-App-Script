@@ -8,7 +8,8 @@ var GEMINI_MODELS = [
 var CARD_ID_HEADER = "SRS Card ID";
 var MAX_INTERVAL_DAYS = 360;
 var ARCHIVE_SHEET_NAME = 'Archived cards';
-var REVIEW_EVENT_HEADERS = ['UserKey', 'ClientId', 'CardId', 'IsCorrect', 'Confidence', 'WasNew', 'IsTypo', 'InDifficultMode', 'LastReviewed', 'ResultJson', 'Status', 'AppliedAt'];
+var REVIEW_EVENT_HEADERS = ['UserKey', 'ClientId', 'CardId', 'IsCorrect', 'Confidence', 'WasNew', 'IsTypo', 'InDifficultMode', 'LastReviewed', 'ResultJson', 'Status', 'AppliedAt', 'LangA', 'LangB'];
+var PROGRESS_HEADERS = ['UserKey', 'LangA', 'LangB', 'CardId', 'Interval', 'NextReview', 'FailCount', 'IsLeech', 'LastReviewed', 'EF', 'PrevInterval'];
 function include_(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
@@ -104,7 +105,13 @@ function parseDateToString(val, timeZone) {
   if (val instanceof Date) {
     return Utilities.formatDate(val, timeZone || getScriptTimeZone(), "yyyy-MM-dd");
   }
-  return val.toString().trim();
+  return val.toString().trim().replace(/^'+/, '');
+}
+// Single canonical datetime format across all sheets: UTC, 24h, no T/Z suffix.
+// The rest of the app parses naive datetimes as UTC (by appending 'Z'), so this
+// keeps scheduling identical while rendering as a clean, readable text string.
+function formatUtcDateTime_(ms) {
+  return Utilities.formatDate(new Date(ms), "GMT", "yyyy-MM-dd HH:mm:ss");
 }
 var INTERVAL_STAGES = [1 / 24, 3, 7, 14, 30, 60, 90, 180, 359, 360];
 // Shared scheduling primitives used by the client-compatible SM-2 model.
@@ -131,7 +138,10 @@ function applyServerFuzz_(intervalInDays) {
 }
 function getBoundedOverdueDays_(nextReview, currentInterval, nowMs) {
   if (!nextReview || currentInterval < 1) return 0;
-  var dueMs = Date.parse(nextReview.toString().trim());
+  var raw = String(nextReview).toString().trim().replace(/^'+/, '');
+  var hasTimezone = /(?:Z|[+\-]\d{2}:?\d{2})$/.test(raw);
+  var normalized = raw.includes(' ') ? raw.replace(' ', 'T') : raw;
+  var dueMs = Date.parse(hasTimezone ? normalized : (normalized + 'Z'));
   if (isNaN(dueMs)) return 0;
   var overdueDays = Math.max(0, (nowMs - dueMs) / (24 * 60 * 60 * 1000));
   return Math.min(overdueDays, currentInterval * 0.5);
@@ -156,9 +166,13 @@ function scheduleAnswerResult_(cardState, item, wasNew, nowMs, todayStr, reviewC
   else if (isTypo) failCount += 0.5;
   var newInterval = 1;
   var newEF = currentEF;
+  var lapsedRecovery = false;
+  var skipIntervalCap = false;
   var inDifficultMode = item.inDifficultMode === true;
   if (inDifficultMode && isCorrect) {
-    failCount = 0;
+    // A difficult card is only cleared of its leech label once the client has
+    // completed all three practice modes (recognition, listening, typing).
+    if (item.clearLeech === true) { failCount = 0; }
     var baseInterval = currentPrevInterval || currentInterval;
     var baseStage = getStageFromInterval(baseInterval, wasNew);
     var targetStage = Math.max(1, baseStage - 1);
@@ -171,11 +185,25 @@ function scheduleAnswerResult_(cardState, item, wasNew, nowMs, todayStr, reviewC
     } else if (wasNew) {
       if (q === 3) newInterval = 15 / 1440;
       else if (q === 4) newInterval = 0.25;
-      else if (q === 5) newInterval = 1;
+      else if (q === 5) { newInterval = 1; skipIntervalCap = true; }
     } else if (currentInterval < 1) {
-      if (q === 5) newInterval = currentInterval >= 0.5 ? 3 : 1;
-      else if (q === 3) newInterval = currentInterval;
-      else newInterval = currentInterval <= 0.26 ? 0.5 : 1;
+      // A card that lapsed from a mature interval recovers toward its previous
+      // stage instead of re-ramping through the learning steps. The only penalty
+      // for a lapse is applied when the card is recovered in difficult mode
+      // (one stage back + EF drop), handled by the branch above.
+      if (currentPrevInterval && currentPrevInterval >= 1) {
+        var lapseStage = getStageFromInterval(currentPrevInterval, false);
+        if (q === 5) newInterval = getIntervalForStage(Math.min(INTERVAL_STAGES.length, lapseStage + 1));
+        else if (q === 4) newInterval = getIntervalForStage(lapseStage);
+        else newInterval = getIntervalForStage(Math.max(1, lapseStage - 1));
+        lapsedRecovery = true;
+      } else if (q === 5) {
+        newInterval = currentInterval >= 0.5 ? 3 : 1;
+      } else if (q === 3) {
+        newInterval = currentInterval;
+      } else {
+        newInterval = currentInterval <= 0.26 ? 0.5 : 1;
+      }
     } else {
       var overdueDays = getBoundedOverdueDays_(cardState.nextReview, currentInterval, nowMs);
       var effectiveInterval = currentInterval + overdueDays;
@@ -189,10 +217,10 @@ function scheduleAnswerResult_(cardState, item, wasNew, nowMs, todayStr, reviewC
     if (newEF < 1.3) newEF = 1.3;
   }
   var finalInterval = Math.min(MAX_INTERVAL_DAYS, applyServerFuzz_(newInterval));
-  if (wasNew || reviewCount > 0) {
+  if ((wasNew || reviewCount > 0) && !lapsedRecovery && !skipIntervalCap) {
     finalInterval = Math.min(finalInterval, getReviewCountIntervalCap_(reviewCount));
   }
-  var nextReview = new Date(nowMs + finalInterval * 24 * 60 * 60 * 1000).toISOString();
+  var nextReview = formatUtcDateTime_(nowMs + finalInterval * 24 * 60 * 60 * 1000);
   return {
     interval: finalInterval,
     nextReview: nextReview,
@@ -245,12 +273,12 @@ function getCardLocation_(sheet, rowIndex, colIdxA, colIdxB, expectedCardId) {
   var columns = getColumnPair_(sheet, colIdxA, colIdxB);
   var cA = columns.colIdxA;
   var cB = columns.colIdxB;
-    var lastRow = sheet.getLastRow();
+  var lastRow = sheet.getLastRow();
   if (isNaN(r) || r < 2 || r > lastRow) {
     throw new Error("Invalid card location.");
   }
   var idInfo = ensureCardIdColumn_(sheet);
-  var row = sheet.getRange(r, 1, 1, sheet.getMaxColumns()).getValues()[0];
+  var row = sheet.getRange(r, 1, 1, sheet.getLastColumn()).getValues()[0];
   var stableId = row[idInfo.idColumn] ? row[idInfo.idColumn].toString().trim() : "";
   var identity = getCardIdentity_(row, cA, cB, stableId);
   var front = identity.front;
@@ -279,21 +307,23 @@ function getColumnPair_(sheet, colIdxA, colIdxB) {
   }
   return { colIdxA: cA, colIdxB: cB };
 }
-function readProgressForUser_(sheet, userKey, timeZone, todayStr) {
+function readProgressForUser_(sheet, userKey, timeZone, todayStr, preloadedData) {
   var progress = {};
-  if (!sheet) return progress;
-  var data = sheet.getDataRange().getValues();
+  if (!sheet && !preloadedData) return progress;
+  var data = preloadedData || sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
     if (data[i][0] !== userKey) continue;
-    var cardId = data[i][1];
+    var cardId = data[i][3];
     progress[cardId] = {
-      interval: data[i][2] !== undefined ? parseFloat(data[i][2]) : 1,
-      nextReview: data[i][3] instanceof Date ? Utilities.formatDate(data[i][3], timeZone, "yyyy-MM-dd HH:mm:ss") : (data[i][3] ? data[i][3].toString().trim() : todayStr),
-      failCount: data[i][4] !== undefined ? parseFloat(data[i][4]) : 0,
-      isLeech: data[i][5] === 1,
-      lastReviewed: data[i][6] ? parseDateToString(data[i][6], timeZone) : "",
-      ef: data[i][7] !== undefined ? parseFloat(data[i][7]) : 2.5,
-      prevInterval: data[i][8] !== undefined && data[i][8] !== "" ? parseFloat(data[i][8]) : null
+      langA: data[i][1] !== undefined ? String(data[i][1]) : "",
+      langB: data[i][2] !== undefined ? String(data[i][2]) : "",
+      interval: data[i][4] !== undefined ? parseFloat(data[i][4]) : 1,
+      nextReview: data[i][5] instanceof Date ? Utilities.formatDate(data[i][5], timeZone, "yyyy-MM-dd HH:mm:ss") : (data[i][5] ? String(data[i][5]).trim().replace(/^'+/, '') : todayStr),
+      failCount: data[i][6] !== undefined ? parseFloat(data[i][6]) : 0,
+      isLeech: data[i][7] === 1,
+      lastReviewed: data[i][8] ? parseDateToString(data[i][8], timeZone).replace(/^'+/, '') : "",
+      ef: data[i][9] !== undefined ? parseFloat(data[i][9]) : 2.5,
+      prevInterval: data[i][10] !== undefined && data[i][10] !== "" ? parseFloat(data[i][10]) : null
     };
   }
   return progress;
@@ -320,7 +350,7 @@ function normalizeDateColumn_(sheet, column, startRow, lastRow, includeTime) {
 }
 function formatTrackingSheet_(sheet, type) {
   var lastRow = Math.max(sheet.getLastRow(), 1);
-  var lastColumn = Math.max(sheet.getLastColumn(), type === 'progress' ? 9 : 5);
+  var lastColumn = Math.max(sheet.getLastColumn(), type === 'progress' ? 11 : 5);
   sheet.setFrozenRows(1);
   sheet.getRange(1, 1, 1, lastColumn)
     .setFontWeight('bold')
@@ -328,21 +358,23 @@ function formatTrackingSheet_(sheet, type) {
     .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
   if (type === 'progress') {
     sheet.setColumnWidth(1, 220);
-    sheet.setColumnWidth(2, 360);
-    sheet.setColumnWidth(3, 90);
-    sheet.setColumnWidth(4, 185);
+    sheet.setColumnWidth(2, 300);
+    sheet.setColumnWidth(3, 300);
+    sheet.setColumnWidth(4, 90);
     sheet.setColumnWidth(5, 85);
-    sheet.setColumnWidth(6, 75);
-    sheet.setColumnWidth(7, 110);
+    sheet.setColumnWidth(6, 185);
+    sheet.setColumnWidth(7, 75);
     sheet.setColumnWidth(8, 70);
-    sheet.setColumnWidth(9, 95);
+    sheet.setColumnWidth(9, 110);
+    sheet.setColumnWidth(10, 70);
+    sheet.setColumnWidth(11, 95);
     if (lastRow > 1) {
-      normalizeDateColumn_(sheet, 4, 2, lastRow, true);
-      normalizeDateColumn_(sheet, 7, 2, lastRow, false);
-      sheet.getRange(2, 3, lastRow - 1, 1).setNumberFormat('0.000');
-      sheet.getRange(2, 5, lastRow - 1, 1).setNumberFormat('0.0');
-      sheet.getRange(2, 6, lastRow - 1, 1).setNumberFormat('0');
-      sheet.getRange(2, 8, lastRow - 1, 1).setNumberFormat('0.00');
+      normalizeDateColumn_(sheet, 6, 2, lastRow, true);
+      normalizeDateColumn_(sheet, 9, 2, lastRow, false);
+      sheet.getRange(2, 5, lastRow - 1, 1).setNumberFormat('0.000');
+      sheet.getRange(2, 7, lastRow - 1, 1).setNumberFormat('0.0');
+      sheet.getRange(2, 8, lastRow - 1, 1).setNumberFormat('0');
+      sheet.getRange(2, 10, lastRow - 1, 1).setNumberFormat('0.00');
     }
   } else {
     sheet.setColumnWidth(1, 220);
@@ -369,13 +401,115 @@ function ensureCardIdColumn_(sheet) {
   if (idColumn === -1) throw new Error("Missing SRS Card ID column.");
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return { idColumn: idColumn, ids: [] };
+  backfillMissingCardIds_(sheet, idColumn, lastRow);
   var idRange = sheet.getRange(2, idColumn + 1, lastRow - 1, 1);
-  var ids = idRange.getValues().map(function (row) {
+  var ids = idRange.getValues().map(function (row, rowOffset) {
     var id = row[0] ? row[0].toString().trim() : "";
-    if (!id) throw new Error("Blank SRS Card ID.");
+    if (!id) Logger.log('Blank SRS Card ID at row ' + (rowOffset + 2) + ', skipped.');
     return id;
   });
   return { idColumn: idColumn, ids: ids };
+}
+function backfillMissingCardIds_(sheet, idColumn, lastRow) {
+  try {
+    if (lastRow < 2) return;
+    var idRange = sheet.getRange(2, idColumn + 1, lastRow - 1, 1);
+    var ids = idRange.getValues();
+    var filled = 0;
+    for (var i = 0; i < ids.length; i++) {
+      var current = ids[i][0] ? ids[i][0].toString().trim() : '';
+      if (!current) {
+        ids[i][0] = Utilities.getUuid();
+        filled++;
+      }
+    }
+    if (filled > 0) {
+      idRange.setValues(ids);
+      Logger.log('Generated ' + filled + ' missing SRS Card IDs.');
+    }
+  } catch (e) {
+    Logger.log('backfillMissingCardIds_ failed: ' + e);
+  }
+}
+function getCardIdInfoFromValues_(allValues) {
+  var headers = allValues[0] || [];
+  var idColumn = -1;
+  for (var i = 0; i < headers.length; i++) {
+    if (headers[i].toString().trim() === CARD_ID_HEADER) {
+      idColumn = i;
+      break;
+    }
+  }
+  if (idColumn === -1) throw new Error("Missing SRS Card ID column.");
+  var ids = [];
+  var blankIndexes = [];
+  var idToRow = {};
+  for (var r = 1; r < allValues.length; r++) {
+    var id = allValues[r][idColumn] ? allValues[r][idColumn].toString().trim() : '';
+    if (!id) blankIndexes.push(r - 1);
+    ids.push(id);
+    if (id) idToRow[id] = r;
+  }
+  return { idColumn: idColumn, ids: ids, blankIndexes: blankIndexes, idToRow: idToRow, allValues: allValues };
+}
+function getCardFrontBackByProgressId_(cardId, cardIdInfo) {
+  var idStr = String(cardId);
+  var pairIdx = idStr.indexOf(':::pair:');
+  var stableId = pairIdx >= 0 ? idStr.slice(0, pairIdx) : idStr;
+  var a = -1;
+  var b = -1;
+  if (pairIdx >= 0) {
+    var parts = idStr.slice(pairIdx + 8).split(':');
+    a = parseInt(parts[0], 10);
+    b = parseInt(parts[1], 10);
+  }
+  var rowIndex = cardIdInfo.idToRow[stableId];
+  if (rowIndex === undefined) return null;
+  var row = cardIdInfo.allValues[rowIndex];
+  if (a < 0 || b < 0 || a >= row.length || b >= row.length) return null;
+  var front = row[a] ? String(row[a]).trim() : '';
+  var back = row[b] ? String(row[b]).trim() : '';
+  if (!front && !back) return null;
+  return { front: front, back: back };
+}
+function ensureProgressSchema_(ss, cardIdInfo) {
+  var sheet = ss.getSheetByName('SRS_Progress');
+  if (!sheet) {
+    sheet = ss.insertSheet('SRS_Progress');
+    sheet.getRange(1, 1, 1, PROGRESS_HEADERS.length).setValues([PROGRESS_HEADERS]);
+    formatTrackingSheet_(sheet, 'progress');
+    return sheet;
+  }
+  var headerRow = sheet.getRange(1, 1, 1, Math.max(1, sheet.getMaxColumns())).getValues()[0];
+  if (headerRow.length >= PROGRESS_HEADERS.length && headerRow[0] === 'UserKey' && headerRow[1] === 'LangA' && headerRow[2] === 'LangB') {
+    return sheet;
+  }
+  var data = sheet.getDataRange().getValues();
+  if (data.length === 0 || data.length === 1) {
+    sheet.getRange(1, 1, 1, PROGRESS_HEADERS.length).setValues([PROGRESS_HEADERS]);
+    formatTrackingSheet_(sheet, 'progress');
+    return sheet;
+  }
+  sheet.insertColumns(2, 2);
+  sheet.getRange(1, 1, 1, PROGRESS_HEADERS.length).setValues([PROGRESS_HEADERS]);
+  var langValues = [];
+  for (var i = 1; i < data.length; i++) {
+    var fb = getCardFrontBackByProgressId_(data[i][1], cardIdInfo);
+    langValues.push([fb ? fb.front : '', fb ? fb.back : '']);
+  }
+  sheet.getRange(2, 2, langValues.length, 2).setValues(langValues);
+  formatTrackingSheet_(sheet, 'progress');
+  Logger.log('Migrated SRS_Progress to include LangA/LangB for ' + langValues.length + ' rows.');
+  return sheet;
+}
+function ensureProgressSchemaSafe_(ss, cardIdInfo) {
+  var lock = LockService.getDocumentLock();
+  try {
+    lock.waitLock(10000);
+    return ensureProgressSchema_(ss, cardIdInfo);
+  } finally {
+    lock.releaseLock();
+  }
 }
 function enforceRateLimit_(name, limit, windowSeconds) {
   var cache = CacheService.getUserCache();
@@ -403,7 +537,7 @@ function getTodayString(timeZone) {
 function getHistoryCacheKey_(ss, userKey) {
   return 'srs_history_' + ss.getId() + '_' + userKey;
 }
-function getFlashcardData(customDeckId, clientTodayStr, clientTimeZone) {
+function getFlashcardData(customDeckId, clientTodayStr, clientTimeZone, hintHeaderA, hintHeaderB) {
   var timeZone = resolveClientTimeZone(clientTimeZone);
   var todayStr = getTodayString(timeZone);
   var ss = resolveSpreadsheet(customDeckId);
@@ -423,9 +557,25 @@ function getFlashcardData(customDeckId, clientTodayStr, clientTimeZone) {
     ? (baseUrl + "?deck=" + encodeURIComponent(activeDeckId))
     : "";
   var sheet = ss.getSheets()[0];
-  var cardIdInfo = ensureCardIdColumn_(sheet);
   var allValues = sheet.getDataRange().getValues();
+  var cardIdInfo = getCardIdInfoFromValues_(allValues);
+  if (cardIdInfo.blankIndexes.length > 0) {
+    try {
+      var fillValues = [];
+      for (var fillIndex = 0; fillIndex < cardIdInfo.ids.length; fillIndex++) {
+        fillValues.push([cardIdInfo.ids[fillIndex] || Utilities.getUuid()]);
+      }
+      sheet.getRange(2, cardIdInfo.idColumn + 1, fillValues.length, 1).setValues(fillValues);
+      for (var fillIndex2 = 0; fillIndex2 < cardIdInfo.ids.length; fillIndex2++) {
+        if (!cardIdInfo.ids[fillIndex2]) cardIdInfo.ids[fillIndex2] = fillValues[fillIndex2][0];
+      }
+      Logger.log('Generated ' + cardIdInfo.blankIndexes.length + ' missing SRS Card IDs.');
+    } catch (e) {
+      Logger.log('Card ID backfill failed: ' + e);
+    }
+  }
   var progressSheet = ss.getSheetByName('SRS_Progress');
+  ensureProgressSchemaSafe_(ss, cardIdInfo);
   var savedProgressRaw = readProgressForUser_(progressSheet, activeUserKey, timeZone, todayStr);
   var studyHistory = {};
   var studiedLog = { date: todayStr, newCount: 0, oldCount: 0 };
@@ -467,19 +617,29 @@ function getFlashcardData(customDeckId, clientTodayStr, clientTimeZone) {
   }
   var headers = allValues[0].map(function (h) { return h.toString().trim(); });
   var rawData = allValues.slice(1);
+  var pairIdxA = hintHeaderA ? headers.indexOf(String(hintHeaderA).trim()) : -1;
+  var pairIdxB = hintHeaderB ? headers.indexOf(String(hintHeaderB).trim()) : -1;
+  if (pairIdxA < 0 || pairIdxA === cardIdInfo.idColumn) pairIdxA = -1;
+  if (pairIdxB < 0 || pairIdxB === cardIdInfo.idColumn || pairIdxB === pairIdxA) pairIdxB = -1;
+  if (pairIdxA < 0) pairIdxA = cardIdInfo.idColumn === 0 ? 1 : 0;
+  if (pairIdxB < 0) {
+    for (var pairColumn = 0; pairColumn < headers.length; pairColumn++) {
+      if (pairColumn !== pairIdxA && pairColumn !== cardIdInfo.idColumn) { pairIdxB = pairColumn; break; }
+    }
+  }
+  if (pairIdxB < 0 || pairIdxB === pairIdxA) pairIdxB = pairIdxA === 0 ? 1 : 0;
   var savedProgress = {};
   rawData.forEach(function (row, rowIndex) {
-    var front = row[0] ? row[0].toString().trim() : "";
-    for (var c = 1; c < row.length; c++) {
-      var back = row[c] ? row[c].toString().trim() : "";
-      if (!front || !back || c === cardIdInfo.idColumn) continue;
-      var stableId = getProgressId_(cardIdInfo.ids[rowIndex], 0, c);
-      if (savedProgressRaw[stableId]) savedProgress[stableId] = savedProgressRaw[stableId];
-    }
+    var front = row[pairIdxA] ? row[pairIdxA].toString().trim() : "";
+    var back = row[pairIdxB] ? row[pairIdxB].toString().trim() : "";
+    if (!front || !back) return;
+    var stableId = getProgressId_(cardIdInfo.ids[rowIndex], pairIdxA, pairIdxB);
+    if (savedProgressRaw[stableId]) savedProgress[stableId] = savedProgressRaw[stableId];
   });
   return {
     headers: headers, rawRows: rawData, savedProgress: savedProgress,
     cardIds: cardIdInfo.ids, cardIdColumn: cardIdInfo.idColumn,
+    selectedPairHint: { idxA: pairIdxA, idxB: pairIdxB, headerA: headers[pairIdxA], headerB: headers[pairIdxB] },
     studiedToday: { newCount: studiedLog.newCount || 0, oldCount: studiedLog.oldCount || 0 },
     activeUserKey: activeUserKey, activeUserEmail: getActiveUserEmail_(),
     todayStr: todayStr,
@@ -487,13 +647,60 @@ function getFlashcardData(customDeckId, clientTodayStr, clientTimeZone) {
     webAppUrl: webAppUrl
   };
 }
-function translateText(text, sourceLang, targetLang, includeGoogle) {
+var SERVER_STRINGS = {
+  en: {
+    emptyPrompt: "Empty text prompt", charLimit: "Source text exceeds the character limit.",
+    wordLimit20: "Text exceeds maximum 20 words limit.", invalidLang: "Invalid language code.",
+    invalidCol: "Invalid column index.", bothRequired: "Both front and back required.",
+    duplicateExists: "This card already exists in the selected language pair.",
+    missingIdentity: "Missing card identity.", noProgress: "No progress found.",
+    noMastered: "No fully mastered (Interval 360+ days) cards to archive.",
+    archivedCount: "Archived {n} mastered card(s).", systemBusy: "System busy. Please try again later."
+  },
+  no: {
+    emptyPrompt: "Tom tekstinndata", charLimit: "Kildeteksten overstiger tegnbegrensningen.",
+    wordLimit20: "Teksten overstiger maksimumsgrensen på 20 ord.", invalidLang: "Ugyldig språkkode.",
+    invalidCol: "Ugyldig kolonneindeks.", bothRequired: "Både forside og bakside kreves.",
+    duplicateExists: "Dette kortet finnes allerede i den valgte språk-kombinasjonen.",
+    missingIdentity: "Manglende kortidentitet.", noProgress: "Ingen fremgang funnet.",
+    noMastered: "Ingen fullt mestrede (intervall 360+ dager) kort å arkivere.",
+    archivedCount: "Arkiverte {n} mestret(e) kort.", systemBusy: "Systemet er opptatt. Prøv igjen senere."
+  },
+  it: {
+    emptyPrompt: "Prompt di testo vuoto", charLimit: "Il testo di origine supera il limite di caratteri.",
+    wordLimit20: "Il testo supera il limite massimo di 20 parole.", invalidLang: "Codice lingua non valido.",
+    invalidCol: "Indice di colonna non valido.", bothRequired: "Sono richiesti sia fronte che retro.",
+    duplicateExists: "Questa carta esiste già nella coppia di lingue selezionata.",
+    missingIdentity: "Identità carta mancante.", noProgress: "Nessun progresso trovato.",
+    noMastered: "Nessuna carta completamente padroneggiata (intervallo 360+ giorni) da archiviare.",
+    archivedCount: "{n} carte padroneggiate archiviate.", systemBusy: "Sistema occupato. Riprova più tardi."
+  }
+};
+function serverMsg(lang, key, replacements) {
+  var dict = SERVER_STRINGS[lang] || SERVER_STRINGS.en || SERVER_STRINGS.en;
+  var msg = (dict && dict[key]) || SERVER_STRINGS.en[key] || key;
+  if (replacements) {
+    for (var k in replacements) { msg = msg.split('{' + k + '}').join(replacements[k]); }
+  }
+  return msg;
+}
+function validatePrompt_(text, lang) {
+  if (!text) return serverMsg(lang, "emptyPrompt");
+  if (text.length > 500) return serverMsg(lang, "charLimit");
+  if (countWords(text) > 20) return serverMsg(lang, "wordLimit20");
+  return "";
+}
+function validateCardText_(front, back, lang) {
+  if (!front || !back) return serverMsg(lang, "bothRequired");
+  if (countWords(front) > 20 || countWords(back) > 20) return serverMsg(lang, "wordLimit20");
+  return "";
+}
+function translateText(text, sourceLang, targetLang, includeGoogle, lang) {
   try {
     var cleanPrompt = text ? text.toString().trim() : '';
-    if (!cleanPrompt) return { success: false, error: "Empty text prompt" };
-    if (cleanPrompt.length > 500) return { success: false, error: "Source text exceeds the character limit." };
-    if (countWords(cleanPrompt) > 20) return { success: false, error: "Source text exceeds the limit of 20 words." };
-    if (!isValidLanguageCode_(sourceLang) || !isValidLanguageCode_(targetLang)) return { success: false, error: "Invalid language code." };
+    var promptErr = validatePrompt_(cleanPrompt, lang);
+    if (promptErr) return { success: false, error: promptErr };
+    if (!isValidLanguageCode_(sourceLang) || !isValidLanguageCode_(targetLang)) return { success: false, error: serverMsg(lang, "invalidLang") };
     enforceRateLimit_("translate", 20, 60);
     var googleTrans = "";
     if (includeGoogle !== false) {
@@ -598,7 +805,7 @@ function translateText(text, sourceLang, targetLang, includeGoogle) {
     return translationResult;
   } catch (e) { return { success: false, error: e.toString() }; }
 }
-function addNewCardToSheet(frontText, backText, customDeckId, colIdxA, colIdxB) {
+function addNewCardToSheet(frontText, backText, customDeckId, colIdxA, colIdxB, lang) {
   var lock = LockService.getDocumentLock();
   try {
     lock.waitLock(10000);
@@ -612,10 +819,10 @@ function addNewCardToSheet(frontText, backText, customDeckId, colIdxA, colIdxB) 
     if (isNaN(cA) || cA < 0) cA = 0;
     if (isNaN(cB) || cB < 0) cB = 1;
     if (cA === cB || cA >= sheet.getMaxColumns() || cB >= sheet.getMaxColumns()) {
-      return { success: false, error: "Invalid column index." };
+      return { success: false, error: serverMsg(lang, "invalidCol") };
     }
-    if (!f || !b) return { success: false, error: "Both front and back required." };
-    if (countWords(f) > 20 || countWords(b) > 20) return { success: false, error: "Text exceeds maximum 20 words limit." };
+    var cardErr = validateCardText_(f, b, lang);
+    if (cardErr) return { success: false, error: cardErr };
     var existingData = sheet.getDataRange().getValues();
     var cleanFront = cleanString(f);
     var cleanBack = cleanString(b);
@@ -626,7 +833,7 @@ function addNewCardToSheet(frontText, backText, customDeckId, colIdxA, colIdxB) 
         return {
           success: false,
           duplicate: true,
-          error: "This card already exists in the selected language pair.",
+          error: serverMsg(lang, "duplicateExists"),
           front: existingFront,
           back: existingBack
         };
@@ -646,21 +853,21 @@ function addNewCardToSheet(frontText, backText, customDeckId, colIdxA, colIdxB) 
     lock.releaseLock();
   }
 }
-function updateCardInSheet(rowIndex, colIdxA, colIdxB, newFront, newBack, customDeckId, oldCardId) {
+function updateCardInSheet(rowIndex, colIdxA, colIdxB, newFront, newBack, customDeckId, oldCardId, lang) {
   var lock = LockService.getDocumentLock();
   try {
     lock.waitLock(10000);
     var ss = resolveSpreadsheet(customDeckId);
     var sheet = ss.getSheets()[0];
-    if (!oldCardId) return { success: false, error: "Missing card identity." };
+    if (!oldCardId) return { success: false, error: serverMsg(lang, "missingIdentity") };
     var location = getCardLocation_(sheet, rowIndex, colIdxA, colIdxB, oldCardId);
     var r = location.rowIndex;
     var cA = location.colIdxA;
     var cB = location.colIdxB;
     var cleanF = preventInjection(newFront ? newFront.toString().trim() : '');
     var cleanB = preventInjection(newBack ? newBack.toString().trim() : '');
-    if (!cleanF || !cleanB) return { success: false, error: "Both front and back required." };
-    if (countWords(cleanF) > 20 || countWords(cleanB) > 20) return { success: false, error: "Text exceeds maximum 20 words limit." };
+    var cardErr = validateCardText_(cleanF, cleanB, lang);
+    if (cardErr) return { success: false, error: cardErr };
     var oldF = sheet.getRange(r, cA + 1).getValue();
     var oldB = sheet.getRange(r, cB + 1).getValue();
     try {
@@ -678,7 +885,7 @@ function updateCardInSheet(rowIndex, colIdxA, colIdxB, newFront, newBack, custom
     lock.releaseLock();
   }
 }
-function saveProgressToSheet_(activeDeckId, uKey, progressMap, lockAlreadyHeld, changedCardIds) {
+function saveProgressToSheet_(activeDeckId, uKey, progressMap, lockAlreadyHeld, changedCardIds, precomputedRowMap) {
   var lock = null;
   try {
     if (!lockAlreadyHeld) {
@@ -687,7 +894,7 @@ function saveProgressToSheet_(activeDeckId, uKey, progressMap, lockAlreadyHeld, 
     }
     var ss = SpreadsheetApp.openById(activeDeckId);
     var sheet = ss.getSheetByName('SRS_Progress');
-    var headers = ['UserKey', 'CardId', 'Interval', 'NextReview', 'FailCount', 'IsLeech', 'LastReviewed', 'EF', 'PrevInterval'];
+    var headers = PROGRESS_HEADERS;
     var created = false;
     if (!sheet) {
       sheet = ss.insertSheet('SRS_Progress');
@@ -697,31 +904,60 @@ function saveProgressToSheet_(activeDeckId, uKey, progressMap, lockAlreadyHeld, 
     if (sheet.getMaxColumns() < headers.length) {
       sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
     }
-    var data = sheet.getDataRange().getValues();
-    if (data.length === 0) {
-      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-      data = [headers];
-    } else if (data[0].length < headers.length || data[0][8] !== headers[8]) {
-      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    }
-    var rowsByCardId = {};
-    for (var i = 1; i < data.length; i++) {
-      if (data[i][0] === uKey) {
-        rowsByCardId[data[i][1]] = i + 1;
+    var rowsByCardId = precomputedRowMap || {};
+    if (!precomputedRowMap) {
+      var data = sheet.getDataRange().getValues();
+      if (data.length === 0) {
+        sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      } else if (data[0].length < headers.length || data[0][10] !== headers[10]) {
+        sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      }
+      for (var i = 1; i < data.length; i++) {
+        if (data[i][0] === uKey) {
+          rowsByCardId[data[i][3]] = i + 1;
+        }
+      }
+    } else {
+      var headerRow = sheet.getRange(1, 1, 1, Math.max(1, sheet.getMaxColumns())).getValues()[0];
+      if (headerRow[10] !== headers[10] || headerRow.length < headers.length) {
+        sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
       }
     }
     var idsToSave = changedCardIds || Object.keys(progressMap);
     var newRows = [];
+    var updateRows = [];
+    var deckIdInfo = null;
     for (var idIndex = 0; idIndex < idsToSave.length; idIndex++) {
       var cardId = idsToSave[idIndex];
       var p = progressMap[cardId];
       if (!p) continue;
-      var rowValues = [uKey, cardId, p.interval, "'" + p.nextReview, p.failCount, p.isLeech ? 1 : 0, p.lastReviewed ? "'" + p.lastReviewed : "", p.ef, p.prevInterval || ""];
+      var langA = p.langA ? String(p.langA) : '';
+      var langB = p.langB ? String(p.langB) : '';
+      if (!rowsByCardId[cardId] && (!langA || !langB)) {
+        if (!deckIdInfo) deckIdInfo = getCardIdInfoFromValues_(ss.getSheets()[0].getDataRange().getValues());
+        var fb = getCardFrontBackByProgressId_(cardId, deckIdInfo);
+        if (fb) { langA = fb.front; langB = fb.back; }
+      }
+      var rowValues = [uKey, langA, langB, cardId, p.interval, "'" + p.nextReview, p.failCount, p.isLeech ? 1 : 0, p.lastReviewed ? "'" + p.lastReviewed : "", p.ef, p.prevInterval || ""];
       if (rowsByCardId[cardId]) {
-        sheet.getRange(rowsByCardId[cardId], 1, 1, headers.length).setValues([rowValues]);
+        updateRows.push({ row: rowsByCardId[cardId], values: rowValues });
       } else {
         newRows.push(rowValues);
       }
+    }
+    updateRows.sort(function (a, b) { return a.row - b.row; });
+    for (var updateIndex = 0; updateIndex < updateRows.length; ) {
+      var runStart = updateRows[updateIndex].row;
+      var runEnd = runStart;
+      var runEndIndex = updateIndex;
+      while (runEndIndex + 1 < updateRows.length && updateRows[runEndIndex + 1].row === runEnd + 1) {
+        runEnd++;
+        runEndIndex++;
+      }
+      var runValues = [];
+      for (var runRow = updateIndex; runRow <= runEndIndex; runRow++) runValues.push(updateRows[runRow].values);
+      sheet.getRange(runStart, 1, runValues.length, headers.length).setValues(runValues);
+      updateIndex = runEndIndex + 1;
     }
     if (newRows.length > 0) sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, headers.length).setValues(newRows);
     if (created) formatTrackingSheet_(sheet, 'progress');
@@ -775,12 +1011,11 @@ function saveHistoryToSheet_(activeDeckId, uKey, todayStr, newCardDelta, oldCard
     var existingCachedHistory = historyCache.get(historyCacheKey);
     if (existingCachedHistory) {
       try { cachedHistory = JSON.parse(existingCachedHistory) || {}; } catch (e) { cachedHistory = {}; }
-      cachedHistory.studyHistory = cachedHistory.studyHistory || {};
-      cachedHistory.studiedLog = cachedHistory.studiedLog || {};
-      cachedHistory.studyHistory[todayStr] = cachedNextNew + cachedNextOld;
-      cachedHistory.studiedLog = { date: todayStr, newCount: cachedNextNew, oldCount: cachedNextOld };
-      historyCache.put(historyCacheKey, JSON.stringify(cachedHistory), 300);
     }
+    cachedHistory.studyHistory = cachedHistory.studyHistory || {};
+    cachedHistory.studyHistory[todayStr] = cachedNextNew + cachedNextOld;
+    cachedHistory.studiedLog = { date: todayStr, newCount: cachedNextNew, oldCount: cachedNextOld };
+    historyCache.put(historyCacheKey, JSON.stringify(cachedHistory), 300);
   } catch (e) {
     console.error("Failed to save history: " + e.message);
     throw e;
@@ -792,12 +1027,13 @@ function getReviewEventSheet_(ss) {
   var sheet = ss.getSheetByName('SRS_ReviewEvents');
   if (!sheet) {
     sheet = ss.insertSheet('SRS_ReviewEvents');
-    sheet.getRange(1, 1, 1, REVIEW_EVENT_HEADERS.length).setValues([REVIEW_EVENT_HEADERS]);
     sheet.setFrozenRows(1);
-    sheet.getRange(1, 1, 1, REVIEW_EVENT_HEADERS.length).setFontWeight('bold');
-  } else if (sheet.getMaxColumns() < REVIEW_EVENT_HEADERS.length) {
+  }
+  if (sheet.getMaxColumns() < REVIEW_EVENT_HEADERS.length) {
     sheet.insertColumnsAfter(sheet.getMaxColumns(), REVIEW_EVENT_HEADERS.length - sheet.getMaxColumns());
   }
+  sheet.getRange(1, 1, 1, REVIEW_EVENT_HEADERS.length).setValues([REVIEW_EVENT_HEADERS]);
+  sheet.getRange(1, 1, 1, REVIEW_EVENT_HEADERS.length).setFontWeight('bold');
   return sheet;
 }
 function parseReviewEventResult_(value) {
@@ -808,7 +1044,15 @@ function saveHistoryCountsFromEvents_(activeDeckId, uKey, todayStr, eventData, t
   var newCount = 0;
   var oldCount = 0;
   for (var i = 1; i < eventData.length; i++) {
-    if (eventData[i][0] !== uKey || parseDateToString(eventData[i][8], timeZone) !== todayStr) continue;
+    if (eventData[i][0] !== uKey) continue;
+    var cell = eventData[i][8];
+    var isToday;
+    if (cell instanceof Date) {
+      isToday = Utilities.formatDate(cell, timeZone, "yyyy-MM-dd") === todayStr;
+    } else {
+      isToday = (cell ? String(cell).trim().replace(/^'+/, '') : '') === todayStr;
+    }
+    if (!isToday) continue;
     if (eventData[i][5] === true || eventData[i][5] === 1 || eventData[i][5] === 'true') newCount++;
     else oldCount++;
   }
@@ -833,17 +1077,27 @@ function saveSegmentResults(batchArray, customDeckId, clientTodayStr, clientTime
     var selectedColB = columns.colIdxB;
     var cardIdInfo = ensureCardIdColumn_(mainSheet);
     var validCardIds = {};
+    var progressCardInfo = {};
     var mainData = mainSheet.getDataRange().getValues();
     for (var rowIndex = 1; rowIndex < mainData.length; rowIndex++) {
       var identity = getCardIdentity_(mainData[rowIndex], selectedColA, selectedColB, mainData[rowIndex][cardIdInfo.idColumn]);
-      if (identity.front && identity.back) validCardIds[identity.progressId] = true;
+      if (identity.front && identity.back) {
+        validCardIds[identity.progressId] = true;
+        progressCardInfo[identity.progressId] = { langA: identity.front, langB: identity.back };
+      }
     }
     var timeZone = resolveClientTimeZone(clientTimeZone);
     var todayStr = getTodayString(timeZone);
     var nowMs = Date.now();
     var uKey = getActiveUserId();
     var progressSheet = ss.getSheetByName('SRS_Progress');
-    var savedProgress = readProgressForUser_(progressSheet, uKey, timeZone, todayStr);
+    ensureProgressSchema_(ss, getCardIdInfoFromValues_(mainData));
+    var progressData = progressSheet ? progressSheet.getDataRange().getValues() : [];
+    var savedProgress = readProgressForUser_(progressSheet, uKey, timeZone, todayStr, progressData);
+    var progressRowsByCardId = {};
+    for (var progressDataIndex = 1; progressDataIndex < progressData.length; progressDataIndex++) {
+      if (progressData[progressDataIndex][0] === uKey) progressRowsByCardId[String(progressData[progressDataIndex][3])] = progressDataIndex + 1;
+    }
     var eventSheet = getReviewEventSheet_(ss);
     var eventData = eventSheet.getDataRange().getValues();
     var originalEventLength = eventData.length;
@@ -861,12 +1115,26 @@ function saveSegmentResults(batchArray, customDeckId, clientTodayStr, clientTime
     }
     var pendingEvents = [];
     batchArray.forEach(function (item) {
-      if (!item || !item.cardId || !validCardIds[item.cardId] || item.clientId === undefined || item.clientId === null) throw new Error("Invalid study result.");
+      if (!item || !item.cardId || !validCardIds[item.cardId] || item.clientId === undefined || item.clientId === null) return;
       var clientId = String(item.clientId);
       var existingRow = eventsByClientId[clientId];
       if (existingRow !== undefined) {
-        if (eventData[existingRow][10] === 'APPLIED') return;
-        pendingEvents.push({ row: existingRow, item: {
+        var isCorrection = item.corrected === true;
+        var sameCorrectionApplied = eventData[existingRow][10] === 'APPLIED' &&
+          eventData[existingRow][3] === (item.isCorrect === true) &&
+          eventData[existingRow][4] === (item.confidence || '') &&
+          eventData[existingRow][6] === (item.isTypo === true);
+        if (eventData[existingRow][10] === 'APPLIED' && (!isCorrection || sameCorrectionApplied)) return;
+        if (isCorrection) {
+          eventData[existingRow][3] = item.isCorrect === true;
+          eventData[existingRow][4] = item.confidence || '';
+          eventData[existingRow][6] = item.isTypo === true;
+          eventData[existingRow][9] = '';
+          var corrLangInfo = progressCardInfo[eventData[existingRow][2]] || {};
+          if (corrLangInfo.langA) eventData[existingRow][12] = corrLangInfo.langA;
+          if (corrLangInfo.langB) eventData[existingRow][13] = corrLangInfo.langB;
+        }
+        pendingEvents.push({ row: existingRow, item: isCorrection ? item : {
           cardId: eventData[existingRow][2], isCorrect: eventData[existingRow][3] === true || eventData[existingRow][3] === 1,
           confidence: eventData[existingRow][4], isTypo: eventData[existingRow][6] === true || eventData[existingRow][6] === 1,
           inDifficultMode: eventData[existingRow][7] === true || eventData[existingRow][7] === 1
@@ -874,17 +1142,27 @@ function saveSegmentResults(batchArray, customDeckId, clientTodayStr, clientTime
         return;
       }
       var newRow = eventData.length;
-      eventData.push([uKey, clientId, item.cardId.toString(), item.isCorrect === true, item.confidence || '', '', item.isTypo === true, item.inDifficultMode === true, item.lastReviewed || todayStr, '', 'PENDING', '']);
+      var newLangInfo = progressCardInfo[item.cardId] || {};
+      eventData.push([uKey, clientId, item.cardId.toString(), item.isCorrect === true, item.confidence || '', '', item.isTypo === true, item.inDifficultMode === true, item.lastReviewed || todayStr, '', 'PENDING', '', newLangInfo.langA || '', newLangInfo.langB || '']);
       eventsByClientId[clientId] = newRow;
       pendingEvents.push({ row: newRow, item: item });
     });
+    for (var backfillRow = 1; backfillRow < eventData.length; backfillRow++) {
+      if (eventData[backfillRow][12]) continue;
+      var backfillInfo = progressCardInfo[eventData[backfillRow][2]];
+      if (backfillInfo) {
+        eventData[backfillRow][12] = backfillInfo.langA;
+        eventData[backfillRow][13] = backfillInfo.langB;
+        eventSheet.getRange(backfillRow + 1, 13, 1, 2).setValues([[backfillInfo.langA, backfillInfo.langB]]);
+      }
+    }
     for (var pendingIndex = 0; pendingIndex < pendingEvents.length; pendingIndex++) {
       var event = pendingEvents[pendingIndex];
       var eventRowData = eventData[event.row];
       var cardId = event.item.cardId.toString();
       var result = parseReviewEventResult_(eventRowData[9]);
       if (!result) {
-        var wasNew = !savedProgress[cardId];
+        var wasNew = (eventRowData[5] === true || eventRowData[5] === 1) ? true : !savedProgress[cardId];
         var cardState = savedProgress[cardId] || { interval: 1, failCount: 0, isLeech: false, ef: 2.5, prevInterval: null };
         var reviewDays = reviewDaysByCard[cardId] || {};
         var reviewCount = Object.keys(reviewDays).length;
@@ -896,7 +1174,18 @@ function saveSegmentResults(batchArray, customDeckId, clientTodayStr, clientTime
         eventRowData[5] = wasNew;
         eventRowData[9] = JSON.stringify(result);
       }
-      savedProgress[cardId] = result;
+      if (progressCardInfo[cardId]) {
+        var mergedResult = result;
+        if (!result.langA && !result.langB) {
+          mergedResult = {};
+          for (var mergeKey in result) mergedResult[mergeKey] = result[mergeKey];
+          mergedResult.langA = progressCardInfo[cardId].langA;
+          mergedResult.langB = progressCardInfo[cardId].langB;
+        }
+        savedProgress[cardId] = mergedResult;
+      } else {
+        savedProgress[cardId] = result;
+      }
     }
     // Persist computed results before the sheet update. A retry can reuse them
     // after an interruption without scheduling the same answer twice.
@@ -908,11 +1197,11 @@ function saveSegmentResults(batchArray, customDeckId, clientTodayStr, clientTime
     }
     if (newEventRows.length > 0) eventSheet.getRange(originalEventLength + 1, 1, newEventRows.length, REVIEW_EVENT_HEADERS.length).setValues(newEventRows);
     var changedCardIds = pendingEvents.map(function (event) { return event.item.cardId.toString(); });
-    saveProgressToSheet_(activeDeckId, uKey, savedProgress, true, changedCardIds);
+    saveProgressToSheet_(activeDeckId, uKey, savedProgress, true, changedCardIds, progressRowsByCardId);
     saveHistoryCountsFromEvents_(activeDeckId, uKey, todayStr, eventData, timeZone);
     for (var appliedIndex = 0; appliedIndex < pendingEvents.length; appliedIndex++) {
       eventData[pendingEvents[appliedIndex].row][10] = 'APPLIED';
-      eventData[pendingEvents[appliedIndex].row][11] = new Date();
+      eventData[pendingEvents[appliedIndex].row][11] = formatUtcDateTime_(Date.now());
     }
     for (var appliedWriteIndex = 0; appliedWriteIndex < pendingEvents.length; appliedWriteIndex++) {
       var appliedEvent = pendingEvents[appliedWriteIndex];
@@ -925,6 +1214,7 @@ function saveSegmentResults(batchArray, customDeckId, clientTodayStr, clientTime
     });
     return { success: true, appliedProgress: appliedProgress };
   } catch (e) {
+    Logger.log("saveSegmentResults ERROR: " + e.toString());
     return { success: false, error: e.toString() };
   } finally {
     lock.releaseLock();
@@ -962,7 +1252,7 @@ function getArchiveSheet_(ss, mainSheet) {
   return archiveSheet;
 }
 // Archive operations are idempotent and restore progress if deletion fails.
-function archiveMasteredCards(customDeckId, colIdxA, colIdxB) {
+function archiveMasteredCards(customDeckId, colIdxA, colIdxB, lang) {
   var ss = resolveSpreadsheet(customDeckId);
   var lock = LockService.getDocumentLock();
   try {
@@ -980,16 +1270,17 @@ function archiveMasteredCards(customDeckId, colIdxA, colIdxB) {
     var cardIdInfo = ensureCardIdColumn_(mainSheet);
     var progSheet = ss.getSheetByName('SRS_Progress');
     var archiveSheet = getArchiveSheet_(ss, mainSheet);
-    if (!progSheet) return { success: false, message: "No progress found." };
-    var progData = progSheet.getDataRange().getValues();
+    if (!progSheet) return { success: false, message: serverMsg(lang, "noProgress") };
     var mainData = mainSheet.getDataRange().getValues();
+    ensureProgressSchema_(ss, getCardIdInfoFromValues_(mainData));
+    var progData = progSheet.getDataRange().getValues();
     var masteredIds = new Set();
     for (var i = 1; i < progData.length; i++) {
-      if (progData[i][0] === activeUserKey && parseFloat(progData[i][2]) >= 360) {
-        masteredIds.add(progData[i][1]);
+      if (progData[i][0] === activeUserKey && parseFloat(progData[i][4]) >= 360) {
+        masteredIds.add(progData[i][3]);
       }
     }
-    if (masteredIds.size === 0) return { success: true, count: 0, message: "No fully mastered (Interval 360+ days) cards to archive." };
+    if (masteredIds.size === 0) return { success: true, count: 0, message: serverMsg(lang, "noMastered") };
     var rowsToDelete = [];
     var rowsToArchive = [];
     var archivedCardIds = {};
@@ -1028,7 +1319,7 @@ function archiveMasteredCards(customDeckId, colIdxA, colIdxB) {
     if (rowsToDelete.length > 0 || rowsToArchive.length > 0) {
       var progressRowsToDelete = [];
       for (var p = 1; p < progData.length; p++) {
-        if (progData[p][0] === activeUserKey && masteredIds.has(progData[p][1])) progressRowsToDelete.push(p + 1);
+        if (progData[p][0] === activeUserKey && masteredIds.has(progData[p][3])) progressRowsToDelete.push(p + 1);
       }
       if (progressRowsToDelete.length > 10) {
         var progressDeleteSet = {};
@@ -1042,9 +1333,9 @@ function archiveMasteredCards(customDeckId, colIdxA, colIdxB) {
         deleteRowsInRuns_(progSheet, progressRowsToDelete);
       }
     }
-    return { success: true, count: rowsToArchive.length, message: "Archived " + rowsToArchive.length + " mastered cards." };
+    return { success: true, count: rowsToArchive.length, message: serverMsg(lang, "archivedCount", { n: rowsToArchive.length }) };
   } catch (e) {
-    return { success: false, message: "System busy. Please try again later." };
+    return { success: false, message: serverMsg(lang, "systemBusy") };
   } finally {
     lock.releaseLock();
   }
@@ -1066,7 +1357,11 @@ function getAudioBase64(text, lang) {
     if (response.getResponseCode() === 200) {
       var blob = response.getBlob();
       var audioData = "data:audio/mp3;base64," + Utilities.base64Encode(blob.getBytes());
-      cache.put(cacheKey, audioData, 21600);
+      try {
+        cache.put(cacheKey, audioData, 21600);
+      } catch (cacheError) {
+        Logger.log("Audio cache put failed: " + cacheError);
+      }
       return { success: true, data: audioData };
     }
     return { success: false, error: "HTTP " + response.getResponseCode() };
@@ -1106,14 +1401,14 @@ function checkSpelling(text, lang) {
     return { success: false, error: e.toString() };
   }
 }
-function archiveSingleCard(rowIndex, customDeckId, cardId, colIdxA, colIdxB) {
+function archiveSingleCard(rowIndex, customDeckId, cardId, colIdxA, colIdxB, lang) {
   var ss = resolveSpreadsheet(customDeckId);
   var lock = LockService.getDocumentLock();
   try {
     lock.waitLock(10000);
     var mainSheet = ss.getSheets()[0];
     var archiveSheet = getArchiveSheet_(ss, mainSheet);
-    if (!cardId) return { success: false, error: "Missing card identity." };
+    if (!cardId) return { success: false, error: serverMsg(lang, "missingIdentity") };
     var location = getCardLocation_(mainSheet, rowIndex, colIdxA, colIdxB, cardId);
     var r = location.rowIndex;
     var progressId = getProgressId_(cardId, location.colIdxA, location.colIdxB);
@@ -1127,10 +1422,11 @@ function archiveSingleCard(rowIndex, customDeckId, cardId, colIdxA, colIdxB) {
     var activeUserKey = getActiveUserId();
     var progressSheet = ss.getSheetByName('SRS_Progress');
     if (progressSheet && cardId) {
+      ensureProgressSchema_(ss, getCardIdInfoFromValues_(mainSheet.getDataRange().getValues()));
       var progressData = progressSheet.getDataRange().getValues();
       var singleProgressRowsToDelete = [];
       for (var progressIndex = 1; progressIndex < progressData.length; progressIndex++) {
-        if (progressData[progressIndex][0] === activeUserKey && progressData[progressIndex][1] === progressId) singleProgressRowsToDelete.push(progressIndex + 1);
+        if (progressData[progressIndex][0] === activeUserKey && progressData[progressIndex][3] === progressId) singleProgressRowsToDelete.push(progressIndex + 1);
       }
       if (singleProgressRowsToDelete.length > 0) {
         deleteRowsInRuns_(progressSheet, singleProgressRowsToDelete);

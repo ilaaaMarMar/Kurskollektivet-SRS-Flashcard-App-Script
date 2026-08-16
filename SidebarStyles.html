@@ -1,3 +1,7 @@
+    /* SidebarStyles — all sidebar CSS.
+   Theme tokens (:root), layout (.top-bar, .stat-card, .box-grid),
+   quiz controls, heatmap, gamification badges, modals.
+   Included inside <style> in Sidebar.html. */
     :root {
       --bg-body: #f8f9fa;
       --bg-card: #ffffff;
@@ -152,14 +156,12 @@
     }
     #appLogo {
       width: 100%;
+      height: auto;
       display: block;
       transition: transform 0.3s ease;
     }
     [data-theme="kurskollektivet"] .logo-container {
       max-width: 355px;
-    }
-    [data-theme="kurskollektivet"] #appLogo {
-      transform: scale(1.002, 1.04);
     }
     .view-section { display: none; width: 100%; max-width: 700px; margin: 0 auto; box-sizing: border-box; }
     .modal {
@@ -172,11 +174,11 @@
       border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); color: var(--text-main);
     }
     .modal-content h3 { color: var(--text-main); margin-top: 0; }
-    .user-bar-container { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; width: 100%; max-width: 700px; margin: 0 auto 12px auto; gap: 8px; box-sizing: border-box; }
+    .top-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; width: 100%; max-width: 700px; margin: 0 auto 12px auto; gap: 8px; box-sizing: border-box; }
+    .top-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .user-box { flex: 1; min-width: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 4px 12px; box-sizing: border-box; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04); font-size: 11px; color: var(--text-main); font-weight: 600; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .lang-select-btn { font-size: 11px; padding: 4px 6px; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; color: var(--text-main); font-weight: 600; cursor: pointer; white-space: nowrap; }
     .lang-select-btn:hover { background-color: var(--bg-secondary); }
-    .btn-popout { font-size: 11px; padding: 3px 8px; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; color: var(--primary); font-weight: 600; cursor: pointer; white-space: nowrap; }
-    .btn-popout:hover { background-color: var(--bg-primary-light); }
     .dash-container { width: 100%; display: flex; flex-direction: column; gap: 12px; }
     .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; box-sizing: border-box; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04); transition: background-color 0.2s; }
     .stat-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
@@ -195,6 +197,11 @@
       .archive-mastered-btn:hover { background: var(--border-danger-light); color: #fff; }
       .archive-mastered-btn:disabled { opacity: 0.4; cursor: not-allowed; }
       .modal-label { font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; text-align: left; }
+      .modal-title { font-weight: 700; font-size: 14px; margin-bottom: 10px; color: var(--text-main); }
+      .trans-opt { padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+      .trans-opt-label { font-size: 10px; font-weight: 700; color: var(--primary); text-transform: uppercase; }
+      .trans-opt-text { font-size: 13px; font-weight: 600; color: var(--text-main); }
+      .lang-pair-select { flex:1; min-width:0; text-overflow:ellipsis; padding:6px; border:none; background:var(--bg-card); font-size:13px; font-weight:800; color:var(--primary); border-radius:4px; cursor:pointer; text-align:center; text-align-last:center; text-transform:uppercase; }
       .modal-input { margin-top: 2px; }
     .stat-number-row { display: flex; align-items: baseline; justify-content: space-between; }
     .stat-big { font-size: 26px; font-weight: 800; color: var(--primary); }
@@ -206,8 +213,8 @@
     .box-view { flex: 0 0 auto; padding: 3px 7px; border: 1px solid var(--border); border-radius: 5px; background: var(--bg-card); color: var(--primary); font-size: 10px; font-weight: 700; cursor: pointer; }
     .box-view:hover { background: var(--bg-primary-light); }
     .box-view:disabled { cursor: not-allowed; }
-    .heatmap-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    .heatmap-controls { display: flex; align-items: center; gap: 6px; }
+    .heatmap-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 6px 10px; }
+    .heatmap-nav-row { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-bottom: 4px; }
     .heatmap-nav-btn { width: 24px; height: 24px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); color: var(--primary); font-size: 11px; font-weight: 700; line-height: 1; }
     .heatmap-nav-btn:hover { background: var(--bg-primary-light); }
     .heatmap-nav-btn:disabled { color: var(--text-muted); background: var(--bg-secondary); border-color: var(--border); cursor: not-allowed; }
@@ -269,6 +276,7 @@
     .btn-conf-hard:hover { background-color: var(--hard-border); }
     .btn-conf-easy { background-color: var(--easy-bg); color: var(--easy-text); border: 1px solid var(--easy-border); font-size: 11px; padding: 8px 4px; }
     .btn-conf-easy:hover { background-color: var(--easy-border); }
+    .btn-conf-again.conf-selected, .btn-conf-hard.conf-selected, .btn-conf-good.conf-selected, .btn-conf-easy.conf-selected { box-shadow: 0 0 0 2px var(--primary) inset; transform: scale(1.04); }
     .tiles-answer-box { width: 100%; min-height: 42px; background: var(--bg-card); border: 1.5px dashed var(--border); border-radius: 8px; padding: 6px; box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
     .tiles-pool-box { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 8px; }
     .tile-btn { background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--text-main); cursor: pointer; }

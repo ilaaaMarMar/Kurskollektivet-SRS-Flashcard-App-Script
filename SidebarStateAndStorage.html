@@ -1,0 +1,245 @@
+    <script>
+      /* SidebarStateAndStorage — shared client state + persistence layer.
+         State: rawData, pools, session flags, flipSelection, badgesFauna,
+         session-unique clientId generator.
+         Persistence: localStorage, startup/load/refresh, global keydown
+         handler, runServerMutation() server-call plumbing, initApp merge. */
+    const $ = id => document.getElementById(id);
+      let rawData = null;
+      let activeUserKey = "";
+      let currentWebAppUrl = "";
+      let selectedPair = { idxA: 0, idxB: 1, codeA: 'no', codeB: 'en' };
+      let allCards = [];
+      let duePool = [];
+      let newPool = [];
+      let leechPool = [];
+      let nonDuePool = [];
+      let studiedTodayPool = [];
+      let activeQuizMode = 'due';
+      let totalDueThisSession = 0;
+      let leechProgress = {};
+      function getLeechModeCategory(mode) {
+        if (mode === 'mcq' || mode === 'tf') return 'recognition';
+        if (mode === 'audio_dictation') return 'listening';
+        if (mode === 'typing') return 'typing';
+        return null;
+      }
+      function getLeechProgress(cardId) {
+        return leechProgress[cardId] || { recognition: false, listening: false, typing: false };
+      }
+      function markLeechModePassed(cardId, category) {
+        const prog = leechProgress[cardId] || { recognition: false, listening: false, typing: false };
+        if (prog[category]) return false;
+        prog[category] = true;
+        leechProgress[cardId] = prog;
+        saveLeechProgress();
+        return prog.recognition && prog.listening && prog.typing;
+      }
+      function clearLeechProgress(cardId) {
+        delete leechProgress[cardId];
+        saveLeechProgress();
+      }
+      function saveLeechProgress() {
+        try { localStorage.setItem('srs_leech_progress', JSON.stringify(leechProgress)); } catch (e) {}
+      }
+      function handleLeechPass(cardId, resultItem) {
+        if (activeQuizMode !== 'leeches') return false;
+        const category = getLeechModeCategory(currentMode);
+        if (!category) return false;
+        if (markLeechModePassed(cardId, category)) {
+          resultItem.clearLeech = true;
+          clearLeechProgress(cardId);
+          if (rawData && rawData.savedProgress) {
+            if (!rawData.savedProgress[cardId]) rawData.savedProgress[cardId] = {};
+            rawData.savedProgress[cardId].failCount = 0;
+            rawData.savedProgress[cardId].isLeech = false;
+          }
+          return true;
+        }
+        return false;
+      }
+      let segmentQueue = [];
+      let currentCard = null;
+      let isForward = true;
+      let targetPrompt = "";
+      let targetAnswer = "";
+      let promptLangCode = "en";
+      let answerLangCode = "en";
+      let currentMode = "";
+      let mcqCorrectIndex = -1;
+      let tfIsActuallyCorrect = false;
+      let tfProposedText = "";
+      let clozeTargetWordRaw = "";
+      let clozeTargetWordClean = "";
+      let clozeClueType = "";
+      let currentTileSelected = [];
+      let targetTileWords = [];
+      let quizDistractorWords = { front: [], back: [] };
+      let lastGradedCard = null;
+      let isReverseDictation = false;
+      let flipSelection = null;
+      let pendingBatchResults = [];
+      let nextPendingResultId = 1;
+      const CLIENT_SESSION_ID = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+      function nextClientId() {
+        return CLIENT_SESSION_ID + ':' + (nextPendingResultId++);
+      }
+      const STREAM_BATCH_SIZE = 3;
+      const STREAM_DEBOUNCE_MS = 1500;
+      let streamFlushTimer = null;
+      let isFlushInFlight = false;
+      let pendingFlushPromise = null;
+      let dashboardRefreshPending = false;
+      let historyVersion = 0;
+      let hasAutoPlayed = false;
+      let isRetyping = false;
+      let segmentStats = { correct: 0, wrong: 0, newCards: 0, reviewCards: 0, dueClearedNotice: false };
+      let nextDueTimestamp = Infinity;
+      let dueCountdownInterval = null;
+      let lastFeedbackTime = 0;
+      let lastShownRewardFingerprint = "";
+      const badgesFauna = [
+        { id: 'w4', req: 4, type: 'week', emoji: '🐛', name: '4 Days/Wk', color: 'var(--success)' },
+        { id: 'w5', req: 5, type: 'week', emoji: '🦋', name: '5 Days/Wk', color: '#0f9d58' },
+        { id: 'w6', req: 6, type: 'week', emoji: '🐁', name: '6 Days/Wk', color: '#00bfa5' },
+        { id: 'w7', req: 7, type: 'week', emoji: '🐇', name: '7 Days/Wk', color: '#00bcd4' },
+        { id: 'm10', req: 10, type: 'month', emoji: '🦊', name: '10 Days/Mo', color: '#4285f4' },
+        { id: 'y60', req: 60, type: 'year', emoji: '🦅', name: '60 Days/Yr', color: '#673ab7' },
+        { id: 'm20', req: 20, type: 'month', emoji: '🐺', name: '20 Days/Mo', color: 'var(--primary)' },
+        { id: 'y120', req: 120, type: 'year', emoji: '🐆', name: '120 Days/Yr', color: '#ab47bc' },
+        { id: 'y150', req: 150, type: 'year', emoji: '🦍', name: '150 Days/Yr', color: '#e91e63' },
+        { id: 'y90', req: 90, type: 'year', emoji: '🐅', name: '90 Days/Yr', color: 'var(--violet)' },
+        { id: 'm30', req: 30, type: 'month', emoji: '🐻', name: '30 Days/Mo', color: '#3f51b5' },
+        { id: 'y180', req: 180, type: 'year', emoji: '🦏', name: '180 Days/Yr', color: '#f06292' },
+        { id: 'y210', req: 210, type: 'year', emoji: '🐘', name: '210 Days/Yr', color: 'var(--danger)' },
+        { id: 'y240', req: 240, type: 'year', emoji: '🐋', name: '240 Days/Yr', color: '#d32f2f' },
+        { id: 'y270', req: 270, type: 'year', emoji: '🦖', name: '270 Days/Yr', color: '#ff5722' },
+        { id: 'y300', req: 300, type: 'year', emoji: '🦄', name: '300 Days/Yr', color: '#f57c00' },
+        { id: 'y330', req: 330, type: 'year', emoji: '🐉', name: '330 Days/Yr', color: '#ff9800' },
+        { id: 'y360', req: 360, type: 'year', emoji: '🐦‍🔥', name: '360 Days/Yr', color: '#f9a825' }
+      ];
+    </script>
+    <script>
+      document.addEventListener('keydown', function(e) {
+        ensureDomCache();
+        const quizView = $('viewQuiz');
+        if (!quizView || quizView.style.display === 'none') return;
+        const activeEl = document.activeElement;
+        const isTypingInput = activeEl && activeEl.tagName === 'INPUT';
+        if (isTypingInput && (e.key === 'Enter' || e.key === ' ')) return;
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          if (currentMode === 'flip' && revealBtnEl && revealBtnEl.style.display !== 'none') { revealFlip(); }
+          else if (nextBtnEl && nextBtnEl.style.display !== 'none') {
+            if (Date.now() - lastFeedbackTime < 600) return;
+            renderNextCard();
+          }
+        }
+        if (currentMode === 'flip') {
+          if (flipAnswerAreaEl && flipAnswerAreaEl.style.display !== 'none') {
+            const confKeys = ['again', 'hard', 'good', 'easy'];
+            if (['1', '2', '3', '4'].includes(e.key)) { e.preventDefault(); selectFlipConfidence(confKeys[parseInt(e.key, 10) - 1]); }
+            else if ((e.key === 'Enter' || e.key === ' ') && flipSubmitEl && !flipSubmitEl.disabled) { e.preventDefault(); submitFlipSelection(); }
+          }
+        } else if (currentMode === 'mcq' || currentMode === 'cloze_mcq') {
+          if (['1', '2', '3', '4'].includes(e.key)) {
+            e.preventDefault();
+            const idx = parseInt(e.key, 10) - 1;
+            const mcqBtn = $(`mcq${idx}`);
+            if (mcqBtn && !mcqBtn.disabled) checkMCQ(idx);
+          }
+        } else if (currentMode === 'tf') {
+          if (e.key.toLowerCase() === 't' || e.key === '1') {
+            e.preventDefault();
+            const trueBtn = $('tfTrueBtn');
+            if (trueBtn && !trueBtn.disabled) checkTF(true);
+          } else if (e.key.toLowerCase() === 'f' || e.key === '2') {
+            e.preventDefault();
+            const falseBtn = $('tfFalseBtn');
+            if (falseBtn && !falseBtn.disabled) checkTF(false);
+          }
+        }
+      });
+      window.onload = function() {
+        initDomCache();
+        const savedTheme = localStorage.getItem('srs_app_theme') || 'kurskollektivet';
+        changeAppTheme(savedTheme);
+        try { leechProgress = JSON.parse(localStorage.getItem('srs_leech_progress') || '{}') || {}; } catch (e) { leechProgress = {}; }
+        setupLifecycleSync();
+        try {
+          if (typeof window.URL_DECK_ID !== 'undefined') localStorage.setItem('srs_selected_deck_id', window.URL_DECK_ID.trim());
+          const urlParams = new URLSearchParams(window.location.search);
+          const deckId = urlParams.get('deck');
+          if (deckId && deckId.trim().length > 0 && deckId !== 'undefined') { localStorage.setItem('srs_selected_deck_id', deckId.trim()); }
+        } catch(e) {}
+        const defaultLang = detectDefaultUiLanguage(); applyUiLanguage(defaultLang);
+        initPreflightFlow();
+      };
+      function initPreflightFlow() {
+        $('loading-ui').style.display = 'block'; $('main-ui').style.display = 'none';
+        const t = i18n[currentUiLang] || i18n.en;
+        loadFlashcardData(function(error) {
+          console.error("Initialization Failed:", error);
+          showCustomAlert(t.loadError || "Error loading flashcard data. Ensure you have access to the Google Spreadsheet.");
+        });
+      }
+      function loadFlashcardData(onFailure) {
+        const savedDeckId = localStorage.getItem('srs_selected_deck_id') || "";
+        const savedHeaderA = localStorage.getItem('srs_headerA_' + savedDeckId) || "";
+        const savedHeaderB = localStorage.getItem('srs_headerB_' + savedDeckId) || "";
+        const t = i18n[currentUiLang] || i18n.en;
+        google.script.run
+          .withSuccessHandler(initApp)
+          .withFailureHandler(onFailure || (() => { showCustomAlert(t.loadError || "Error loading flashcard data. Ensure you have access to the Google Spreadsheet."); }))
+          .getFlashcardData(savedDeckId, getClientTodayStr(), getClientTimeZone(), savedHeaderA, savedHeaderB);
+      }
+      function fetchData(onFailure) { loadFlashcardData(onFailure); }
+      function initApp(data) {
+        $('loading-ui').style.display = 'none'; $('main-ui').style.display = 'block'; $('topBar').style.display = 'flex'; $('dashTopBar').style.display = 'flex';
+        const t = i18n[currentUiLang] || i18n.en;
+        const pendingCardIds = new Set((pendingBatchResults || []).map(result => result.cardId));
+        const pendingDates = new Set((pendingBatchResults || []).map(result => result.lastReviewed));
+        if (rawData && rawData.savedProgress && data && data.savedProgress) {
+          pendingCardIds.forEach(cardId => {
+            if (rawData.savedProgress[cardId]) data.savedProgress[cardId] = rawData.savedProgress[cardId];
+          });
+        }
+        if (data) {
+          const serverStudied = data.studiedToday || { newCount: 0, oldCount: 0 };
+          const pendingToday = (pendingBatchResults || []).filter(result => result.lastReviewed === data.todayStr);
+          data.studiedToday = {
+            newCount: (serverStudied.newCount || 0) + pendingToday.filter(result => result.wasNew).length,
+            oldCount: (serverStudied.oldCount || 0) + pendingToday.filter(result => !result.wasNew).length
+          };
+        }
+        if (rawData && rawData.studyHistory && data && pendingDates.size > 0) {
+          const mergedHistory = Object.assign({}, data.studyHistory || {});
+          pendingDates.forEach(function(dateKey) {
+            var serverVal = parseInt(mergedHistory[dateKey] || 0, 10) || 0;
+            var localVal = parseInt(rawData.studyHistory[dateKey] || 0, 10) || 0;
+            mergedHistory[dateKey] = Math.max(serverVal, localVal);
+          });
+          data.studyHistory = mergedHistory;
+        }
+        rawData = data;
+        activeUserKey = data.activeUserKey;
+        $('loggedInUser').innerText = data.activeUserEmail ? (t.loggedInAs || 'Logged in as: ') + data.activeUserEmail : (t.loggedInUnavailable || 'Logged-in account unavailable');
+        currentWebAppUrl = data.webAppUrl || (t.webAppUrlUnavailable || "Not available");
+        $('webAppUrlInput').value = currentWebAppUrl;
+        $('dashDeckName').innerText = data.ssName || "Spreadsheet Deck";
+        initLanguages();
+        if (dashboardRefreshPending) {
+          dashboardRefreshPending = false;
+          isFlushInFlight = false;
+        }
+        processCardsForActivePair();
+      }
+      const INTERVAL_STAGES = [1 / 24, 3, 7, 14, 30, 60, 90, 180, 359, 360];
+      function getStageFromInterval(ivl, isNew) {
+        if (isNew || ivl < 1) return 1;
+        for (let i = 1; i < INTERVAL_STAGES.length; i++) {
+          if (ivl <= INTERVAL_STAGES[i]) return i + 1;
+        }
+        return INTERVAL_STAGES.length;
+      }
+    </script>

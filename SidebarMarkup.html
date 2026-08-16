@@ -1,8 +1,27 @@
+  <!-- SidebarMarkup — static HTML for the whole UI:
+     logo, top bar (deck/lang/theme selectors), dashboard cards
+     (heatmap, badges), quiz screen, and all modals (edit card,
+     translate/quick-add, studied list, rewards).
+     Element ids are the contract with the script partials. -->
   <div class="logo-container">
     <img id="appLogo" width="355" height="50" loading="eager" fetchpriority="high" src="https://raw.githubusercontent.com/ilaaaMarMar/Kurskollektivet-SRS-Flashcard-App-Script/refs/heads/main/LOGO%20KK%20banner%20cropped.png" alt="Kurskollektivet Logo" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='block';">
     <div id="logoFallback" style="display:none; font-size: 26px; font-weight: 900; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; width: 100%; text-align: center;">Kurskollektivet</div>
   </div>
-  <div id="loggedInUser" style="width:100%; max-width:700px; margin:-4px auto 10px; font-size:11px; color:var(--success-text); font-weight:700; text-align:center;"></div>
+  <div class="top-bar" id="dashTopBar" style="display:none;">
+    <div id="loggedInUser" class="user-box"></div>
+    <div class="top-controls">
+      <select id="uiLangSelect" class="lang-select-btn" onchange="changeUiLanguage(this.value)">
+          <option value="en">🇬🇧 EN</option>
+          <option value="no">🇳🇴 NO</option>
+          <option value="it">🇮🇹 IT</option>
+      </select>
+      <select id="themeSelectUI" class="lang-select-btn" onchange="changeAppTheme(this.value)">
+          <option value="kurskollektivet">☀️ Light Theme</option>
+          <option value="dark">🌙 Dark Theme</option>
+      </select>
+      <button class="lang-select-btn" onclick="openWebAppModal()" title="Open Web App Link" id="btnWebApp">🌐 Web App ↗</button>
+    </div>
+  </div>
   <div id="customDialogModal" class="modal" style="z-index:9999;">
     <div class="modal-content">
       <h3 style="margin-top:0;" id="customDialogTitle">Notice</h3>
@@ -19,7 +38,7 @@
       <div id="rewardModalTitle" style="font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">🎉 New Reward!</div>
       <div id="rewardModalIcon" style="font-size: 60px; margin: 10px 0; filter: drop-shadow(0px 4px 4px rgba(0,0,0,0.15));">🏆</div>
       <div id="rewardModalName" style="font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">Badge Name</div>
-      <button class="btn-primary" style="margin-top: 14px;" onclick="document.getElementById('rewardModal').style.display='none'" id="btnRewardDismiss">Woohoo!</button>
+      <button class="btn-primary" style="margin-top: 14px;" onclick="showNextReward()" id="btnRewardDismiss">Woohoo!</button>
     </div>
   </div>
   <div id="studiedCardsModal" class="modal">
@@ -35,7 +54,7 @@
   <div id="main-ui" class="view-section" style="width: 100%;">
     <div id="webAppModal" class="modal" style="z-index:1000;">
       <div class="modal-content">
-        <div style="font-weight:700; font-size:14px; margin-bottom:10px; color:var(--text-main);" id="lblWebAppTitle">🌐 Web App Link</div>
+        <div class="modal-title" id="lblWebAppTitle">🌐 Web App Link</div>
         <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;" id="lblWebAppDesc">Copy the link below to access your flashcards directly in your browser.</p>
         <input type="text" id="webAppUrlInput" readonly style="background:var(--bg-secondary); cursor:pointer; text-align:center; margin-bottom:12px;" onclick="this.select()">
         <div class="row">
@@ -46,7 +65,7 @@
     </div>
     <div id="editCardModal" class="modal" style="z-index:1000;">
       <div class="modal-content">
-        <div style="font-weight:700; font-size:14px; margin-bottom:10px; color:var(--text-main);" id="lblEditModalTitle">✏️ Edit Card</div>
+        <div class="modal-title" id="lblEditModalTitle">✏️ Edit Card</div>
         <div id="editWordWarning" class="warning-box"></div>
         <label class="modal-label" id="lblEditFront">Front Text:</label>
         <input type="text" class="modal-input" id="editFrontInput" oninput="validateEditInputs()">
@@ -60,13 +79,13 @@
     </div>
     <div id="translateModal" class="modal" style="z-index:1000;">
       <div class="modal-content">
-        <div style="font-weight:700; font-size:14px; margin-bottom:10px; color:var(--text-main);" id="lblTranslateTitle">🔍 Dictionary & Quick Add</div>
+        <div class="modal-title" id="lblTranslateTitle">🔍 Dictionary & Quick Add</div>
         <div id="transWordWarning" class="warning-box"></div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <label style="font-size:11px; font-weight:600; color:var(--text-muted);" id="lblTransDir">Direction:</label>
+          <label class="modal-label" id="lblTransDir">Direction:</label>
           <select id="transDirSelect" style="padding:4px 8px; font-size:12px; font-weight:700; color:var(--primary); border-radius:6px; border:1px solid var(--border); background:var(--bg-secondary); cursor:pointer;"></select>
         </div>
-        <label style="font-size:11px; font-weight:600; color:var(--text-muted); display:block; text-align:left;" id="lblLookUpText">Look up word / phrase:</label>
+        <label class="modal-label" id="lblLookUpText">Look up word / phrase:</label>
         <div style="display:flex; gap:6px; margin-top:2px; margin-bottom:10px;">
           <input type="text" id="transSourceInput" style="margin-bottom:0;" placeholder="Type word..." oninput="validateTranslateInputs()" onkeydown="if(event.key==='Enter') runAiTranslation()">
           <button class="btn-primary" style="width:auto; padding:0 12px; white-space:nowrap;" onclick="runAiTranslation()" id="btnRunTranslate">🔍 Translate</button>
@@ -77,20 +96,20 @@
         </div>
         <div id="transResultsArea" style="display:none; flex-direction:column; gap:6px; margin-bottom:12px; background:var(--bg-secondary); padding:8px; border-radius:8px;">
           <div style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; text-align:left;" id="lblSelectBestTrans">Select the best translation:</div>
-          <button class="btn-mcq" style="padding:8px 10px; display:flex; flex-direction:column; gap:2px;" onclick="selectTranslationOption(this.getAttribute('data-val'))" id="optGoogleTrans">
-              <span style="font-size:10px; font-weight:700; color:var(--primary); text-transform:uppercase;">🌐 Google Translate</span>
-              <span style="font-size:13px; font-weight:600; color:var(--text-main);" id="optGoogleTransText">...</span>
+          <button class="btn-mcq trans-opt" onclick="selectTranslationOption(this.getAttribute('data-val'))" id="optGoogleTrans">
+              <span class="trans-opt-label">🌐 Google Translate</span>
+              <span class="trans-opt-text" id="optGoogleTransText">...</span>
           </button>
-          <button class="btn-mcq" style="padding:8px 10px; display:flex; flex-direction:column; gap:2px;" onclick="selectTranslationOption(this.getAttribute('data-val'))" id="optDeeplTrans">
-              <span style="font-size:10px; font-weight:700; color:var(--primary); text-transform:uppercase;">🟦 DeepL Translator</span>
-              <span style="font-size:13px; font-weight:600; color:var(--text-main);" id="optDeeplTransText">...</span>
+          <button class="btn-mcq trans-opt" onclick="selectTranslationOption(this.getAttribute('data-val'))" id="optDeeplTrans">
+              <span class="trans-opt-label">🟦 DeepL Translator</span>
+              <span class="trans-opt-text" id="optDeeplTransText">...</span>
           </button>
-          <button class="btn-mcq" style="padding:8px 10px; display:flex; flex-direction:column; gap:2px;" onclick="selectTranslationOption(this.getAttribute('data-val'))" id="optGeminiTrans">
-              <span style="font-size:10px; font-weight:700; color:var(--primary); text-transform:uppercase;">✨ Google Gemini AI</span>
-              <span style="font-size:13px; font-weight:600; color:var(--text-main);" id="optGeminiTransText">...</span>
+          <button class="btn-mcq trans-opt" onclick="selectTranslationOption(this.getAttribute('data-val'))" id="optGeminiTrans">
+              <span class="trans-opt-label">✨ Google Gemini AI</span>
+              <span class="trans-opt-text" id="optGeminiTransText">...</span>
           </button>
         </div>
-        <label style="font-size:11px; font-weight:600; color:var(--text-muted); display:block; text-align:left;" id="lblResultText">Final Card Answer:</label>
+        <label class="modal-label" id="lblResultText">Final Card Answer:</label>
         <input type="text" id="transResultInput" style="margin-top:2px; margin-bottom:12px;" placeholder="Result will appear here..." oninput="validateTranslateInputs()">
         <div class="row">
           <button class="btn-secondary" onclick="closeTranslateModal()" id="btnCancelTranslate">Close</button>
@@ -98,26 +117,13 @@
         </div>
       </div>
     </div>
-    <div class="user-bar-container">
-      <button class="lang-select-btn" onclick="openWebAppModal()" title="Open Web App Link" id="btnWebApp">🌐 Web App ↗</button>
-      <select id="uiLangSelect" class="lang-select-btn" onchange="changeUiLanguage(this.value)">
-          <option value="en">🇬🇧 EN</option>
-          <option value="no">🇳🇴 NO</option>
-          <option value="it">🇮🇹 IT</option>
-      </select>
-      <select id="themeSelectUI" class="lang-select-btn" onchange="changeAppTheme(this.value)">
-          <option value="kurskollektivet">🎨 Kurskollektivet Theme</option>
-          <option value="dark">🌙 Dark Theme</option>
-      </select>
-      <button class="btn-popout" id="popoutToggleBtn" onclick="handleWindowToggle()">↗ Pop Out</button>
-    </div>
     <div id="viewDashboard" class="dash-container">
       <div class="stat-card">
         <div class="stat-title" id="lblLangCombo">Language Combination</div>
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; padding: 6px; background-color: var(--bg-primary-light); border: 1.5px solid var(--border-primary-light); border-radius: 8px; box-sizing: border-box; width: 100%;">
-            <select id="langASelect" style="flex:1; min-width:0; text-overflow:ellipsis; padding:6px; border:none; background:var(--bg-card); font-size:13px; font-weight:800; color:var(--primary); border-radius:4px; cursor:pointer; text-align:center; text-align-last:center; text-transform:uppercase;"></select>
+            <select id="langASelect" class="lang-pair-select"></select>
             <span style="font-size: 16px; font-weight: 800; color: var(--text-muted); flex-shrink: 0;">➔</span>
-            <select id="langBSelect" style="flex:1; min-width:0; text-overflow:ellipsis; padding:6px; border:none; background:var(--bg-card); font-size:13px; font-weight:800; color:var(--primary); border-radius:4px; cursor:pointer; text-align:center; text-align-last:center; text-transform:uppercase;"></select>
+            <select id="langBSelect" class="lang-pair-select"></select>
         </div>
       </div>
       <div class="stat-card">
@@ -162,16 +168,16 @@
       <div class="stat-card">
         <div class="heatmap-header">
           <div class="stat-title" id="lblStudyConsistency" style="margin-bottom:0;">🗓️ Study Consistency</div>
-          <div class="heatmap-controls">
-            <button type="button" id="hmPrevBtn" class="heatmap-nav-btn" onclick="shiftHeatmapWindow(-1)" aria-label="Previous period">◀</button>
-            <span id="hmPeriodLabel" class="heatmap-period-label">This Week</span>
-            <button type="button" id="hmNextBtn" class="heatmap-nav-btn" onclick="shiftHeatmapWindow(1)" aria-label="Next period">▶</button>
-            <select id="hmRangeSelect" class="range-select" onchange="onHeatmapRangeChange()">
-                <option value="7" selected id="optRangeWeek">1 Week</option>
-                <option value="30" id="optRangeMonth">1 Month</option>
-                <option value="365" id="optRangeYear">1 Year</option>
-            </select>
-          </div>
+          <select id="hmRangeSelect" class="range-select" onchange="onHeatmapRangeChange()">
+            <option value="7" selected id="optRangeWeek">Week</option>
+            <option value="30" id="optRangeMonth">Month</option>
+            <option value="365" id="optRangeYear">Year</option>
+          </select>
+        </div>
+        <div class="heatmap-nav-row">
+          <button type="button" id="hmPrevBtn" class="heatmap-nav-btn" onclick="shiftHeatmapWindow(-1)" aria-label="Previous period">◀</button>
+          <span id="hmPeriodLabel" class="heatmap-period-label">This Week</span>
+          <button type="button" id="hmNextBtn" class="heatmap-nav-btn" onclick="shiftHeatmapWindow(1)" aria-label="Next period">▶</button>
         </div>
         <div class="heatmap-stats-bar" id="hmStatsBar">Active 0 days</div>
         <div class="heatmap-container" id="hmScrollContainer">
@@ -201,7 +207,7 @@
       </div>
     </div>
     <div id="viewQuiz" style="display:none; width:100%;">
-      <div class="top-bar">
+  <div class="top-bar" id="topBar" style="display:none;">
         <div class="badge-container">
           <span class="badge badge-info" id="dirBadge">NO ➔ EN</span>
           <span class="badge badge-mode" id="typeBadge">FLIP</span>
@@ -230,11 +236,12 @@
           <div class="answer-text" id="flipAnswerText"></div>
           <button class="btn-audio" id="ansAudioBtn" onclick="playAnswerAudio()">🔊 <span id="lblListenAns">Listen Answer</span></button>
           <div class="confidence-grid" id="confGrid">
-            <button type="button" class="btn-conf-again" onclick="submitAnswer(false, 'again')">🔴 <br><strong id="lblConfAgain">Again</strong></button>
-            <button type="button" class="btn-conf-hard" onclick="submitAnswer(true, 'hard')">🟠 <br><strong id="lblConfHard">Hard</strong></button>
-            <button type="button" class="btn-conf-good" onclick="submitAnswer(true, 'good')">🟢 <br><strong id="lblConfGood">Good</strong></button>
-            <button type="button" class="btn-conf-easy" onclick="submitAnswer(true, 'easy')">🔵 <br><strong id="lblConfEasy">Easy</strong></button>
+            <button type="button" class="btn-conf-again" id="btn-conf-again" onclick="selectFlipConfidence('again')">🔴 <br><strong id="lblConfAgain">Again</strong></button>
+            <button type="button" class="btn-conf-hard" id="btn-conf-hard" onclick="selectFlipConfidence('hard')">🟠 <br><strong id="lblConfHard">Hard</strong></button>
+            <button type="button" class="btn-conf-good" id="btn-conf-good" onclick="selectFlipConfidence('good')">🟢 <br><strong id="lblConfGood">Good</strong></button>
+            <button type="button" class="btn-conf-easy" id="btn-conf-easy" onclick="selectFlipConfidence('easy')">🔵 <br><strong id="lblConfEasy">Easy</strong></button>
           </div>
+          <button type="button" class="btn-primary" id="flipSubmitBtn" onclick="submitFlipSelection()" style="margin-top:10px;" disabled>Submit Answer</button>
         </div>
         <button type="button" class="btn-primary" id="revealBtn" onclick="revealFlip()">Reveal Answer</button>
       </div>
